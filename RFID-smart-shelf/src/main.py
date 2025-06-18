@@ -2,7 +2,7 @@ import pathlib
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-
+5555555555555555555555555555555555555555555555555555
 # --- Setup ---
 # ตรวจสอบให้แน่ใจว่า path นี้ถูกต้องตามโครงสร้างโปรเจกต์ของคุณ
 # (ไฟล์ main.py อยู่ใน src/ และไฟล์ templates อยู่ใน src/templates/)
