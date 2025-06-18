@@ -3,115 +3,113 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RFID Smart Shelf Interface</title>
+    <title>Smart Shelf UI</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f7f7f7; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .container { display: flex; flex-direction: row; gap: 32px; padding: 20px; }
-        .info-panel, .shelf-panel { background: #fff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); padding: 24px; }
-        .info-panel { min-width: 350px; }
-        .info-row { margin-bottom: 12px; }
-        .info-label { color: #666; font-size: 0.9em; }
-        .info-value { font-size: 1.1em; font-weight: bold; color: #333; }
-        .lot-number { font-size: 2em; }
-        .shelf-title { font-size: 1.2em; font-weight: bold; margin-bottom: 16px; text-align: center; }
-        .shelf-grid { display: grid; grid-template-columns: repeat(4, 50px); grid-template-rows: repeat(6, 50px); gap: 8px; }
-        .shelf-cell { width: 50px; height: 50px; border: 2px solid #ccc; border-radius: 6px; background: #f0f0f0; transition: all 0.2s; }
-        .shelf-cell.occupied { background-color: #e74c3c; border-color: #c0392b; } /* สีแดง: มีของ */
-        .shelf-cell.from-position { background-color: #f1c40f; border-color: #f39c12; animation: pulse-yellow 1.5s infinite; } /* สีเหลือง: หยิบจากที่นี่ */
-        .shelf-cell.to-position { background-color: #2ecc71; border-color: #27ae60; animation: pulse-green 1.5s infinite; } /* สีเขียว: วางที่นี่ */
-        @keyframes pulse-yellow { 0% { box-shadow: 0 0 0 0 rgba(241, 196, 15, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(241, 196, 15, 0); } 100% { box-shadow: 0 0 0 0 rgba(241, 196, 15, 0); } }
-        @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); } 100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); } }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f0f2f5; }
+        .main-container { display: flex; align-items: center; gap: 40px; padding: 40px; background-color: #fff; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+        .details-panel { display: flex; flex-direction: column; gap: 16px; min-width: 220px; }
+        .details-panel .label { font-size: 16px; color: #6c757d; }
+        .details-panel .value { font-size: 20px; font-weight: 600; color: #343a40; }
+        .details-panel .lot-no { font-size: 48px; font-weight: 700; line-height: 1.1; }
+        .status-badge { background-color: #6c757d; color: white; padding: 6px 16px; border-radius: 16px; font-weight: 600; }
+        .status-badge.Waiting { background-color: #0d6efd; }
+        .status-badge.InProgress { background-color: #ffc107; color: #000; }
+        .status-badge.Done { background-color: #198754; }
+        .shelf-panel h2 { font-size: 20px; color: #343a40; margin: 0 0 10px 0; text-align: center; }
+        /* --- แก้ไขตรงนี้ --- */
+        .shelf-grid { display: grid; grid-template-rows: repeat(4, 50px); grid-template-columns: repeat(6, 50px); gap: 5px; padding: 10px; background-color: #f8f9fa; border: 1px solid #dee2e6; }
+        .shelf-frame { border: 10px solid #adb5bd; border-radius: 5px; padding: 5px; }
+        .shelf-cell { background-color: #fff; border: 1px solid #e9ecef; border-radius: 2px; }
+        .highlight-active { background-color: #dc3545; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="info-panel">
-            <div class="info-row">
-                <span class="info-label">Lot No.</span><br>
-                <span class="info-value lot-number" id="lotNo">-</span>
+    <div class="main-container">
+        <div class="details-panel" id="detailsPanel">
+            <div>
+                <span class="label">Status</span>
+                <span class="value"><span class="status-badge" id="status">Waiting</span></span>
             </div>
-            <div class="info-row">
-                <span class="info-label">Product / Process</span><br>
-                <span class="info-value" id="productProcess">-</span>
+            <div>
+                <span class="label">Lot No.</span>
+                <span class="value lot-no" id="lot_no">...</span>
             </div>
-            <div class="info-row">
-                <span class="info-label">From STK / Level / Block</span><br>
-                <span class="info-value" id="fromInfo">-</span>
+            <div>
+                <span class="label">Form</span>
+                <span class="value" id="from_shelf">...</span>
             </div>
-            <div class="info-row">
-                <span class="info-label">To STK / Level / Block</span><br>
-                <span class="info-value" id="toInfo">-</span>
+            <div>
+                <span class="label">Employee ID</span>
+                <span class="value" id="emp_id">...</span>
             </div>
-             <div class="info-row">
-                <span class="info-label">Time Stamp</span><br>
-                <span class="info-value" id="timeStamp">-</span>
+            <div>
+                <span class="label">Time Stamp</span>
+                <span class="value" id="timestamp">...</span>
             </div>
         </div>
         <div class="shelf-panel">
-            <div class="shelf-title">Shelf View</div>
-            <div class="shelf-grid" id="shelf-grid"></div>
+            <h2>Shelf</h2>
+            <div class="shelf-frame">
+                <div class="shelf-grid" id="shelfGrid"></div>
+            </div>
         </div>
     </div>
 
     <script>
-        const initialData = {{ data | tojson | safe }};
+        const shelfGrid = document.getElementById('shelfGrid');
+        // --- และแก้ไขตรงนี้ ---
+        const ROWS = 4;
+        const COLS = 6;
 
-        function createShelfGrid() {
-            const grid = document.getElementById('shelf-grid');
-            grid.innerHTML = ''; // Clear previous grid
-            for (let i = 0; i < 24; i++) {
+        // --- สร้างชั้นวางเปล่าๆ ตอนเริ่ม ---
+        for (let r = 1; r <= ROWS; r++) {
+            for (let c = 1; c <= COLS; c++) {
                 const cell = document.createElement('div');
-                cell.className = 'shelf-cell';
-                cell.id = `cell-${Math.floor(i/4)}-${i%4}`; // ID e.g., cell-0-0 for row 0, col 0
-                grid.appendChild(cell);
+                cell.classList.add('shelf-cell');
+                cell.id = `cell-${r}-${c}`;
+                shelfGrid.appendChild(cell);
             }
         }
 
-        function renderData(data) {
-            if (!data || Object.keys(data).length === 0) return; // Do nothing if no data
+        // --- ฟังก์ชันสำหรับ Update UI ทั้งหมด ---
+        function updateUI(data) {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = data.status;
+            statusEl.className = 'status-badge ' + data.status.replace(' ', '');
+            
+            document.getElementById('lot_no').textContent = data.lotNo;
+            document.getElementById('from_shelf').textContent = data.from;
+            document.getElementById('emp_id').textContent = data.employeeId;
+            document.getElementById('timestamp').textContent = data.timestamp;
 
-            // Update Text Info
-            document.getElementById('lotNo').innerText = data.LotNo || '-';
-            document.getElementById('productProcess').innerText = `${data.ProductType || ''} / ${data.Process || ''}`;
-            document.getElementById('fromInfo').innerText = `${data.FromSTK || ''} / ${data.FromLevel || ''} / ${data.FromBlock || ''}`;
-            document.getElementById('toInfo').innerText = `${data.ToSTK || ''} / ${data.ToLevel || ''} / ${data.ToBlock || ''}`;
-            document.getElementById('timeStamp').innerText = data.TimeStamp || '-';
-
-            // Reset all cells
-            const cells = document.querySelectorAll('.shelf-cell');
-            cells.forEach(cell => cell.className = 'shelf-cell');
-
-            // Highlight occupied positions
-            if (data.PositionSTK) {
-                data.PositionSTK.forEach(pos => {
-                    const cellId = `cell-${pos[0]}-${pos[1]}`;
-                    const cell = document.getElementById(cellId);
-                    if (cell) cell.classList.add('occupied');
-                });
-            }
-
-            // Highlight FROM position (Yellow)
-            const fromRow = parseInt(data.FromLevel) - 1;
-            const fromCol = parseInt(data.FromBlock) - 1;
-            const fromCell = document.getElementById(`cell-${fromRow}-${fromCol}`);
-            if (fromCell) {
-                fromCell.classList.remove('occupied'); // Remove red if it exists
-                fromCell.classList.add('from-position');
-            }
-
-            // Highlight TO position (Green)
-            const toRow = parseInt(data.ToLevel) - 1;
-            const toCol = parseInt(data.ToBlock) - 1;
-            const toCell = document.getElementById(`cell-${toRow}-${toCol}`);
-            if (toCell) {
-                toCell.classList.add('to-position');
+            document.querySelectorAll('.shelf-cell').forEach(c => c.classList.remove('highlight-active'));
+            if (data.location) {
+                const targetCell = document.getElementById(`cell-${data.location.row}-${data.location.col}`);
+                if (targetCell) {
+                    targetCell.classList.add('highlight-active');
+                }
             }
         }
 
-        window.onload = function() {
-            createShelfGrid();
-            renderData(initialData);
-        };
+        // --- ฟังก์ชันโหลดข้อมูลจาก localStorage ---
+        function loadDataFromStorage() {
+            const commandJSON = localStorage.getItem('shelfCommand');
+            if (commandJSON) {
+                const commandData = JSON.parse(commandJSON);
+                updateUI(commandData);
+            }
+        }
+
+        // --- รอรับข้อมูลใหม่จากหน้า Test API ---
+        window.addEventListener('storage', function(event) {
+            if (event.key === 'shelfCommand') {
+                loadDataFromStorage();
+            }
+        });
+
+        // --- โหลดข้อมูลครั้งแรกเมื่อเปิดหน้า ---
+        loadDataFromStorage();
     </script>
 </body>
 </html>

@@ -3,142 +3,108 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RFID Smart Shelf Interface</title>
+    <title>Test API - Smart Shelf Command</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f7f7f7; margin: 0; }
-        .container { display: flex; flex-direction: row; justify-content: center; align-items: flex-start; margin-top: 40px; }
-        .info-panel { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px #0001; padding: 32px 32px 24px 32px; margin-right: 32px; min-width: 320px; }
-        .status-row { display: flex; align-items: center; margin-bottom: 18px; }
-        .status-label { font-size: 1.1em; color: #444; margin-right: 8px; }
-        .status-badge { background: #6c8cff; color: #fff; border-radius: 8px; padding: 2px 18px; font-weight: bold; font-size: 1.1em; }
-        .info-row { margin-bottom: 10px; }
-        .info-label { color: #888; font-size: 1em; }
-        .lot-number { font-size: 2.5em; font-weight: bold; color: #222; }
-        .product-type { font-size: 1.2em; color: #444; }
-        .process-info, .stk-info { font-size: 1em; color: #666; margin-bottom: 4px; }
-        .shelf-panel { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px #0001; padding: 32px 32px 24px 32px; }
-        .shelf-title { font-size: 1.2em; font-weight: bold; margin-bottom: 10px; }
-        .shelf-grid { display: grid; grid-template-columns: repeat(4, 40px); grid-template-rows: repeat(6, 40px); gap: 6px; margin-bottom: 10px; }
-        .shelf-cell { width: 40px; height: 40px; border: 1.5px solid #bbb; border-radius: 5px; background: #f4f4f4; transition: background 0.2s; position: relative; }
-        .shelf-cell:hover { background: #e0eaff; cursor: pointer; }
-        .shelf-cell.occupied { background: #ff4d4d; }
-        .shelf-cell.from-position { background: #ffe066; }
-        .shelf-cell.to-position { background: #5be17a; }
-        .level-label { position: absolute; left: -28px; top: 10px; font-size: 0.9em; color: #888; }
-        .block-label { text-align: center; font-size: 0.9em; color: #888; margin-bottom: 2px; }
-        .control-panel { margin-top: 18px; }
-        .update-btn { background: #6c8cff; color: #fff; border: none; border-radius: 6px; padding: 8px 18px; font-size: 1em; cursor: pointer; }
-        .update-btn:hover { background: #4a6ed1; }
-        .json-input { width: 100%; height: 120px; border-radius: 6px; border: 1px solid #bbb; padding: 8px; font-size: 1em; margin-bottom: 8px; }
-        .position-info { margin-top: 10px; font-size: 1em; color: #444; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 2em; background-color: #f0f2f5; color: #333; }
+        .container { max-width: 700px; margin: auto; background: #fff; padding: 2em; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        h1, h2 { color: #0056b3; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5em; }
+        .form-group { margin-bottom: 1em; }
+        .full-width { grid-column: 1 / -1; }
+        label { display: block; margin-bottom: .5em; font-weight: 600; }
+        input, select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        button { width: 100%; padding: 12px; font-size: 1.1em; cursor: pointer; background-color: #28a745; color: white; border: none; border-radius: 5px; margin-top: 1em; }
+        #status-message { margin-top: 1em; font-weight: bold; text-align: center; }
+        pre { background-color: #2d333b; color: #cdd9e5; padding: 1em; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word; }
+        .link { margin-top: 2em; text-align: center; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="info-panel">
-            <div class="status-row">
-                <span class="status-label">Status</span>
-                <span class="status-badge" id="status">-</span>
+    <div class="container" oninput="updateJsonPreview()">
+        <h1>Smart Shelf - API Simulator</h1>
+        
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="action">Action</label>
+                <select id="action">
+                    <option value="PICK">หยิบอย่างเดียว (Pick)</option>
+                    <option value="PUT">วางอย่างเดียว (Put)</option>
+                </select>
             </div>
-            <div class="info-row">
-                <span class="info-label">Lot No.</span><br>
-                <span class="lot-number" id="lotNo">-</span>
+            <div class="form-group">
+                <label for="status">Status</label>
+                <select id="status">
+                    <option>Waiting</option>
+                    <option>In Progress</option>
+                    <option>Done</option>
+                </select>
             </div>
-            <div class="info-row">
-                <span class="info-label">Form</span><br>
-                <span class="product-type" id="form">-</span>
+            <div class="form-group">
+                <label for="lot_no">Lot No.</label>
+                <input type="text" id="lot_no" value="123456">
             </div>
-            <div class="info-row">
-                <span class="info-label">Employee ID</span><br>
-                <span id="employeeId">-</span>
+            <div class="form-group">
+                <label for="from_shelf">From</label>
+                <input type="text" id="from_shelf" value="A">
             </div>
-            <div class="info-row">
-                <span class="info-label" id="timeStamp">Time Stamp -</span>
+            <div class="form-group">
+                <label for="emp_id">Employee ID</label>
+                <input type="text" id="emp_id" value="2025014">
+            </div>
+             <div class="form-group">
+                <label for="location">Location (Row-Col)</label>
+                <div style="display: flex; gap: 1em;">
+                    <input type="number" id="loc_row" value="2" placeholder="Row">
+                    <input type="number" id="loc_col" value="2" placeholder="Col">
+                </div>
             </div>
         </div>
-        <div class="shelf-panel">
-            <div class="shelf-title">Shelf</div>
-            <div class="block-label">
-                <span style="display:inline-block;width:40px;">B1</span>
-                <span style="display:inline-block;width:40px;">B2</span>
-                <span style="display:inline-block;width:40px;">B3</span>
-                <span style="display:inline-block;width:40px;">B4</span>
-            </div>
-            <div class="shelf-grid" id="shelf-grid"></div>
-            <div class="position-info" id="positionInfo"></div>
+
+        <div class="form-group full-width">
+            <h2>JSON Preview</h2>
+            <pre><code id="json-preview"></code></pre>
+        </div>
+        
+        <button onclick="sendCommand()">Send API Command</button>
+        <div id="status-message"></div>
+        <div class="link">
+            <a href="shelf_ui.html" target="_blank">Open Shelf UI</a>
         </div>
     </div>
 
     <script>
-        // รับข้อมูลจาก backend (ถ้ามี)
-        const initialData = {{ data | tojson | safe }};
-
-        // สร้าง shelf grid 4x6 (4 blocks, 6 levels)
-        function createShelfGrid() {
-            const grid = document.getElementById('shelf-grid');
-            grid.innerHTML = '';
-            for (let row = 0; row < 6; row++) {
-                for (let col = 0; col < 4; col++) {
-                    const cell = document.createElement('div');
-                    cell.className = 'shelf-cell';
-                    cell.dataset.row = row;
-                    cell.dataset.col = col;
-                    // แสดง label แถวซ้ายสุด
-                    if (col === 0) {
-                        const levelLabel = document.createElement('span');
-                        levelLabel.className = 'level-label';
-                        levelLabel.innerText = `L${row + 1}`;
-                        cell.appendChild(levelLabel);
-                    }
-                    cell.onclick = function() {
-                        showPositionInfo(row, col);
-                    };
-                    grid.appendChild(cell);
-                }
-            }
+        function updateJsonPreview() {
+            const command = buildCommandObject();
+            document.getElementById('json-preview').textContent = JSON.stringify(command, null, 4);
         }
 
-        function showPositionInfo(row, col) {
-            document.getElementById('positionInfo').innerText = `Level: ${row + 1}, Block: ${col + 1}`;
+        function buildCommandObject() {
+             return {
+                action: document.getElementById('action').value,
+                status: document.getElementById('status').value,
+                lotNo: document.getElementById('lot_no').value,
+                from: document.getElementById('from_shelf').value,
+                employeeId: document.getElementById('emp_id').value,
+                location: {
+                    row: parseInt(document.getElementById('loc_row').value),
+                    col: parseInt(document.getElementById('loc_col').value)
+                },
+                timestamp: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
+            };
         }
 
-        function clearPositionInfo() {
-            document.getElementById('positionInfo').innerText = '';
+        function sendCommand() {
+            const commandData = buildCommandObject();
+            localStorage.setItem('shelfCommand', JSON.stringify(commandData));
+
+            const statusDiv = document.getElementById('status-message');
+            statusDiv.textContent = 'SUCCESS: Command sent!';
+            statusDiv.style.color = 'green';
+            setTimeout(() => statusDiv.textContent = '', 3000);
         }
-
-        // อัปเดตข้อมูลบนหน้าเว็บ
-        function renderData(data) {
-            document.getElementById('status').innerText = data.Status || '-';
-            document.getElementById('lotNo').innerText = data.LotNo || '-';
-            document.getElementById('form').innerText = data.Form || '-';
-            document.getElementById('employeeId').innerText = data.EmployeeID || '-';
-            document.getElementById('timeStamp').innerText = `Time Stamp ${data.TimeStamp || '-'}`;
-
-            // อัปเดตชั้นวาง
-            const shelfGrid = document.getElementById('shelf-grid');
-            const cells = shelfGrid.getElementsByClassName('shelf-cell');
-            // รีเซ็ต
-            for (const cell of cells) {
-                cell.classList.remove('occupied', 'from-position', 'to-position');
-            }
-            // ระบายสีช่องที่มีสินค้า
-            if (data.ShelfPositions) {
-                data.ShelfPositions.forEach(pos => {
-                    const row = pos[0];
-                    const col = pos[1];
-                    const cellIndex = row * 4 + col;
-                    if (cells[cellIndex]) {
-                        cells[cellIndex].classList.add('occupied');
-                    }
-                });
-            }
-        }
-
-        window.onload = function() {
-            createShelfGrid();
-            clearPositionInfo();
-            if (typeof initialData !== 'undefined' && initialData) {
-                renderData(initialData);
-            }
-        };
+        
+        // Initial call to show JSON on page load
+        updateJsonPreview();
     </script>
+</body>
+</html>
