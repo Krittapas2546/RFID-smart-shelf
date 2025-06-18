@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RFID Smart Shelf Interface</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f7f7f7; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .container { display: flex; flex-direction: row; gap: 32px; padding: 20px; }
+        .info-panel, .shelf-panel { background: #fff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); padding: 24px; }
+        .info-panel { min-width: 350px; }
+        .info-row { margin-bottom: 12px; }
+        .info-label { color: #666; font-size: 0.9em; }
+        .info-value { font-size: 1.1em; font-weight: bold; color: #333; }
+        .lot-number { font-size: 2em; }
+        .shelf-title { font-size: 1.2em; font-weight: bold; margin-bottom: 16px; text-align: center; }
+        .shelf-grid { display: grid; grid-template-columns: repeat(4, 50px); grid-template-rows: repeat(6, 50px); gap: 8px; }
+        .shelf-cell { width: 50px; height: 50px; border: 2px solid #ccc; border-radius: 6px; background: #f0f0f0; transition: all 0.2s; }
+        .shelf-cell.occupied { background-color: #e74c3c; border-color: #c0392b; } /* สีแดง: มีของ */
+        .shelf-cell.from-position { background-color: #f1c40f; border-color: #f39c12; animation: pulse-yellow 1.5s infinite; } /* สีเหลือง: หยิบจากที่นี่ */
+        .shelf-cell.to-position { background-color: #2ecc71; border-color: #27ae60; animation: pulse-green 1.5s infinite; } /* สีเขียว: วางที่นี่ */
+        @keyframes pulse-yellow { 0% { box-shadow: 0 0 0 0 rgba(241, 196, 15, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(241, 196, 15, 0); } 100% { box-shadow: 0 0 0 0 rgba(241, 196, 15, 0); } }
+        @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); } 100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="info-panel">
+            <div class="info-row">
+                <span class="info-label">Lot No.</span><br>
+                <span class="info-value lot-number" id="lotNo">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Product / Process</span><br>
+                <span class="info-value" id="productProcess">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">From STK / Level / Block</span><br>
+                <span class="info-value" id="fromInfo">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">To STK / Level / Block</span><br>
+                <span class="info-value" id="toInfo">-</span>
+            </div>
+             <div class="info-row">
+                <span class="info-label">Time Stamp</span><br>
+                <span class="info-value" id="timeStamp">-</span>
+            </div>
+        </div>
+        <div class="shelf-panel">
+            <div class="shelf-title">Shelf View</div>
+            <div class="shelf-grid" id="shelf-grid"></div>
+        </div>
+    </div>
+
+    <script>
+        const initialData = {{ data | tojson | safe }};
+
+        function createShelfGrid() {
+            const grid = document.getElementById('shelf-grid');
+            grid.innerHTML = ''; // Clear previous grid
+            for (let i = 0; i < 24; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'shelf-cell';
+                cell.id = `cell-${Math.floor(i/4)}-${i%4}`; // ID e.g., cell-0-0 for row 0, col 0
+                grid.appendChild(cell);
+            }
+        }
+
+        function renderData(data) {
+            if (!data || Object.keys(data).length === 0) return; // Do nothing if no data
+
+            // Update Text Info
+            document.getElementById('lotNo').innerText = data.LotNo || '-';
+            document.getElementById('productProcess').innerText = `${data.ProductType || ''} / ${data.Process || ''}`;
+            document.getElementById('fromInfo').innerText = `${data.FromSTK || ''} / ${data.FromLevel || ''} / ${data.FromBlock || ''}`;
+            document.getElementById('toInfo').innerText = `${data.ToSTK || ''} / ${data.ToLevel || ''} / ${data.ToBlock || ''}`;
+            document.getElementById('timeStamp').innerText = data.TimeStamp || '-';
+
+            // Reset all cells
+            const cells = document.querySelectorAll('.shelf-cell');
+            cells.forEach(cell => cell.className = 'shelf-cell');
+
+            // Highlight occupied positions
+            if (data.PositionSTK) {
+                data.PositionSTK.forEach(pos => {
+                    const cellId = `cell-${pos[0]}-${pos[1]}`;
+                    const cell = document.getElementById(cellId);
+                    if (cell) cell.classList.add('occupied');
+                });
+            }
+
+            // Highlight FROM position (Yellow)
+            const fromRow = parseInt(data.FromLevel) - 1;
+            const fromCol = parseInt(data.FromBlock) - 1;
+            const fromCell = document.getElementById(`cell-${fromRow}-${fromCol}`);
+            if (fromCell) {
+                fromCell.classList.remove('occupied'); // Remove red if it exists
+                fromCell.classList.add('from-position');
+            }
+
+            // Highlight TO position (Green)
+            const toRow = parseInt(data.ToLevel) - 1;
+            const toCol = parseInt(data.ToBlock) - 1;
+            const toCell = document.getElementById(`cell-${toRow}-${toCol}`);
+            if (toCell) {
+                toCell.classList.add('to-position');
+            }
+        }
+
+        window.onload = function() {
+            createShelfGrid();
+            renderData(initialData);
+        };
+    </script>
+</body>
+</html>
