@@ -6,47 +6,53 @@
     <title>Smart Shelf UI</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; display: flex; justify-content: center; align-items: flex-start; height: 100vh; margin: 0; background-color: #f0f2f5; padding-top: 40px; }
-        .layout-container { display: flex; gap: 40px; }
-        .main-container { display: flex; align-items: center; gap: 40px; padding: 30px; background-color: #fff; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); transition: background-color 0.3s ease; }
-        /* --- >> CSS ใหม่สำหรับสถานะ Error << --- */
-        .main-container.error-state { background-color: #fff2f2; }
-        .details-panel { display: flex; flex-direction: column; gap: 16px; min-width: 220px; }
-        .details-panel .label { font-size: 16px; color: #6c757d; }
-        .details-panel .value { font-size: 20px; font-weight: 600; color: #343a40; }
-        .details-panel .lot-no { font-size: 48px; font-weight: 700; line-height: 1.1; }
-        .status-badge { background-color: #6c757d; color: white; padding: 6px 16px; border-radius: 16px; font-weight: 600; }
+        body { font-family: 'Inter', sans-serif; margin: 0; background-color: #f0f2f5; min-height: 100vh; }
+        .queue-drawer { position: fixed; top: 0; left: 0; width: 410px; max-width: 100vw; height: 100vh; background: #fff; box-shadow: 4px 0 24px rgba(0,0,0,0.13); z-index: 100; padding: 32px; transition: transform 0.33s cubic-bezier(.55,0,.32,1); transform: translateX(-100%); display: flex; flex-direction: column; }
+        .queue-drawer.open { transform: translateX(0); }
+        .queue-header { font-size: 2em; font-weight: 700; margin-bottom: 16px; margin-top: 0; }
+        .queue-list { flex: 1; overflow-y: auto; margin: 0; padding: 0; list-style: none; }
+        .queue-item { display: flex; justify-content: space-between; align-items: center; padding: 18px 0 12px 0; border-bottom: 1px solid #eee; gap: 8px; }
+        .queue-item-details { display: flex; flex-direction: column; line-height: 1.3; }
+        .queue-lot-no { font-weight: 600; font-size: 1.1em; }
+        .queue-emp-id { font-size: 14px; color: #6c757d; }
+        .queue-item button { font-size: 15px; padding: 6px 22px; cursor: pointer; background-color: #198754; color: white; border: none; border-radius: 6px; font-weight: 600; }
+        .queue-placeholder { color: #6c757d; font-style: italic; margin-top: 20px; }
+        .drawer-backdrop { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.07); z-index: 50; display: none; }
+        .drawer-backdrop.open { display: block; }
+        .main-content { display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; transition: filter 0.2s; }
+        .main-content.blurred { filter: blur(2px) grayscale(0.3); }
+        .shelf-container { display: flex; align-items: center; gap: 60px; min-width: 700px; padding: 48px 60px; background: #fff; border-radius: 16px; box-shadow: 0 6px 32px rgba(0,0,0,0.07); margin-top: 12vh; transition: background-color 0.3s, box-shadow 0.3s; }
+        .details-panel { display: flex; flex-direction: column; gap: 16px; min-width: 270px; }
+        .details-panel .label { font-size: 21px; color: #6c757d; }
+        .details-panel .value { font-size: 26px; font-weight: 600; color: #343a40; }
+        .details-panel .lot-no { font-size: 62px; font-weight: 800; }
+        .status-badge { background-color: #6c757d; color: white; padding: 8px 28px; border-radius: 24px; font-weight: 700; font-size: 1.45em; display: inline-block; }
         .status-badge.Waiting { background-color: #0d6efd; }
-        .status-badge.Error { background-color: #dc3545; } /* <<-- CSS ใหม่สำหรับป้าย Error */
-        .shelf-panel h2 { font-size: 20px; color: #343a40; margin: 0 0 10px 0; text-align: center; }
-        .shelf-grid { display: grid; grid-template-rows: repeat(4, 50px); grid-template-columns: repeat(6, 50px); gap: 5px; padding: 10px; background-color: #f8f9fa; border: 1px solid #dee2e6; }
-        .shelf-frame { border: 10px solid #adb5bd; border-radius: 5px; padding: 5px; }
-        .shelf-cell { background-color: #fff; border: 1px solid #e9ecef; border-radius: 2px; }
-        .highlight-active { background-color: #dc3545; }
-        /* --- >> CSS ใหม่สำหรับ Highlight Error << --- */
-        .highlight-error { background-color: #ffc107; animation: blink-animation 1s infinite; }
-        @keyframes blink-animation { 50% { background-color: #f8d7da; } }
-        .queue-panel { padding: 30px; background-color: #fff; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); width: 280px; }
-        .queue-panel h2 { margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-        .queue-list { list-style: none; padding: 0; margin: 0; max-height: 400px; overflow-y: auto; }
-        .queue-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #f0f0f0; }
-        .queue-item-details { display: flex; flex-direction: column; }
-        .queue-lot-no { font-weight: 600; }
-        .queue-emp-id { font-size: 12px; color: #6c757d; }
-        .queue-item button { font-size: 14px; padding: 5px 10px; cursor: pointer; background-color: #198754; color: white; border: none; border-radius: 4px; }
-        .placeholder { color: #6c757d; font-style: italic; padding: 10px; }
+        .status-badge.Error { background-color: #dc3545; }
+        .shelf-panel h2 { font-size: 2em; color: #343a40; margin: 0 0 20px 0; text-align: center; }
+        .shelf-grid { display: grid; grid-template-rows: repeat(4, 60px); grid-template-columns: repeat(6, 60px); gap: 7px; padding: 12px; background-color: #f8f9fa; border: 1px solid #dee2e6; }
+        .shelf-frame { border: 10px solid #adb5bd; border-radius: 10px; padding: 6px; }
+        .shelf-cell { background-color: #fff; border: 1.8px solid #e9ecef; border-radius: 4px; transition: background .18s; }
+        .shelf-cell.has-item { background-color: #a7f3d0; border-color: #34d399; }
+        .shelf-cell.selected-task { background-color: #dc3545 !important; border-color: #b02a37 !important; }
+        .main-placeholder { color: #6c757d; font-style: italic; font-size: 1.2em; text-align: center; margin: 16px 0; }
+        .shelf-container.error-state { background-color: #fff1f2; box-shadow: 0 0 0 4px rgba(220, 53, 69, 0.5); }
+        .shelf-cell.highlight-error { animation: blink-error 1.2s infinite ease-in-out; }
+        @keyframes blink-error { 0%   { background-color: #ffc107; } 50%  { background-color: #dc3545; } 100% { background-color: #ffc107; } }
     </style>
 </head>
 <body>
-    <div class="layout-container">
-        <div class="queue-panel">
-            <h2>Job Queue</h2>
-            <ul class="queue-list" id="queueList"></ul>
-        </div>
-        <div class="main-container" id="mainContainer">
+    <div class="drawer-backdrop" id="drawerBackdrop"></div>
+    <aside class="queue-drawer" id="queueDrawer">
+        <div class="queue-header">Job Queue</div>
+        <ul class="queue-list" id="queueList"></ul>
+    </aside>
+
+    <main class="main-content" id="mainContent">
+        <div class="shelf-container" id="shelfContainer" style="display:none;">
             <div class="details-panel" id="detailsPanel">
-                <div class="placeholder" id="mainPlaceholder">Please select a job from the queue</div>
-                <div id="activeJobContent" style="display: none; flex-direction: column; gap: 16px;">
+                <div class="main-placeholder" id="mainPlaceholder">No Job in Queue</div>
+                <div id="activeJobContent" style="display: none; flex-direction: column; gap: 24px;">
                     <div><span class="label">Status</span><span class="value"><span class="status-badge" id="status"></span></span></div>
                     <div><span class="label">Lot No.</span><span class="value lot-no" id="lot_no"></span></div>
                     <div><span class="label">Form</span><span class="value" id="from_shelf"></span></div>
@@ -59,55 +65,105 @@
                 <div class="shelf-frame"><div class="shelf-grid" id="shelfGrid"></div></div>
             </div>
         </div>
-    </div>
+    </main>
 
     <script>
+        const queueDrawer = document.getElementById('queueDrawer');
+        const drawerBackdrop = document.getElementById('drawerBackdrop');
+        function openDrawer() { queueDrawer.classList.add('open'); drawerBackdrop.classList.add('open'); document.getElementById('mainContent').classList.add('blurred'); }
+        function closeDrawer() { queueDrawer.classList.remove('open'); drawerBackdrop.classList.remove('open'); document.getElementById('mainContent').classList.remove('blurred'); }
+        drawerBackdrop.onclick = closeDrawer;
+
         const queueListEl = document.getElementById('queueList');
         const shelfGrid = document.getElementById('shelfGrid');
-        const mainContainer = document.getElementById('mainContainer');
         const mainPlaceholder = document.getElementById('mainPlaceholder');
         const activeJobContent = document.getElementById('activeJobContent');
-        const ROWS = 4;
-        const COLS = 6;
+        const shelfContainer = document.getElementById('shelfContainer');
+        const ROWS = 4, COLS = 6;
+        const GLOBAL_SHELF_STATE_KEY = 'globalShelfState';
 
-        for (let r = 1; r <= ROWS; r++) { for (let c = 1; c <= COLS; c++) { const cell = document.createElement('div'); cell.classList.add('shelf-cell'); cell.id = `cell-${r}-${c}`; shelfGrid.appendChild(cell); } }
+        for (let r = 1; r <= ROWS; r++) for (let c = 1; c <= COLS; c++) {
+            const cell = document.createElement('div');
+            cell.classList.add('shelf-cell');
+            cell.id = `cell-${r}-${c}`;
+            shelfGrid.appendChild(cell);
+        }
 
-        function renderQueue() {
+        function getActiveJob() { return JSON.parse(localStorage.getItem('activeShelfJob') || 'null'); }
+        function setActiveJob(job) { localStorage.setItem('activeShelfJob', JSON.stringify(job)); }
+        
+        // >> ฟังก์ชันสำหรับวาด Shelf ตาม State ที่กำหนด <<
+        function renderShelfFromState(shelfState) {
+            document.querySelectorAll('.shelf-cell').forEach(c => c.className = 'shelf-cell');
+            if (Array.isArray(shelfState)) {
+                shelfState.forEach(([pos, hasItem]) => {
+                    if (hasItem > 0) {
+                        const row = Math.floor(pos / 10);
+                        const col = pos % 10;
+                        const cell = document.getElementById(`cell-${row}-${col}`);
+                        if (cell) cell.classList.add('has-item');
+                    }
+                });
+            }
+        }
+
+        function renderQueue(openIfHasJob = false) {
             const queue = JSON.parse(localStorage.getItem('shelfQueue') || '[]');
             queueListEl.innerHTML = '';
             if (queue.length === 0) {
-                queueListEl.innerHTML = '<li class="placeholder">No jobs in queue...</li>';
+                queueListEl.innerHTML = '<li class="queue-placeholder">No jobs in queue...</li>';
+                if (!getActiveJob()) closeDrawer();
                 return;
             }
             queue.forEach(job => {
                 const item = document.createElement('li');
                 item.className = 'queue-item';
-                item.innerHTML = `
-                    <div class="queue-item-details">
-                        <span class="queue-lot-no">Lot: ${job.lotNo}</span>
-                        <span class="queue-emp-id">Emp: ${job.employeeId}</span>
-                    </div>
-                    <button data-job-id="${job.jobId}">Select</button>
-                `;
+                item.innerHTML = `<div class="queue-item-details"><span class="queue-lot-no">Lot: ${job.lotNo}</span><span class="queue-emp-id">Emp: ${job.employeeId}</span></div><button data-job-id="${job.jobId}">Select</button>`;
                 queueListEl.appendChild(item);
             });
+            if (openIfHasJob && !getActiveJob()) openDrawer();
         }
-        
-        function renderActiveJob() {
-            const activeJob = JSON.parse(localStorage.getItem('activeShelfJob') || 'null');
-            // --- >> รีเซ็ตสถานะ Error ทุกครั้งที่วาดใหม่ << ---
-            mainContainer.classList.remove('error-state');
-            document.querySelectorAll('.shelf-cell').forEach(c => c.className = 'shelf-cell');
 
+        // --- >> ฟังก์ชันหลักที่แก้ไขใหม่ทั้งหมด << ---
+        function renderActiveJob() {
+            const activeJob = getActiveJob();
+            shelfContainer.classList.remove('error-state');
+
+            // --- กรณีไม่มีงานที่กำลังทำ (Idle State) ---
             if (!activeJob) {
+                const globalState = JSON.parse(localStorage.getItem(GLOBAL_SHELF_STATE_KEY) || '[]');
+                renderShelfFromState(globalState); // << แสดงสถานะล่าสุดของ Shelf
+
+                shelfContainer.style.display = 'flex';
                 mainPlaceholder.style.display = 'block';
                 activeJobContent.style.display = 'none';
+
+                const queue = JSON.parse(localStorage.getItem('shelfQueue') || '[]');
+                if (queue.length > 0) openDrawer();
                 return;
             }
             
+            // --- กรณีมีงานที่กำลังทำ ---
             mainPlaceholder.style.display = 'none';
             activeJobContent.style.display = 'flex';
+            shelfContainer.style.display = 'flex';
+            closeDrawer();
+
+            if (activeJob.error) shelfContainer.classList.add('error-state');
             
+            // แสดง Shelf ตาม Snapshot ในงาน
+            renderShelfFromState(activeJob.PositionSTK); 
+
+            // ไฮไลท์งานทับลงไป
+            if (activeJob.location) {
+                const { row, col } = activeJob.location;
+                const targetCell = document.getElementById(`cell-${row}-${col}`);
+                if (targetCell) {
+                    targetCell.classList.add(activeJob.error ? 'highlight-error' : 'selected-task');
+                }
+            }
+            
+            // แสดงรายละเอียดอื่นๆ
             const statusEl = document.getElementById('status');
             statusEl.textContent = activeJob.status;
             statusEl.className = 'status-badge ' + activeJob.status.replace(' ', '');
@@ -115,16 +171,6 @@
             document.getElementById('from_shelf').textContent = activeJob.from;
             document.getElementById('emp_id').textContent = activeJob.employeeId;
             document.getElementById('timestamp').textContent = activeJob.timestamp;
-
-            const targetCell = activeJob.location ? document.getElementById(`cell-${activeJob.location.row}-${activeJob.location.col}`) : null;
-
-            // --- >> ตรวจสอบสถานะ Error เพื่อเปลี่ยนการแสดงผล << ---
-            if (activeJob.error) {
-                mainContainer.classList.add('error-state');
-                if (targetCell) targetCell.classList.add('highlight-error');
-            } else {
-                if (targetCell) targetCell.classList.add('highlight-active');
-            }
         }
 
         queueListEl.addEventListener('click', function(event) {
@@ -133,23 +179,25 @@
                 const queue = JSON.parse(localStorage.getItem('shelfQueue') || '[]');
                 let selectedJob = queue.find(job => job.jobId === jobId);
                 if (selectedJob) {
-                    // ทำให้เป็น object ใหม่เพื่อป้องกันการแก้ไขที่กระทบกับในคิว
                     selectedJob = JSON.parse(JSON.stringify(selectedJob));
-                    // รีเซ็ตสถานะ error เมื่อเลือกงานใหม่
                     selectedJob.error = null;
                     selectedJob.status = "Waiting";
-                    localStorage.setItem('activeShelfJob', JSON.stringify(selectedJob));
+                    setActiveJob(selectedJob);
                     renderActiveJob();
                 }
             }
         });
 
         window.addEventListener('storage', function(event) {
-            if (event.key === 'shelfQueue') renderQueue();
-            if (event.key === 'activeShelfJob') renderActiveJob();
+            // เมื่อมีการเปลี่ยนแปลงใดๆ ให้วาดหน้าจอใหม่ทั้งหมดเพื่อให้ข้อมูลตรงกันเสมอ
+            if (event.key === 'shelfQueue' || event.key === 'activeShelfJob' || event.key === GLOBAL_SHELF_STATE_KEY) {
+                renderQueue(true);
+                renderActiveJob();
+            }
         });
 
-        renderQueue();
+        // --- เริ่มต้นการทำงาน ---
+        renderQueue(true);
         renderActiveJob();
     </script>
 </body>
