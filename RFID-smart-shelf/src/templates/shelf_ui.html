@@ -35,7 +35,9 @@
         .shelf-cell { background-color: #fff; border: 1.8px solid #e9ecef; border-radius: 4px; transition: background .18s; }
         .shelf-cell.has-item { background-color: #a7f3d0; border-color: #34d399; }
         .shelf-cell.selected-task { background-color: #dc3545 !important; border-color: #b02a37 !important; }
-        .main-placeholder { color: #6c757d; font-style: italic; font-size: 1.2em; text-align: center; margin: 16px 0; }
+        .main-placeholder { text-align: center; padding: 20px; color: #6c757d; }
+        .back-to-queue-btn { background: none; border: none; color: #0d6efd; cursor: pointer; font-size: 16px; padding: 8px; margin-top: 20px; text-align: center; width: 100%; }
+        .back-to-queue-btn:hover { text-decoration: underline; }
         .shelf-container.error-state { background-color: #fff1f2; box-shadow: 0 0 0 4px rgba(220, 53, 69, 0.5); }
         .shelf-cell.highlight-error { animation: blink-error 1.2s infinite ease-in-out; }
         @keyframes blink-error { 0%   { background-color: #ffc107; } 50%  { background-color: #dc3545; } 100% { background-color: #ffc107; } }
@@ -50,16 +52,7 @@
 
     <main class="main-content" id="mainContent">
         <div class="shelf-container" id="shelfContainer" style="display:none;">
-            <div class="details-panel" id="detailsPanel">
-                <div class="main-placeholder" id="mainPlaceholder">No Job in Queue</div>
-                <div id="activeJobContent" style="display: none; flex-direction: column; gap: 24px;">
-                    <div><span class="label">Status</span><span class="value"><span class="status-badge" id="status"></span></span></div>
-                    <div><span class="label">Lot No.</span><span class="value lot-no" id="lot_no"></span></div>
-                    <div><span class="label">Form</span><span class="value" id="from_shelf"></span></div>
-                    <div><span class="label">Employee ID</span><span class="value" id="emp_id"></span></div>
-                    <div><span class="label">Time Stamp</span><span class="value" id="timestamp"></span></div>
-                </div>
-            </div>
+            <div class="details-panel" id="detailsPanel"></div>
             <div class="shelf-panel">
                 <h2>Shelf</h2>
                 <div class="shelf-frame"><div class="shelf-grid" id="shelfGrid"></div></div>
@@ -68,19 +61,19 @@
     </main>
 
     <script>
-        const queueDrawer = document.getElementById('queueDrawer');
         const drawerBackdrop = document.getElementById('drawerBackdrop');
+        const queueDrawer = document.getElementById('queueDrawer');
+        const queueListEl = document.getElementById('queueList');
+        const detailsPanel = document.getElementById('detailsPanel');
+        const shelfGrid = document.getElementById('shelfGrid');
+        const shelfContainer = document.getElementById('shelfContainer');
+
+        const ROWS = 4, COLS = 6;
+        const GLOBAL_SHELF_STATE_KEY = 'globalShelfState';
+
         function openDrawer() { queueDrawer.classList.add('open'); drawerBackdrop.classList.add('open'); document.getElementById('mainContent').classList.add('blurred'); }
         function closeDrawer() { queueDrawer.classList.remove('open'); drawerBackdrop.classList.remove('open'); document.getElementById('mainContent').classList.remove('blurred'); }
         drawerBackdrop.onclick = closeDrawer;
-
-        const queueListEl = document.getElementById('queueList');
-        const shelfGrid = document.getElementById('shelfGrid');
-        const mainPlaceholder = document.getElementById('mainPlaceholder');
-        const activeJobContent = document.getElementById('activeJobContent');
-        const shelfContainer = document.getElementById('shelfContainer');
-        const ROWS = 4, COLS = 6;
-        const GLOBAL_SHELF_STATE_KEY = 'globalShelfState';
 
         for (let r = 1; r <= ROWS; r++) for (let c = 1; c <= COLS; c++) {
             const cell = document.createElement('div');
@@ -92,7 +85,6 @@
         function getActiveJob() { return JSON.parse(localStorage.getItem('activeShelfJob') || 'null'); }
         function setActiveJob(job) { localStorage.setItem('activeShelfJob', JSON.stringify(job)); }
         
-        // >> ฟังก์ชันสำหรับวาด Shelf ตาม State ที่กำหนด <<
         function renderShelfFromState(shelfState) {
             document.querySelectorAll('.shelf-cell').forEach(c => c.className = 'shelf-cell');
             if (Array.isArray(shelfState)) {
@@ -107,54 +99,74 @@
             }
         }
 
-        function renderQueue(openIfHasJob = false) {
+        function renderQueue() {
             const queue = JSON.parse(localStorage.getItem('shelfQueue') || '[]');
             queueListEl.innerHTML = '';
+
+            if (queue.length === 1 && !getActiveJob()) {
+                setActiveJob(queue[0]);
+            }
+            
             if (queue.length === 0) {
                 queueListEl.innerHTML = '<li class="queue-placeholder">No jobs in queue...</li>';
-                if (!getActiveJob()) closeDrawer();
+                closeDrawer();
                 return;
             }
+
             queue.forEach(job => {
                 const item = document.createElement('li');
                 item.className = 'queue-item';
-                item.innerHTML = `<div class="queue-item-details"><span class="queue-lot-no">Lot: ${job.lotNo}</span><span class="queue-emp-id">Emp: ${job.employeeId}</span></div><button data-job-id="${job.jobId}">Select</button>`;
+                item.innerHTML = `
+                    <div class="queue-item-details">
+                        <span class="queue-lot-no">Lot: ${job.lotNo}</span>
+                        <span class="queue-emp-id">Emp: ${job.employeeId}</span>
+                    </div>
+                    <button data-job-id="${job.jobId}">Select</button>
+                `;
                 queueListEl.appendChild(item);
             });
-            if (openIfHasJob && !getActiveJob()) openDrawer();
+
+            if (queue.length > 1) {
+                openDrawer();
+            }
         }
 
-        // --- >> ฟังก์ชันหลักที่แก้ไขใหม่ทั้งหมด << ---
+        function goBackToQueue() {
+            localStorage.removeItem('activeShelfJob');
+            renderAll();
+        }
+
+        // >> FIX: แก้ไขฟังก์ชันนี้ให้ใช้ Global State เสมอ <<
         function renderActiveJob() {
             const activeJob = getActiveJob();
             shelfContainer.classList.remove('error-state');
 
-            // --- กรณีไม่มีงานที่กำลังทำ (Idle State) ---
+            // 1. ดึงสถานะ Shelf ล่าสุดจากแหล่งข้อมูลจริงเสมอ
+            const currentShelfState = JSON.parse(localStorage.getItem(GLOBAL_SHELF_STATE_KEY) || '[]');
+            
+            // 2. วาดสถานะ Shelf ล่าสุดลงบนหน้าจอ
+            renderShelfFromState(currentShelfState);
+
             if (!activeJob) {
-                const globalState = JSON.parse(localStorage.getItem(GLOBAL_SHELF_STATE_KEY) || '[]');
-                renderShelfFromState(globalState); // << แสดงสถานะล่าสุดของ Shelf
-
-                shelfContainer.style.display = 'flex';
-                mainPlaceholder.style.display = 'block';
-                activeJobContent.style.display = 'none';
-
-                const queue = JSON.parse(localStorage.getItem('shelfQueue') || '[]');
-                if (queue.length > 0) openDrawer();
+                // ถ้าไม่มีงาน ก็แสดงแค่ Shelf เปล่าๆ
+                detailsPanel.innerHTML = '<div class="main-placeholder"><h3>No Active Job</h3><p>Please select a job from the queue.</p></div>';
                 return;
             }
             
-            // --- กรณีมีงานที่กำลังทำ ---
-            mainPlaceholder.style.display = 'none';
-            activeJobContent.style.display = 'flex';
-            shelfContainer.style.display = 'flex';
-            closeDrawer();
-
-            if (activeJob.error) shelfContainer.classList.add('error-state');
+            // 3. ถ้ามีงาน ให้แสดงรายละเอียดและไฮไลท์ช่องเป้าหมายทับลงไป
+            detailsPanel.innerHTML = `
+                <div><span class="label">Status</span><span class="value"><span class="status-badge ${activeJob.status}">${activeJob.status}</span></span></div>
+                <div><span class="label">Lot No.</span><span class="value lot-no">${activeJob.lotNo}</span></div>
+                <div><span class="label">Form</span><span class="value">${activeJob.from}</span></div>
+                <div><span class="label">Employee ID</span><span class="value">${activeJob.employeeId}</span></div>
+                <div><span class="label">Time Stamp</span><span class="value">${activeJob.timestamp}</span></div>
+                <button class="back-to-queue-btn" onclick="goBackToQueue()">← Back to Queue</button>
+            `;
             
-            // แสดง Shelf ตาม Snapshot ในงาน
-            renderShelfFromState(activeJob.PositionSTK); 
-
-            // ไฮไลท์งานทับลงไป
+            if (activeJob.error) {
+                shelfContainer.classList.add('error-state');
+            }
+            
             if (activeJob.location) {
                 const { row, col } = activeJob.location;
                 const targetCell = document.getElementById(`cell-${row}-${col}`);
@@ -162,43 +174,31 @@
                     targetCell.classList.add(activeJob.error ? 'highlight-error' : 'selected-task');
                 }
             }
-            
-            // แสดงรายละเอียดอื่นๆ
-            const statusEl = document.getElementById('status');
-            statusEl.textContent = activeJob.status;
-            statusEl.className = 'status-badge ' + activeJob.status.replace(' ', '');
-            document.getElementById('lot_no').textContent = activeJob.lotNo;
-            document.getElementById('from_shelf').textContent = activeJob.from;
-            document.getElementById('emp_id').textContent = activeJob.employeeId;
-            document.getElementById('timestamp').textContent = activeJob.timestamp;
         }
 
         queueListEl.addEventListener('click', function(event) {
-            if (event.target.tagName === 'BUTTON') {
-                const jobId = event.target.getAttribute('data-job-id');
+            if (event.target.tagName === 'BUTTON' && event.target.dataset.jobId) {
+                const jobId = event.target.dataset.jobId;
                 const queue = JSON.parse(localStorage.getItem('shelfQueue') || '[]');
-                let selectedJob = queue.find(job => job.jobId === jobId);
+                const selectedJob = queue.find(job => job.jobId === jobId);
                 if (selectedJob) {
-                    selectedJob = JSON.parse(JSON.stringify(selectedJob));
-                    selectedJob.error = null;
-                    selectedJob.status = "Waiting";
                     setActiveJob(selectedJob);
-                    renderActiveJob();
+                    renderAll(); 
+                    closeDrawer(); 
                 }
             }
         });
 
-        window.addEventListener('storage', function(event) {
-            // เมื่อมีการเปลี่ยนแปลงใดๆ ให้วาดหน้าจอใหม่ทั้งหมดเพื่อให้ข้อมูลตรงกันเสมอ
-            if (event.key === 'shelfQueue' || event.key === 'activeShelfJob' || event.key === GLOBAL_SHELF_STATE_KEY) {
-                renderQueue(true);
-                renderActiveJob();
-            }
-        });
+        function renderAll() {
+            shelfContainer.style.display = 'flex';
+            renderQueue();
+            renderActiveJob();
+        }
 
-        // --- เริ่มต้นการทำงาน ---
-        renderQueue(true);
-        renderActiveJob();
+        window.addEventListener('storage', renderAll);
+        
+        // Initial Load
+        renderAll();
     </script>
 </body>
 </html>
