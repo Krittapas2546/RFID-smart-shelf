@@ -99,13 +99,9 @@
             }
         }
 
-        function renderQueue() {
+        function renderQueueList() {
             const queue = JSON.parse(localStorage.getItem('shelfQueue') || '[]');
             queueListEl.innerHTML = '';
-
-            if (queue.length === 1 && !getActiveJob()) {
-                setActiveJob(queue[0]);
-            }
             
             if (queue.length === 0) {
                 queueListEl.innerHTML = '<li class="queue-placeholder">No jobs in queue...</li>';
@@ -128,32 +124,28 @@
 
             if (queue.length > 1) {
                 openDrawer();
+            } else {
+                closeDrawer();
             }
         }
 
         function goBackToQueue() {
             localStorage.removeItem('activeShelfJob');
             renderAll();
+            openDrawer();
         }
 
-        // >> FIX: แก้ไขฟังก์ชันนี้ให้ใช้ Global State เสมอ <<
         function renderActiveJob() {
             const activeJob = getActiveJob();
             shelfContainer.classList.remove('error-state');
-
-            // 1. ดึงสถานะ Shelf ล่าสุดจากแหล่งข้อมูลจริงเสมอ
             const currentShelfState = JSON.parse(localStorage.getItem(GLOBAL_SHELF_STATE_KEY) || '[]');
-            
-            // 2. วาดสถานะ Shelf ล่าสุดลงบนหน้าจอ
             renderShelfFromState(currentShelfState);
 
             if (!activeJob) {
-                // ถ้าไม่มีงาน ก็แสดงแค่ Shelf เปล่าๆ
                 detailsPanel.innerHTML = '<div class="main-placeholder"><h3>No Active Job</h3><p>Please select a job from the queue.</p></div>';
                 return;
             }
             
-            // 3. ถ้ามีงาน ให้แสดงรายละเอียดและไฮไลท์ช่องเป้าหมายทับลงไป
             detailsPanel.innerHTML = `
                 <div><span class="label">Status</span><span class="value"><span class="status-badge ${activeJob.status}">${activeJob.status}</span></span></div>
                 <div><span class="label">Lot No.</span><span class="value lot-no">${activeJob.lotNo}</span></div>
@@ -163,19 +155,16 @@
                 <button class="back-to-queue-btn" onclick="goBackToQueue()">← Back to Queue</button>
             `;
             
-            if (activeJob.error) {
-                shelfContainer.classList.add('error-state');
-            }
+            if (activeJob.error) shelfContainer.classList.add('error-state');
             
             if (activeJob.location) {
                 const { row, col } = activeJob.location;
                 const targetCell = document.getElementById(`cell-${row}-${col}`);
-                if (targetCell) {
-                    targetCell.classList.add(activeJob.error ? 'highlight-error' : 'selected-task');
-                }
+                if (targetCell) targetCell.classList.add(activeJob.error ? 'highlight-error' : 'selected-task');
             }
         }
 
+        // >> FIX: เพิ่มคำสั่ง closeDrawer() ที่นี่ <<
         queueListEl.addEventListener('click', function(event) {
             if (event.target.tagName === 'BUTTON' && event.target.dataset.jobId) {
                 const jobId = event.target.dataset.jobId;
@@ -184,14 +173,20 @@
                 if (selectedJob) {
                     setActiveJob(selectedJob);
                     renderAll(); 
-                    closeDrawer(); 
+                    closeDrawer(); // สั่งปิดหน้าต่างทันทีหลังเลือก
                 }
             }
         });
 
         function renderAll() {
             shelfContainer.style.display = 'flex';
-            renderQueue();
+            
+            const queue = JSON.parse(localStorage.getItem('shelfQueue') || '[]');
+            if (queue.length === 1 && !getActiveJob()) {
+                setActiveJob(queue[0]);
+            }
+
+            renderQueueList();
             renderActiveJob();
         }
 
