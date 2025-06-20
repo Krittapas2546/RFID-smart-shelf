@@ -69,7 +69,6 @@
         .shelf-cell.highlight-error { animation: blink-error 1.2s infinite ease-in-out; }
         @keyframes blink-error { 0%   { background-color: #ffc107; } 50%  { background-color: #dc3545; } 100% { background-color: #ffc107; } }
         
-        /* >> CSS ใหม่สำหรับขยาย Shelf << */
         .shelf-container.full-shelf-mode {
             justify-content: center;
             align-items: center;
@@ -106,7 +105,6 @@
             .queue-item { padding: 14px 0 10px 0; }
             .queue-item button { font-size: 14px; padding: 5px 18px; }
 
-            /* ขยาย Shelf สำหรับจอเล็ก */
             .shelf-container.full-shelf-mode .shelf-panel h2 {
                 font-size: 2.2em;
             }
@@ -187,7 +185,9 @@
                 return;
             }
 
-            queue.forEach(job => {
+            // *** START: จุดแก้ไขที่ 1 ***
+            // เพิ่มตัวแปร index เข้ามาเพื่อนับลำดับของงานแต่ละชิ้น
+            queue.forEach((job, index) => {
                 const item = document.createElement('li');
                 item.className = 'queue-item';
                 item.innerHTML = `
@@ -195,10 +195,11 @@
                         <span class="queue-lot-no">Lot: ${job.lotNo}</span>
                         <span class="queue-emp-id">Emp: ${job.employeeId}</span>
                     </div>
-                    <button data-job-id="${job.jobId}">Select</button>
+                    <button data-job-index="${index}">Select</button>
                 `;
                 queueListEl.appendChild(item);
             });
+            // *** END: จุดแก้ไขที่ 1 ***
 
             if (queue.length > 1 && !getActiveJob()) {
                 openDrawer();
@@ -212,11 +213,9 @@
             renderAll();
         }
 
-        // >> JS ที่แก้ไขสำหรับซ่อนข้อความและขยาย Shelf <<
         function renderActiveJob() {
             const activeJob = getActiveJob();
             
-            // รีเซ็ตสถานะทุกครั้งที่วาดใหม่
             shelfContainer.classList.remove('error-state', 'full-shelf-mode');
             detailsPanel.style.display = 'flex';
 
@@ -224,19 +223,17 @@
             renderShelfFromState(currentShelfState);
 
             if (!activeJob) {
-                // สถานะไม่มีงาน: ซ่อน panel รายละเอียดและเพิ่ม class ขยาย Shelf
                 shelfContainer.classList.add('full-shelf-mode');
                 detailsPanel.style.display = 'none';
                 return;
             }
             
-            // สถานะมีงาน: แสดงรายละเอียดตามปกติ
             detailsPanel.innerHTML = `
-                <div><span class="label">Status</span><span class="value"><span class="status-badge ${activeJob.status}">${activeJob.status}</span></span></div>
+                <div><span class="label">Status  </span><span class="value"><span class="status-badge ${activeJob.status}">${activeJob.status}</span></span></div>
                 <div><span class="label">Lot No.</span><span class="value lot-no">${activeJob.lotNo}</span></div>
-                <div><span class="label">Form</span><span class="value">${activeJob.from}</span></div>
-                <div><span class="label">Employee ID</span><span class="value">${activeJob.employeeId}</span></div>
-                <div><span class="label">Time Stamp</span><span class="value">${activeJob.timestamp}</span></div>
+                <div><span class="label">Form To </span><span class="value">${activeJob.from}</span></div>
+                <div><span class="label">Employee ID </span><span class="value">${activeJob.employeeId}</span></div>
+                <div><span class="label">Time Stamp </span><span class="value">${activeJob.timestamp}</span></div>
                 <button class="back-to-queue-btn" onclick="goBackToQueue()">← Back to Queue</button>
             `;
             
@@ -253,11 +250,14 @@
             }
         }
 
+        // *** START: จุดแก้ไขที่ 2 ***
+        // แก้ไข Event Listener ให้ทำงานกับ job-index แทน job-id
         queueListEl.addEventListener('click', function(event) {
-            if (event.target.tagName === 'BUTTON' && event.target.dataset.jobId) {
-                const jobId = event.target.dataset.jobId;
+            if (event.target.tagName === 'BUTTON' && event.target.dataset.jobIndex) {
+                const jobIndex = parseInt(event.target.dataset.jobIndex, 10);
                 const queue = JSON.parse(localStorage.getItem('shelfQueue') || '[]');
-                const selectedJob = queue.find(job => job.jobId === jobId);
+                // เลือกงานจากลำดับใน Array (ซึ่งจะไม่ซ้ำกันแน่นอน)
+                const selectedJob = queue[jobIndex];
                 if (selectedJob) {
                     setActiveJob(selectedJob);
                     renderAll(); 
@@ -265,18 +265,41 @@
                 }
             }
         });
+        // *** END: จุดแก้ไขที่ 2 ***
 
         function renderAll() {
             shelfContainer.style.display = 'flex';
             const queue = JSON.parse(localStorage.getItem('shelfQueue') || '[]');
-            if (queue.length === 1 && !getActiveJob()) {
+
+            // ตรวจสอบและล้าง active job ถ้าจำเป็น เพื่อให้หน้าต่างเลือกเปิดขึ้นมา
+            if (queue.length > 1 && getActiveJob()) {
+                const activeJobInQueue = queue.some(job => JSON.stringify(job) === JSON.stringify(getActiveJob()));
+                // ถ้า active job ยังอยู่ในคิว และผู้ใช้ไม่ได้เลือกเอง (กรณีมาจาก auto-select)
+                // การลบ activeJob จะทำให้เงื่อนไข !getActiveJob() เป็นจริง และ drawer จะเปิด
+                // เราจะทำให้ง่ายขึ้นโดยการลบ active job ทุกครั้งที่คิวมีมากกว่า 1 และมีการเปลี่ยนแปลง
+                // แต่เพื่อความปลอดภัย เราจะลบเฉพาะเมื่อ active job นั้นมาจากการ auto-select
+                // อย่างไรก็ตาม การตัดสินใจว่ามาจากการ auto-select นั้นซับซ้อน
+                // ดังนั้นทางแก้ที่ได้ผลคือการบังคับให้เลือกใหม่เมื่อกลับมาที่หน้าจอที่มีหลายคิว
+                // `goBackToQueue` ทำหน้าที่นี้อยู่แล้ว
+            } else if (queue.length === 1 && !getActiveJob()) {
                 setActiveJob(queue[0]);
             }
+
             renderQueueList();
             renderActiveJob();
         }
 
-        window.addEventListener('storage', renderAll);
+        window.addEventListener('storage', (event) => {
+            // เพิ่มเงื่อนไข: ถ้าคิวเปลี่ยนจาก 1 เป็น 2 (หรือมากกว่า) ให้ล้าง Active Job เพื่อบังคับให้เลือกใหม่
+            if (event.key === 'shelfQueue') {
+                const oldQueue = JSON.parse(event.oldValue || '[]');
+                const newQueue = JSON.parse(event.newValue || '[]');
+                if (oldQueue.length === 1 && newQueue.length > 1) {
+                    localStorage.removeItem('activeShelfJob');
+                }
+            }
+            renderAll();
+        });
         
         renderAll();
     </script>
