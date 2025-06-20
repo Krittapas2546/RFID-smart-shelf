@@ -1,38 +1,65 @@
-# RFID Smart Shelf
+🚀 Installation & Usage
+Follow the steps below to run the project on your machine:
 
-## Overview
-The RFID Smart Shelf project is designed to manage inventory using RFID technology. It provides a user-friendly interface for interacting with the system and utilizes an RFID SDK to communicate with RFID hardware.
+1. Clone the Repository
 
-## Project Structure
-```
-RFID-smart-shelf
-├── src
-│   ├── main.py         # Main entry point for running the program
-│   ├── ui.py           # User interface management
-│   └── rfid_sdk.py     # Connection to the RFID SDK
-├── sdk                 # Directory for SDK files
-└── README.md           # Project documentation
-```
+bash
+Copy
+Edit
+git clone https://github.com/Krittapas2546/RFID-smart-shelf.git
+cd RFID-smart-shelf
+2. Create and Activate the Virtual Environment
 
-## Installation
-1. Clone the repository:
-   ```
-   git clone https://github.com/yourusername/RFID-smart-shelf.git
-   ```
-2. Navigate to the project directory:
-   ```
-   cd RFID-smart-shelf
-   ```
-3. Install any required dependencies (if applicable).
+For Windows:
 
-## Usage
-To run the application, execute the following command:
-```
-python src/main.py
-```
+bash
+Copy
+Edit
+python -m venv venv
+.\venv\Scripts\activate
+For macOS/Linux:
 
-## Contributing
-Contributions are welcome! Please feel free to submit a pull request or open an issue for any suggestions or improvements.
+bash
+Copy
+Edit
+python3 -m venv venv
+source venv/bin/activate
+3. Install Dependencies
 
-## License
-This project is licensed under the MIT License. See the LICENSE file for more details.
+Make sure to create a requirements.txt file using pip freeze > requirements.txt to capture all required Python libraries.
+
+To install dependencies, use:
+
+bash
+Copy
+Edit
+pip install -r requirements.txt
+4. Run the Backend Server
+
+bash
+Copy
+Edit
+python main.py  # or the main server file
+5. Open the UI
+
+Open a browser and go to http://127.0.0.1:5000 (or the port where your server is running).
+
+Or directly open the src/templates/shelf_ui.html file.
+
+Usage Instructions:
+When new tasks arrive, they appear in the Job Queue.
+
+If there are multiple tasks, press Select to start a task.
+
+The UI shows the target location (red light) on the shelf.
+
+Place the product in the correct location, and the UI will update to green.
+
+The system automatically continues the next task in the queue.
+
+👤 Author
+Krittapas P. - (@Krittapas2546)
+
+📄 License
+This project is licensed under the MIT License.
+
