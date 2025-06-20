@@ -42,15 +42,17 @@
             <div class="form-group"><label>Employee ID</label><input type="text" id="emp_id" value="2025014"></div>
             <div class="form-group" style="grid-column: 1 / -1;"><label>Task Location (Row-Col)</label><div style="display: flex; gap: 1em;"><input type="number" id="loc_row" value="1" min="1" max="4"><input type="number" id="loc_col" value="1" min="1" max="6"></div></div>
         </div>
-        <h3>JSON Preview (for new job)</h3>
-        <pre><code id="json-preview"></code></pre>
         <button onclick="scanNewLot()" class="primary-btn">Add New Job to Queue</button>
+        <h3>JSON Preview (for new job)</h3>
+                <h2>2. Simulate Operator Actions</h2>
+        <button onclick="simulateTaskComplete()" class="success-btn">Simulate Task Complete</button>
+        <button onclick="simulateWrongPick()" class="danger-btn">Simulate Wrong Pick</button>
+        <pre><code id="json-preview"></code></pre>
+        
 
         <hr>
 
-        <h2>2. Simulate Operator Actions</h2>
-        <button onclick="simulateTaskComplete()" class="success-btn">Simulate Task Complete</button>
-        <button onclick="simulateWrongPick()" class="danger-btn">Simulate Wrong Pick</button>
+
         
         <hr>
 
@@ -60,7 +62,7 @@
 
 
         <div id="status-message" style="margin-top: 1em; font-weight: bold; text-align: center; min-height: 20px;"></div>
-        <div style="margin-top: 2em; text-align: center;"><a href="shelf_ui.html" target="_blank">Open Shelf UI</a></div>
+        <div style="margin-top: 2em; text-align: center;"><a href="/" target="_blank">Open Shelf UI</a></div>
     </div>
 
     <script>
