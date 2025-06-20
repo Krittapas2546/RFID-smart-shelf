@@ -3,85 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Test API - Smart Shelf Command</title>
+    <title>Test API - Smart Shelf Simulator</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 2em; background-color: #f0f2f5; color: #333; }
+        body { font-family: 'Inter', sans-serif; margin: 2em; background-color: #f0f2f5; color: #333; }
         .container { max-width: 700px; margin: auto; background: #fff; padding: 2em; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         h1, h2 { color: #0056b3; border-bottom: 1px solid #eee; padding-bottom: 10px; }
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5em; }
         .form-group { margin-bottom: 1em; }
         .full-width { grid-column: 1 / -1; }
         label { display: block; margin-bottom: .5em; font-weight: 600; }
-        input, select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
-        button { width: 100%; padding: 12px; font-size: 1.1em; cursor: pointer; background-color: #28a745; color: white; border: none; border-radius: 5px; margin-top: 1em; }
-        #status-message { margin-top: 1em; font-weight: bold; text-align: center; }
+        input, select, textarea { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; }
+        textarea { font-family: 'Courier New', Courier, monospace; resize: vertical; }
+        button { width: 100%; padding: 12px; font-size: 1.1em; cursor: pointer; border: none; border-radius: 5px; margin-top: 1em; }
+        .primary-btn { background-color: #0d6efd; color: white; }
+        .secondary-btn { background-color: #6c757d; color: white; }
+        .success-btn { background-color: #198754; color: white; }
+        .danger-btn { background-color: #dc3545; color: white; }
+        #status-message { margin-top: 1em; font-weight: bold; text-align: center; min-height: 20px;}
         pre { background-color: #2d333b; color: #cdd9e5; padding: 1em; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word; }
         .link { margin-top: 2em; text-align: center; }
+        hr { border: none; border-top: 1px solid #eee; margin: 2em 0; }
     </style>
 </head>
 <body>
-    <div class="container" oninput="updateJsonPreview()">
-        <h1>Smart Shelf - API Simulator</h1>
+    <div class="container">
+        <h1>Smart Shelf - Event Simulator</h1>
         
-        <div class="form-grid">
-            <div class="form-group">
-                <label for="action">Action</label>
-                <select id="action">
-                    <option value="PICK">หยิบอย่างเดียว (Pick)</option>
-                    <option value="PUT">วางอย่างเดียว (Put)</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="status">Status</label>
-                <select id="status">
-                    <option>Waiting</option>
-                    <option>In Progress</option>
-                    <option>Done</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="lot_no">Lot No.</label>
-                <input type="text" id="lot_no" value="123456">
-            </div>
-            <div class="form-group">
-                <label for="from_shelf">From</label>
-                <input type="text" id="from_shelf" value="A">
-            </div>
-            <div class="form-group">
-                <label for="emp_id">Employee ID</label>
-                <input type="text" id="emp_id" value="2025014">
-            </div>
-             <div class="form-group">
-                <label for="location">Location (Row-Col)</label>
-                <div style="display: flex; gap: 1em;">
-                    <input type="number" id="loc_row" value="2" placeholder="Row">
-                    <input type="number" id="loc_col" value="2" placeholder="Col">
-                </div>
-            </div>
+        <!-- ส่วนที่ 1: จำลองการสแกน Lot ใหม่ -->
+        <h2>1. Scan New Lot</h2>
+        <div class="form-grid" oninput="updateJsonPreview()">
+            <div class="form-group"><label for="action">Action</label><select id="action"><option value="PICK">หยิบ (Pick)</option><option value="PUT">วาง (Put)</option></select></div>
+            <div class="form-group"><label for="lot_no">Lot No.</label><input type="text" id="lot_no" value="123456"></div>
+            <div class="form-group"><label for="from_shelf">From</label><input type="text" id="from_shelf" value="A"></div>
+            <div class="form-group"><label for="emp_id">Employee ID</label><input type="text" id="emp_id" value="2025014"></div>
+            <div class="form-group full-width"><label for="location">Location (Row-Col)</label><div style="display: flex; gap: 1em;"><input type="number" id="loc_row" value="1" placeholder="Row"><input type="number" id="loc_col" value="1" placeholder="Col"></div></div>
         </div>
+        <pre><code id="json-preview"></code></pre>
+        <button onclick="scanNewLot()" class="primary-btn">Add New Job to Queue</button>
 
-        <div class="form-group full-width">
-            <h2>JSON Preview</h2>
-            <pre><code id="json-preview"></code></pre>
+        <hr>
+
+        <!-- ส่วนที่ 2: จำลอง Action ของ Operator -->
+        <h2>2. Simulate Operator Actions</h2>
+        <p>ใช้ปุ่มนี้จำลองว่า Operator ทำ Action กับงานที่ **เลือกไว้ (Active Job)** ในหน้า Shelf UI</p>
+        <button onclick="simulateTaskComplete()" class="success-btn">Simulate Task Complete</button>
+        <button onclick="simulateWrongPick()" class="danger-btn">Simulate Wrong Pick</button>
+
+        <!-- --- >> เพิ่มส่วนนี้เข้ามา << --- -->
+        <hr>
+        <h2>3. Manual JSON Input</h2>
+        <p>วางโค้ด JSON ของ Job ที่ต้องการเพิ่มลงในกล่องข้างล่างนี้</p>
+        <div class="form-group">
+            <textarea id="manualJsonInput" rows="10" placeholder='{
+    "action": "PICK",
+    "lotNo": "MANUAL-001",
+    "from": "B",
+    "employeeId": "999999",
+    "location": {
+        "row": 4,
+        "col": 6
+    }
+}'></textarea>
         </div>
-        
-        <button onclick="sendCommand()">Send API Command</button>
+        <button onclick="addJobFromJson()" class="secondary-btn">Add Job from JSON</button>
+        <!-- --- จบส่วนที่เพิ่ม --- -->
+
         <div id="status-message"></div>
-        <div class="link">
-            <a href="shelf_ui.html" target="_blank">Open Shelf UI</a>
-        </div>
+        <div class="link"><a href="shelf_ui.html" target="_blank" rel="noopener noreferrer">Open Shelf UI</a></div>
     </div>
-
+-
     <script>
-        function updateJsonPreview() {
-            const command = buildCommandObject();
-            document.getElementById('json-preview').textContent = JSON.stringify(command, null, 4);
-        }
-
-        function buildCommandObject() {
+        // --- ส่วนที่ 1: เพิ่มงานใหม่ ---
+        function buildJobObject() { /* ... โค้ดเดิม ไม่ต้องแก้ไข ... */
              return {
+                jobId: `job_${Date.now()}`, 
                 action: document.getElementById('action').value,
-                status: document.getElementById('status').value,
+                status: "Waiting",
                 lotNo: document.getElementById('lot_no').value,
                 from: document.getElementById('from_shelf').value,
                 employeeId: document.getElementById('emp_id').value,
@@ -89,23 +86,82 @@
                     row: parseInt(document.getElementById('loc_row').value),
                     col: parseInt(document.getElementById('loc_col').value)
                 },
-                timestamp: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
+                timestamp: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
+                error: null
             };
         }
+        function updateJsonPreview() { /* ... โค้ดเดิม ไม่ต้องแก้ไข ... */
+            const { jobId, status, error, ...previewJob } = buildJobObject();
+            document.getElementById('json-preview').textContent = JSON.stringify(previewJob, null, 4);
+        }
+        function scanNewLot() { /* ... โค้ดเดิม ไม่ต้องแก้ไข ... */
+            const queue = JSON.parse(localStorage.getItem('shelfQueue') || '[]');
+            const newJob = buildJobObject();
+            queue.push(newJob);
+            localStorage.setItem('shelfQueue', JSON.stringify(queue));
+            showStatus(`SUCCESS: Added Lot No. ${newJob.lotNo} to queue!`, 'green');
+        }
 
-        function sendCommand() {
-            const commandData = buildCommandObject();
-            localStorage.setItem('shelfCommand', JSON.stringify(commandData));
+        // --- ส่วนที่ 2: จำลอง Action ---
+        function simulateTaskComplete() { /* ... โค้ดเดิม ไม่ต้องแก้ไข ... */
+            const activeJob = JSON.parse(localStorage.getItem('activeShelfJob') || 'null');
+            if (!activeJob) { showStatus('ERROR: No active job selected in Shelf UI.', 'red'); return; }
+            let queue = JSON.parse(localStorage.getItem('shelfQueue') || '[]');
+            queue = queue.filter(job => job.jobId !== activeJob.jobId);
+            localStorage.setItem('shelfQueue', JSON.stringify(queue));
+            localStorage.removeItem('activeShelfJob');
+            showStatus(`SUCCESS: Job for Lot ${activeJob.lotNo} is complete and removed.`, 'green');
+        }
+        function simulateWrongPick() { /* ... โค้ดเดิม ไม่ต้องแก้ไข ... */
+            let activeJob = JSON.parse(localStorage.getItem('activeShelfJob') || 'null');
+            if (!activeJob) { showStatus('ERROR: No active job selected in Shelf UI.', 'red'); return; }
+            activeJob.status = "Error";
+            activeJob.error = "Wrong Pick/Put Location";
+            localStorage.setItem('activeShelfJob', JSON.stringify(activeJob));
+            showStatus(`EVENT: Simulated a WRONG PICK for Lot ${activeJob.lotNo}.`, 'orange');
+        }
 
+        // --- >> เพิ่มฟังก์ชันนี้เข้ามา << ---
+        function addJobFromJson() {
+            const jsonText = document.getElementById('manualJsonInput').value;
+            if (!jsonText.trim()) {
+                showStatus('ERROR: JSON input is empty.', 'red');
+                return;
+            }
+
+            try {
+                const jobObject = JSON.parse(jsonText);
+
+                // ตรวจสอบข้อมูลเบื้องต้น
+                if (typeof jobObject !== 'object' || jobObject === null || !jobObject.lotNo || !jobObject.location) {
+                    showStatus('ERROR: Invalid JSON structure. Missing "lotNo" or "location".', 'red');
+                    return;
+                }
+
+                // เพิ่มข้อมูลที่จำเป็นถ้าไม่มี
+                if (!jobObject.jobId) jobObject.jobId = `job_manual_${Date.now()}`;
+                if (!jobObject.status) jobObject.status = "Waiting";
+                if (!jobObject.timestamp) jobObject.timestamp = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+
+                const queue = JSON.parse(localStorage.getItem('shelfQueue') || '[]');
+                queue.push(jobObject);
+                localStorage.setItem('shelfQueue', JSON.stringify(queue));
+                showStatus(`SUCCESS: Added job from JSON for Lot ${jobObject.lotNo}!`, 'green');
+
+            } catch (error) {
+                showStatus(`ERROR: Invalid JSON format. ${error.message}`, 'red');
+            }
+        }
+        // --- จบส่วนฟังก์ชันที่เพิ่ม ---
+
+        function showStatus(message, color) { /* ... โค้ดเดิม ไม่ต้องแก้ไข ... */
             const statusDiv = document.getElementById('status-message');
-            statusDiv.textContent = 'SUCCESS: Command sent!';
-            statusDiv.style.color = 'green';
-            setTimeout(() => statusDiv.textContent = '', 3000);
+            statusDiv.textContent = message;
+            statusDiv.style.color = color;
+            setTimeout(() => statusDiv.textContent = '', 5000);
         }
         
-        // Initial call to show JSON on page load
         updateJsonPreview();
     </script>
 </body>
 </html>
-555555555
