@@ -1,319 +1,85 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Shelf UI</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+import http.server
+import socketserver
+import json
+import threading
+import datetime
+
+# --- ส่วนเก็บข้อมูลกลาง (Thread-Safe) ---
+# List นี้จะเก็บ Job ทั้งหมดที่ถูกส่งเข้ามา
+jobs_queue = []
+jobs_lock = threading.Lock()
+
+# --- ตั้งค่า Server ---
+PORT = 8000
+# ใช้ 0.0.0.0 เพื่อให้ Server รับการเชื่อมต่อจากทุก IP ในเครือข่าย
+HOST = '0.0.0.0'
+
+class RequestHandler(http.server.SimpleHTTPRequestHandler):
+    """
+    คลาสสำหรับจัดการ HTTP Request ที่เข้ามา
+    """
+    def do_GET(self):
+        # ถ้า client ขอ path หลัก ('/') ให้ส่งไฟล์ shelf_ui.html กลับไป
+        if self.path == '/':
+            self.path = '/shelf_ui.html'
+            return http.server.SimpleHTTPRequestHandler.do_GET(self)
+
+        # ถ้าหน้า UI (JavaScript) ขอข้อมูล Job ล่าสุด
+        if self.path == '/api/jobs':
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            with jobs_lock:
+                # ส่งข้อมูลใน jobs_queue กลับไปในรูปแบบ JSON
+                self.wfile.write(json.dumps(jobs_queue).encode('utf-8'))
+            return
         
-        html, body {
-            height: 100%;
-            width: 100%;
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-        }
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background-color: #fff;
-        }
-        .main-content {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100%;
-            width: 100%;
-        }
-        .shelf-container {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 60px;
-            width: 100%;
-            height: 100%;
-            padding: 24px;
-            box-sizing: border-box;
-            transition: background-color 0.3s, flex-direction 0.3s;
-        }
+        # สำหรับ request อื่นๆ ให้ทำงานตามปกติ (เช่น โหลดไฟล์ CSS/JS ถ้ามี)
+        return http.server.SimpleHTTPRequestHandler.do_GET(self)
 
-        .queue-drawer { position: fixed; top: 0; left: 0; width: 410px; max-width: 100vw; height: 100vh; background: #fff; box-shadow: 4px 0 24px rgba(0,0,0,0.13); z-index: 100; padding: 32px; transition: transform 0.33s cubic-bezier(.55,0,.32,1); transform: translateX(-100%); display: flex; flex-direction: column; }
-        .queue-drawer.open { transform: translateX(0); }
-        .queue-header { font-size: 2em; font-weight: 700; margin-bottom: 16px; margin-top: 0; }
-        .queue-list { flex: 1; overflow-y: auto; margin: 0; padding: 0; list-style: none; }
-        .queue-item { display: flex; justify-content: space-between; align-items: center; padding: 18px 0 12px 0; border-bottom: 1px solid #eee; gap: 8px; }
-        .queue-item-details { display: flex; flex-direction: column; line-height: 1.3; }
-        .queue-lot-no { font-weight: 600; font-size: 1.1em; }
-        .queue-emp-id { font-size: 14px; color: #6c757d; }
-        .queue-item button { font-size: 15px; padding: 6px 22px; cursor: pointer; background-color: #198754; color: white; border: none; border-radius: 6px; font-weight: 600; }
-        .queue-placeholder { color: #6c757d; font-style: italic; margin-top: 20px; }
-        .drawer-backdrop { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.07); z-index: 50; display: none; }
-        .drawer-backdrop.open { display: block; }
-        .main-content.blurred { filter: blur(2px) grayscale(0.3); }
-        .details-panel { display: flex; flex-direction: column; gap: 16px; min-width: 270px; }
-        .details-panel .label { font-size: 21px; color: #6c757d; }
-        .details-panel .value { font-size: 26px; font-weight: 600; color: #343a40; }
-        .details-panel .lot-no { font-size: 62px; font-weight: 800; }
-        .status-badge { background-color: #6c757d; color: white; padding: 8px 28px; border-radius: 24px; font-weight: 700; font-size: 1.45em; display: inline-block; }
-        .status-badge.Waiting { background-color: #0d6efd; }
-        .status-badge.Error { background-color: #dc3545; }
-        .shelf-panel h2 { font-size: 2em; color: #343a40; margin: 0 0 20px 0; text-align: center; }
-        .shelf-grid { display: grid; grid-template-rows: repeat(4, 60px); grid-template-columns: repeat(6, 60px); gap: 7px; padding: 12px; background-color: #f8f9fa; border: 1px solid #dee2e6; }
-        .shelf-frame { border: 10px solid #adb5bd; border-radius: 10px; padding: 6px; }
-        .shelf-cell { background-color: #fff; border: 1.8px solid #e9ecef; border-radius: 4px; transition: background .18s; }
-        .shelf-cell.has-item { background-color: #a7f3d0; border-color: #34d399; }
-        .shelf-cell.selected-task { background-color: #dc3545 !important; border-color: #b02a37 !important; }
-        .back-to-queue-btn { background: none; border: none; color: #0d6efd; cursor: pointer; font-size: 16px; padding: 8px; margin-top: 20px; text-align: center; width: 100%; }
-        .back-to-queue-btn:hover { text-decoration: underline; }
-        .shelf-container.error-state { background-color: #fff1f2; }
-        .shelf-cell.highlight-error { animation: blink-error 1.2s infinite ease-in-out; }
-        @keyframes blink-error { 0%   { background-color: #ffc107; } 50%  { background-color: #dc3545; } 100% { background-color: #ffc107; } }
-        
-        .shelf-container.full-shelf-mode {
-            justify-content: center;
-            align-items: center;
-        }
-        .shelf-container.full-shelf-mode .shelf-panel h2 {
-            font-size: 2.5em;
-        }
-        .shelf-container.full-shelf-mode .shelf-grid {
-            grid-template-rows: repeat(4, 130px);
-            grid-template-columns: repeat(6, 130px);
-            gap: 15px;
-        }
-        .shelf-container.full-shelf-mode .shelf-frame {
-            border-width: 15px;
-        }
-
-        @media (max-width: 1300px) {
-            body { font-size: 14px; }
-            .shelf-container { gap: 30px; }
-            .details-panel { gap: 12px; min-width: 230px; }
-            .details-panel .label { font-size: 18px; }
-            .details-panel .value { font-size: 20px; }
-            .details-panel .lot-no { font-size: 48px; }
-            .status-badge { font-size: 1.25em; padding: 6px 20px; }
-            .shelf-panel h2 { font-size: 1.6em; margin-bottom: 15px; }
-            .shelf-grid {
-                grid-template-rows: repeat(4, 50px);
-                grid-template-columns: repeat(6, 50px);
-                gap: 5px;
-            }
-            .shelf-frame { border-width: 8px; padding: 5px; }
-            .queue-drawer { width: 350px; padding: 24px; }
-            .queue-header { font-size: 1.8em; }
-            .queue-item { padding: 14px 0 10px 0; }
-            .queue-item button { font-size: 14px; padding: 5px 18px; }
-
-            .shelf-container.full-shelf-mode .shelf-panel h2 {
-                font-size: 2.2em;
-            }
-            .shelf-container.full-shelf-mode .shelf-grid {
-                grid-template-rows: repeat(4, 100px);
-                grid-template-columns: repeat(6, 100px);
-                gap: 10px;
-            }
-            .shelf-container.full-shelf-mode .shelf-frame {
-                border-width: 12px;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="drawer-backdrop" id="drawerBackdrop"></div>
-    <aside class="queue-drawer" id="queueDrawer">
-        <div class="queue-header">Job Queue</div>
-        <ul class="queue-list" id="queueList"></ul>
-    </aside>
-
-    <main class="main-content" id="mainContent">
-        <div class="shelf-container" id="shelfContainer" style="display:none;">
-            <div class="details-panel" id="detailsPanel"></div>
-            <div class="shelf-panel" id="shelfPanel">
-                <h2>Shelf</h2>
-                <div class="shelf-frame"><div class="shelf-grid" id="shelfGrid"></div></div>
-            </div>
-        </div>
-    </main>
-
-    <script>
-        const drawerBackdrop = document.getElementById('drawerBackdrop');
-        const queueDrawer = document.getElementById('queueDrawer');
-        const queueListEl = document.getElementById('queueList');
-        const detailsPanel = document.getElementById('detailsPanel');
-        const shelfGrid = document.getElementById('shelfGrid');
-        const shelfContainer = document.getElementById('shelfContainer');
-
-        const ROWS = 4, COLS = 6;
-        const GLOBAL_SHELF_STATE_KEY = 'globalShelfState';
-        // --- NEW ---
-        const API_URL = '/api/jobs'; // Endpoint สำหรับดึงข้อมูล Job
-
-        function openDrawer() { queueDrawer.classList.add('open'); drawerBackdrop.classList.add('open'); document.getElementById('mainContent').classList.add('blurred'); }
-        function closeDrawer() { queueDrawer.classList.remove('open'); drawerBackdrop.classList.remove('open'); document.getElementById('mainContent').classList.remove('blurred'); }
-        drawerBackdrop.onclick = closeDrawer;
-
-        for (let r = 1; r <= ROWS; r++) for (let c = 1; c <= COLS; c++) {
-            const cell = document.createElement('div');
-            cell.classList.add('shelf-cell');
-            cell.id = `cell-${r}-${c}`;
-            shelfGrid.appendChild(cell);
-        }
-
-        function getActiveJob() { return JSON.parse(localStorage.getItem('activeShelfJob') || 'null'); }
-        function setActiveJob(job) { localStorage.setItem('activeShelfJob', JSON.stringify(job)); }
-        
-        function renderShelfFromState(shelfState) {
-            document.querySelectorAll('.shelf-cell').forEach(c => c.className = 'shelf-cell');
-            if (Array.isArray(shelfState)) {
-                shelfState.forEach(([pos, hasItem]) => {
-                    if (hasItem > 0) {
-                        const row = Math.floor(pos / 10);
-                        const col = pos % 10;
-                        const cell = document.getElementById(`cell-${row}-${col}`);
-                        if (cell) cell.classList.add('has-item');
-                    }
-                });
-            }
-        }
-
-        function renderQueueList() {
-            const queue = JSON.parse(localStorage.getItem('shelfQueue') || '[]');
-            queueListEl.innerHTML = '';
+    def do_POST(self):
+        # ถ้า client ส่งข้อมูล Job ใหม่เข้ามา
+        if self.path == '/api/jobs':
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
             
-            if (queue.length === 0) {
-                queueListEl.innerHTML = '<li class="queue-placeholder">No jobs in queue...</li>';
-                closeDrawer();
-                return;
-            }
+            try:
+                job_data = json.loads(post_data.decode('utf-8'))
+                print(f"✅ Received Job: {job_data.get('lotNo')}")
 
-            queue.forEach((job, index) => {
-                const item = document.createElement('li');
-                item.className = 'queue-item';
-                item.innerHTML = `
-                    <div class="queue-item-details">
-                        <span class="queue-lot-no">Lot: ${job.lotNo}</span>
-                        <span class="queue-emp-id">Emp: ${job.employeeId}</span>
-                    </div>
-                    <button data-job-index="${index}">Select</button>
-                `;
-                queueListEl.appendChild(item);
-            });
+                # เพิ่ม timestamp และใส่ข้อมูลลงใน queue
+                with jobs_lock:
+                    job_data['timestamp'] = datetime.datetime.now().strftime("%H:%M:%S")
+                    jobs_queue.append(job_data)
+                
+                # ตอบกลับ client ว่าได้รับข้อมูลแล้ว
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                response = {'status': 'success', 'message': 'Job received'}
+                self.wfile.write(json.dumps(response).encode('utf-8'))
 
-            if (queue.length > 1 && !getActiveJob()) {
-                openDrawer();
-            } else {
-                closeDrawer();
-            }
-        }
-
-        function goBackToQueue() {
-            localStorage.removeItem('activeShelfJob');
-            renderAll();
-        }
-
-        function renderActiveJob() {
-            const activeJob = getActiveJob();
+            except json.JSONDecodeError:
+                self.send_error(400, "Invalid JSON received")
+            return
             
-            shelfContainer.classList.remove('error-state', 'full-shelf-mode');
-            detailsPanel.style.display = 'flex';
+        self.send_error(404, "Not Found")
 
-            const currentShelfState = JSON.parse(localStorage.getItem(GLOBAL_SHELF_STATE_KEY) || '[]');
-            renderShelfFromState(currentShelfState);
+# --- ส่วนสำหรับรันโปรแกรม ---
+if __name__ == "__main__":
+    # ตรวจสอบว่าไฟล์ shelf_ui.html อยู่ในโฟลเดอร์เดียวกันหรือไม่
+    try:
+        with open("shelf_ui.html", "r", encoding="utf-8") as f:
+            pass
+        print("✔️  'shelf_ui.html' found.")
+    except FileNotFoundError:
+        print("❌ ERROR: 'shelf_ui.html' not found.")
+        print("Please save the HTML file in the same directory as this script.")
+        exit()
 
-            if (!activeJob) {
-                shelfContainer.classList.add('full-shelf-mode');
-                detailsPanel.style.display = 'none';
-                return;
-            }
-            
-            detailsPanel.innerHTML = `
-                <div><span class="label">Status  </span><span class="value"><span class="status-badge ${activeJob.status}">${activeJob.status}</span></span></div>
-                <div><span class="label">Lot No.</span><span class="value lot-no">${activeJob.lotNo}</span></div>
-                <div><span class="label">Form To </span><span class="value">${activeJob.from}</span></div>
-                <div><span class="label">Employee ID </span><span class="value">${activeJob.employeeId}</span></div>
-                <div><span class="label">Time Stamp </span><span class="value">${activeJob.timestamp}</span></div>
-                <button class="back-to-queue-btn" onclick="goBackToQueue()">← Back to Queue</button>
-            `;
-            
-            if (activeJob.error) {
-                shelfContainer.classList.add('error-state');
-            }
-            
-            if (activeJob.location) {
-                const { row, col } = activeJob.location;
-                const targetCell = document.getElementById(`cell-${row}-${col}`);
-                if (targetCell) {
-                    targetCell.classList.add(activeJob.error ? 'highlight-error' : 'selected-task');
-                }
-            }
-        }
-
-        queueListEl.addEventListener('click', function(event) {
-            if (event.target.tagName === 'BUTTON' && event.target.dataset.jobIndex) {
-                const jobIndex = parseInt(event.target.dataset.jobIndex, 10);
-                const queue = JSON.parse(localStorage.getItem('shelfQueue') || '[]');
-                const selectedJob = queue[jobIndex];
-                if (selectedJob) {
-                    setActiveJob(selectedJob);
-                    renderAll(); 
-                    closeDrawer();
-                }
-            }
-        });
-
-        function renderAll() {
-            shelfContainer.style.display = 'flex';
-            const queue = JSON.parse(localStorage.getItem('shelfQueue') || '[]');
-
-            if (queue.length === 1 && !getActiveJob()) {
-                setActiveJob(queue[0]);
-            }
-
-            renderQueueList();
-            renderActiveJob();
-        }
-        
-        // --- START: MODIFIED/NEW CODE ---
-
-        // ฟังก์ชันสำหรับดึงข้อมูล Job Queue จาก Server
-        async function fetchJobQueueFromServer() {
-            try {
-                const response = await fetch(API_URL);
-                if (!response.ok) {
-                    console.error("Server poll failed:", response.statusText);
-                    return;
-                }
-                const serverQueue = await response.json();
-                const localQueueRaw = localStorage.getItem('shelfQueue');
-
-                // อัปเดต localStorage ก็ต่อเมื่อข้อมูลจาก server ไม่ตรงกับข้อมูลที่มีอยู่
-                if (JSON.stringify(serverQueue) !== localQueueRaw) {
-                    console.log("Server has new data. Updating local queue.");
-                    localStorage.setItem('shelfQueue', JSON.stringify(serverQueue));
-                }
-            } catch (error) {
-                // ไม่ต้องแสดง error ถ้า server ยังไม่พร้อม
-            }
-        }
-
-        // Event listener ตัวนี้สำคัญมาก มันจะทำงานเมื่อ localStorage มีการเปลี่ยนแปลง
-        // ซึ่งจะเกิดขึ้นเมื่อ fetchJobQueueFromServer() พบข้อมูลใหม่
-        window.addEventListener('storage', (event) => {
-            if (event.key === 'shelfQueue' || event.key === 'activeShelfJob') {
-                 renderAll();
-            }
-        });
-        
-        // เริ่มการทำงานทั้งหมด
-        renderAll();
-
-        // เริ่มการ "ถาม" Server ทุกๆ 2 วินาที (2000 ms)
-        setInterval(fetchJobQueueFromServer, 2000);
-        // และถามทันทีเมื่อโหลดหน้าเว็บเสร็จ
-        fetchJobQueueFromServer();
-
-        // --- END: MODIFIED/NEW CODE ---
-    </script>
-</body>
-</html>
+    with socketserver.TCPServer((HOST, PORT), RequestHandler) as httpd:
+        print(f"\n🚀 Server starting at http://{HOST}:{PORT}")
+        print("   To view the UI, open a browser to http://<YOUR_PI_IP_ADDRESS>:8000")
+        print("   Run 'hostname -I' in the Pi's terminal to find the IP address.")
+        print("   Press Ctrl+C to stop the server.")
+        httpd.serve_forever()
