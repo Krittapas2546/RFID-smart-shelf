@@ -1,50 +1,55 @@
-import requests
+import socket
 import json
-import datetime
+import time
+import random
 
-# --- ตั้งค่า ---
-pi_ip_address = "YOUR_PI_IP_ADDRESS"  # <--- ✏️ ใส่ IP ของ Pi ของคุณ
-# นี่คือ Path ใหม่ที่เราสร้างไว้ใน main.py ด้วย @app.post
-api_path = "/api/update_shelf"
-api_url = f"http://{pi_ip_address}:8000{api_path}"
+pi_host_ip = '192.168.0.39'
+def send_job_to_pi(job_data, host= pi_host_ip, port=65432):
+    """
+    Connects to the Raspberry Pi server and sends job data.
+    """
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
+            print(f"📡 Connecting to {host}:{port}...")
+            client_socket.connect((host, port))
+            print("✅ Connected.")
 
-# --- สร้างข้อมูลที่จะส่ง ---
-# โครงสร้างของ Dictionary นี้ต้องตรงกับ Pydantic Model (ShelfData) บน Server
-data_to_send = {
-    "position_stk": [[10, 20], [15, 25], [5, 30]], # <--- Key คือ 'position_stk'
-    "timestamp": datetime.datetime.now().isoformat()
-}
+            # Convert dictionary to JSON string and encode to bytes
+            message = json.dumps(job_data).encode('utf-8')
 
-# --- ส่ง Request และแสดงผลลัพธ์ ---
-print(f"กำลังส่งข้อมูลไปที่: {api_url}")
-print(f"ข้อมูลที่จะส่ง:\n{json.dumps(data_to_send, indent=2)}")
+            print(f"📤 Sending Job Data:\n{json.dumps(job_data, indent=4)}")
+            client_socket.sendall(message)
+            print("✔️ Data sent successfully.")
 
-try:
-    response = requests.post(api_url, json=data_to_send, timeout=10)
-    response.raise_for_status()
+    except ConnectionRefusedError:
+        print(f"❌ Connection refused. Is the server script running on {host}?")
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
-    print("\n✅ ส่งข้อมูลสำเร็จ!")
-    print("--------------------")
-    print("Server บน Pi ตอบกลับว่า:")
-    print(response.json())
+if __name__ == "__main__":
+    # --- สร้างข้อมูลตามโครงสร้าง JSON ใหม่ ---
+    # คุณสามารถแก้ไขค่าต่างๆ ที่นี่ก่อนรันสคริปต์
+    job_to_send = {
+        "action": "PUT",
+        "status": "Waiting",
+        "lotNo": f"LOT-{random.randint(1000, 9999)}",
+        "from": "Station-A",
+        "employeeId": "2025014",
+        "location": {
+    
+            "row": random.randint(1, 4),
+            "col": random.randint(1, 6)
+        },
+        "PositionSTK": [
+            [11, 0], [12, 0], [13, 0], [14, 0], [15, 0], [16, 0],
+            [21, 0], [22, 0], [23, 0], [24, 0], [25, 0], [26, 0],
+            [31, 0], [32, 0], [33, 0], [34, 0], [35, 0], [36, 0],
+            [41, 0], [42, 0], [43, 0], [44, 0], [45, 0], [46, 0]
+        ],
+        "timestamp": time.strftime("%H:%M:%S"),
+        "error": None
+    }
 
-except requests.exceptions.HTTPError as e:
-    print(f"\n❌ เกิดข้อผิดพลาด (HTTP Error): {e.response.status_code} {e.response.reason}")
-    print(f"   - Path ที่เรียก: '{api_path}'")
-    print(f"   - ตรวจสอบให้แน่ใจว่าได้เพิ่มโค้ด @app.post('{api_path}') ใน main.py บน Pi และ restart server แล้ว")
-    if e.response.status_code == 422:
-        print("   - [สาเหตุ] โครงสร้างข้อมูลที่ส่ง (data_to_send) ไม่ตรงกับ Pydantic Model (ShelfData) บน Server")
-        print("   - Server แจ้งว่า:\n", e.response.json())
+    
 
-except requests.exceptions.ConnectionError:
-    print(f"\n❌ ไม่สามารถเชื่อมต่อกับ Raspberry Pi ที่ IP '{pi_ip_address}' ได้")
-    print("   - ตรวจสอบว่า IP Address ถูกต้อง")
-    print("   - ตรวจสอบว่า Pi และคอมพิวเตอร์อยู่ในวง LAN เดียวกัน")
-    print("   - ตรวจสอบว่า Server (main.py) บน Pi กำลังทำงานอยู่")
-
-except requests.exceptions.Timeout:
-    print(f"\n❌ การเชื่อมต่อหมดเวลา (Timeout)")
-    print("   - Server บน Pi อาจจะทำงานช้า หรือมีปัญหาเครือข่าย")
-
-except Exception as e:
-    print(f"\n❌ เกิดข้อผิดพลาดที่ไม่คาดคิด: {e}")
+    send_job_to_pi(job_to_send, host=pi_host_ip)
