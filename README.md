@@ -1,133 +1,138 @@
-import asyncio
+import tkinter as tk
+import socket
 import json
-import http.server
-import socketserver
-import threading
-from datetime import datetime
-import websockets
+import multiprocessing
+import time
+from queue import Empty  # Import the Empty exception
 
-# --- HTTP Server ---
-PORT = 8000
+# ==============================================================================
+# 1. ส่วนของ Server (โปรแกรมรับข้อมูล)
+#    - แก้ไขให้รับ queue เข้ามา
+#    - เมื่อได้ข้อมูลแล้ว ให้ .put() ลงใน queue แทนการ print()
+# ==============================================================================
+def server_process(job_queue):
+    """
+    ฟังก์ชันนี้จะทำงานเป็น Process แยกเพื่อรอรับข้อมูล Job จาก Network
+    แล้วส่งต่อไปยัง UI ผ่านทาง job_queue
+    """
+    host = '0.0.0.0'  # ฟังจากทุก Network Interface
+    port = 65432
 
-class MyHttpRequestHandler(http.server.SimpleHTTPRequestHandler):
-    def __init__(self, *args, **kwargs):
-        # ให้บริการไฟล์จากไดเรกทอรี 'www' ซึ่งควรจะอยู่ในระดับเดียวกับ main.py
-        super().__init__(*args, directory="www", **kwargs)
+    # ใช้ with statement เพื่อให้แน่ใจว่า socket จะถูกปิดเสมอ
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind((host, port))
+        s.listen()
+        print(f"✅ Server process started. Listening on {host}:{port}")
 
-def run_http_server():
-    with socketserver.TCPServer(("", PORT), MyHttpRequestHandler) as httpd:
-        print(f"HTTP Server เริ่มทำงานที่ http://<Your-Pi-IP>:{PORT}/shelf_ui.html")
-        httpd.serve_forever()
-
-# --- WebSocket Server ---
-connected_clients = set()
-queue = []
-active_job = None
-
-# FIX: แก้ไขฟังก์ชัน handler ให้รับพารามิเตอร์ 'path'
-# ไลบรารี websockets จะส่งอาร์กิวเมนต์ 'websocket' และ 'path' มาให้เมื่อมี client เชื่อมต่อเข้ามาใหม่
-# การเพิ่ม 'path' ใน signature ของฟังก์ชันจะช่วยแก้ปัญหา TypeError ที่เกิดขึ้น
-async def handler(websocket, path):
-    global active_job
-    print(f"✅ Client เชื่อมต่อแล้ว: {websocket.remote_address}")
-    connected_clients.add(websocket)
-    try:
-        # ส่งข้อมูลสถานะปัจจุบัน (Queue และ Active Job) ให้ Client ที่เพิ่งต่อเข้ามาใหม่
-        initial_data = {
-            "type": "initial_state",
-            "queue": queue,
-            "activeJob": active_job
-        }
-        await websocket.send(json.dumps(initial_data))
-
-        async for message in websocket:
-            print(f"📥 ได้รับข้อมูล: {message}")
+        while True: # วนลูปเพื่อรับการเชื่อมต่อใหม่ๆ ได้ตลอด
             try:
-                data = json.loads(message)
+                conn, addr = s.accept()
+                with conn:
+                    print(f"🔌 Connected by {addr}")
+                    data = conn.recv(1024)
+                    if not data:
+                        continue # ถ้าไม่มีข้อมูล ให้รอ connection ต่อไป
 
-                # --- ตรวจสอบว่าเป็นคำสั่งพิเศษจาก UI หรือไม่ ---
-                if data.get("command") == "get_initial_state":
-                    # ข้อมูลเริ่มต้นถูกส่งไปแล้วตอนเชื่อมต่อครั้งแรก
-                    pass
-                elif data.get("command") == "set_active":
-                    job_lot_no = data.get("lotNo")
-                    new_active_job = next((job for job in queue if job["lotNo"] == job_lot_no), None)
-                    if new_active_job:
-                        active_job = new_active_job
-                        queue = [job for job in queue if job["lotNo"] != job_lot_no] # เอาออกจากคิว
-                        update_message = {
-                            "type": "update",
-                            "queue": queue,
-                            "activeJob": active_job
-                        }
-                        # แจ้งเตือน client ทุกตัวที่เชื่อมต่ออยู่
-                        for client in connected_clients:
-                            await client.send(json.dumps(update_message))
-                elif data.get("command") == "back_to_queue":
-                    if active_job:
-                        queue.insert(0, active_job) # นำกลับไปไว้บนสุดของคิว
-                        active_job = None
-                        update_message = {
-                            "type": "update",
-                            "queue": queue,
-                            "activeJob": active_job
-                        }
-                        # แจ้งเตือน client ทุกตัวที่เชื่อมต่ออยู่
-                        for client in connected_clients:
-                            await client.send(json.dumps(update_message))
-                else:
-                    # --- จัดการ Job ที่ส่งมาจาก Client อื่น (job_client.py) ---
-                    new_job = data
-                    new_job['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    # แปลงข้อมูล bytes -> string -> dict
+                    job_data = json.loads(data.decode('utf-8'))
+                    print(f"📥 Received Job: {job_data['Lot No.']}")
 
-                    # แยก taskLocation เป็น row/col
-                    try:
-                        location_str = new_job.get("taskLocation", "")
-                        row_str, col_str = location_str.replace("Row-", "").replace("Col-", "").split(',')
-                        new_job['location'] = {'row': int(row_str), 'col': int(col_str)}
-                    except (ValueError, AttributeError):
-                        new_job['location'] = None # หรือตั้งค่า default
+                    # --- จุดสำคัญ: ส่งข้อมูล Job เข้า Queue ---
+                    job_queue.put(job_data)
 
-                    # ถ้ายังไม่มี Active Job ให้ตั้งอันนี้เป็น Active เลย
-                    if active_job is None:
-                        active_job = new_job
-                    else:
-                        queue.append(new_job)
-
-                    # สร้าง Message สำหรับส่งไปอัปเดต UI
-                    update_message = {
-                        "type": "update",
-                        "queue": queue,
-                        "activeJob": active_job
-                    }
-
-                    # ส่งข้อมูลอัปเดตไปยังทุก Client ที่เชื่อมต่ออยู่
-                    for client in connected_clients:
-                        await client.send(json.dumps(update_message))
-
-            except json.JSONDecodeError:
-                print("⚠️ ไม่สามารถถอดรหัส JSON ได้")
+                    # ส่งการตอบกลับไปให้ Client
+                    conn.sendall(b'Received')
             except Exception as e:
-                print(f"🚨 เกิดข้อผิดพลาดในการประมวลผลข้อความ: {e}")
-
-    finally:
-        connected_clients.remove(websocket)
-        print(f"❌ Client ตัดการเชื่อมต่อ: {websocket.remote_address}")
+                print(f"💥 Server Error: {e}")
+                time.sleep(1)
 
 
-async def main():
-    print("▶️  กำลังเริ่ม Server...")
-    # เริ่ม HTTP server ใน thread แยก
-    http_thread = threading.Thread(target=run_http_server, daemon=True)
-    http_thread.start()
+# ==============================================================================
+# 2. ส่วนของ UI (โปรแกรมหน้าจอ)
+#    - แก้ไขให้รับ queue เข้ามา
+#    - สร้างฟังก์ชันสำหรับเช็ค queue และอัปเดตหน้าจอ
+# ==============================================================================
+def ui_process(job_queue):
+    """
+    ฟังก์ชันนี้จะทำงานเป็น Process แยกเพื่อสร้างและแสดงผลหน้าจอ UI
+    และคอยดึงข้อมูลจาก job_queue มาอัปเดตหน้าจอ
+    """
+    root = tk.Tk()
+    root.title("Automated Warehouse Shelf")
+    root.geometry("800x600")
 
-    # เริ่ม WebSocket server
-    print("WebSocket จะรอการเชื่อมต่อที่ Port 8765")
-    async with websockets.serve(handler, "0.0.0.0", 8765):
-        await asyncio.Future()  # run forever
+    rows, cols = 5, 10
+    shelf_labels = [[None for _ in range(cols)] for _ in range(rows)]
 
+    for r in range(rows):
+        for c in range(cols):
+            frame = tk.Frame(root, width=70, height=50, borderwidth=1, relief="solid")
+            frame.grid(row=r, column=c, padx=5, pady=5)
+            frame.pack_propagate(False) # ป้องกันไม่ให้ frame หดตาม label
+
+            # สร้าง Label 2 บรรทัดสำหรับ Lot No. และ Status
+            lot_label = tk.Label(frame, text=f"({r},{c})", font=("Arial", 8))
+            lot_label.pack()
+            status_label = tk.Label(frame, text="Empty", font=("Arial", 8), fg="grey")
+            status_label.pack()
+
+            shelf_labels[r][c] = {'lot': lot_label, 'status': status_label}
+
+    # --- จุดสำคัญ: ฟังก์ชันสำหรับเช็ค Queue และอัปเดต UI ---
+    def check_for_jobs():
+        try:
+            # ลองดึงข้อมูลจาก Queue แบบไม่ block (non-blocking)
+            job = job_queue.get_nowait()
+
+            print(f"🎨 UI updating for Lot: {job['Lot No.']}")
+
+            # แยกข้อมูลตำแหน่ง "Row-1, Col-1" -> (0, 0)
+            location_str = job.get("Task Location", "")
+            parts = location_str.replace('Row-', '').replace('Col-', '').split(',')
+            if len(parts) == 2:
+                row, col = int(parts[0]), int(parts[1])
+
+                # อัปเดต Label บนหน้าจอ
+                if 0 <= row < rows and 0 <= col < cols:
+                    target_labels = shelf_labels[row][col]
+                    target_labels['lot'].config(text=f"Lot: {job['Lot No.']}", fg="black")
+                    target_labels['status'].config(text=job['Status'], fg="blue")
+                else:
+                    print(f"⚠️ Invalid location: ({row},{col})")
+
+        except Empty:
+            # ถ้า Queue ว่างเปล่า ก็ไม่ต้องทำอะไร
+            pass
+        finally:
+            # ตั้งเวลาให้กลับมาเช็คฟังก์ชันนี้อีกครั้งใน 100ms
+            root.after(100, check_for_jobs)
+
+    print("✅ UI process started.")
+    check_for_jobs()  # เริ่มการตรวจสอบ Job ครั้งแรก
+    root.mainloop()
+
+
+# ==============================================================================
+# 3. ส่วนหลัก (Main)
+#    - สร้าง Queue
+#    - สร้างและเริ่มการทำงานของทั้ง 2 Process
+# ==============================================================================
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        print("\n⏹️  กำลังปิด Server...")
+    print("🚀 Starting Main Application...")
+
+    # สร้าง "ตู้ไปรษณีย์กลาง"
+    job_queue = multiprocessing.Queue()
+
+    # สร้าง Process สำหรับ Server และส่ง queue เข้าไป
+    p_server = multiprocessing.Process(target=server_process, args=(job_queue,))
+
+    # สร้าง Process สำหรับ UI และส่ง queue เดียวกันเข้าไป
+    p_ui = multiprocessing.Process(target=ui_process, args=(job_queue,))
+
+    # เริ่มการทำงานของทั้งสอง Process
+    p_server.start()
+    p_ui.start()
+
+    # รอให้ Process ทั้งสองทำงานจนจบ (ซึ่งในที่นี้คือไม่มีวันจบ)
+    p_server.join()
+    p_ui.join()
