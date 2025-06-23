@@ -1,85 +1,93 @@
+import asyncio
+import websockets
+import json
 import http.server
 import socketserver
-import json
 import threading
-import datetime
+import time
+from datetime import datetime
 
-# --- ส่วนเก็บข้อมูลกลาง (Thread-Safe) ---
-# List นี้จะเก็บ Job ทั้งหมดที่ถูกส่งเข้ามา
-jobs_queue = []
-jobs_lock = threading.Lock()
+# --- WebSocket Server Configuration ---
+WS_PORT = 8765
+CONNECTED_BROWSERS = set()
+print(f"WebSocket จะรอการเชื่อมต่อที่ Port {WS_PORT}")
 
-# --- ตั้งค่า Server ---
-PORT = 8000
-# ใช้ 0.0.0.0 เพื่อให้ Server รับการเชื่อมต่อจากทุก IP ในเครือข่าย
-HOST = '0.0.0.0'
+# ฟังก์ชันสำหรับส่งข้อมูลไปยัง Browser ทุกตัวที่เชื่อมต่ออยู่
+async def broadcast(message):
+    if CONNECTED_BROWSERS:
+        # สร้าง task สำหรับส่งข้อมูลไปแต่ละ browser พร้อมๆ กัน
+        await asyncio.wait([browser.send(message) for browser in CONNECTED_BROWSERS])
 
-class RequestHandler(http.server.SimpleHTTPRequestHandler):
-    """
-    คลาสสำหรับจัดการ HTTP Request ที่เข้ามา
-    """
-    def do_GET(self):
-        # ถ้า client ขอ path หลัก ('/') ให้ส่งไฟล์ shelf_ui.html กลับไป
-        if self.path == '/':
-            self.path = '/shelf_ui.html'
-            return http.server.SimpleHTTPRequestHandler.do_GET(self)
-
-        # ถ้าหน้า UI (JavaScript) ขอข้อมูล Job ล่าสุด
-        if self.path == '/api/jobs':
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.end_headers()
-            with jobs_lock:
-                # ส่งข้อมูลใน jobs_queue กลับไปในรูปแบบ JSON
-                self.wfile.write(json.dumps(jobs_queue).encode('utf-8'))
-            return
-        
-        # สำหรับ request อื่นๆ ให้ทำงานตามปกติ (เช่น โหลดไฟล์ CSS/JS ถ้ามี)
-        return http.server.SimpleHTTPRequestHandler.do_GET(self)
-
-    def do_POST(self):
-        # ถ้า client ส่งข้อมูล Job ใหม่เข้ามา
-        if self.path == '/api/jobs':
-            content_length = int(self.headers['Content-Length'])
-            post_data = self.rfile.read(content_length)
-            
+# ฟังก์ชันหลักที่จัดการการเชื่อมต่อแต่ละ client
+async def handler(websocket, path):
+    print(f"✅ Client เชื่อมต่อเข้ามา: {websocket.remote_address}")
+    # ถ้าเป็น browser ให้เพิ่ม vào set
+    if path == '/browser':
+        CONNECTED_BROWSERS.add(websocket)
+        print(f"🖥️  Browser เชื่อมต่อแล้ว ตอนนี้มี {len(CONNECTED_BROWSERS)} หน้าต่าง")
+    
+    try:
+        # รอรับข้อมูลจาก client (เช่น job_client.py)
+        async for message in websocket:
+            print(f"📩 ได้รับข้อมูล: {message}")
             try:
-                job_data = json.loads(post_data.decode('utf-8'))
-                print(f"✅ Received Job: {job_data.get('lotNo')}")
-
-                # เพิ่ม timestamp และใส่ข้อมูลลงใน queue
-                with jobs_lock:
-                    job_data['timestamp'] = datetime.datetime.now().strftime("%H:%M:%S")
-                    jobs_queue.append(job_data)
+                # ลองแปลงข้อมูลที่ได้รับเป็น JSON
+                job_data = json.loads(message)
                 
-                # ตอบกลับ client ว่าได้รับข้อมูลแล้ว
-                self.send_response(200)
-                self.send_header('Content-type', 'application/json')
-                self.end_headers()
-                response = {'status': 'success', 'message': 'Job received'}
-                self.wfile.write(json.dumps(response).encode('utf-8'))
+                # --- เพิ่มข้อมูล timestamp และแปลง location ---
+                job_data['timestamp'] = datetime.now().strftime('%H:%M:%S')
+                
+                location_str = job_data.get("taskLocation", "") # "Row-1,Col-1"
+                parts = location_str.replace('Row-', '').replace('Col-', '').split(',')
+                if len(parts) == 2:
+                    job_data['location'] = {'row': int(parts[0]), 'col': int(parts[1])}
+                else:
+                    job_data['location'] = None
+
+                # แปลงกลับเป็น JSON String เพื่อส่งไปให้ Browser
+                message_to_browser = json.dumps(job_data)
+                
+                # ส่งข้อมูลที่ได้รับไปยังทุก Browser ที่เชื่อมต่ออยู่
+                await broadcast(message_to_browser)
+                print(f"🚀 ส่งข้อมูลต่อไปยัง Browser {len(CONNECTED_BROWSERS)} ตัวเรียบร้อย")
 
             except json.JSONDecodeError:
-                self.send_error(400, "Invalid JSON received")
-            return
-            
-        self.send_error(404, "Not Found")
+                print("⚠️ ไม่สามารถแปลงข้อมูลเป็น JSON ได้")
+            except Exception as e:
+                print(f"เกิดข้อผิดพลาด: {e}")
 
-# --- ส่วนสำหรับรันโปรแกรม ---
-if __name__ == "__main__":
-    # ตรวจสอบว่าไฟล์ shelf_ui.html อยู่ในโฟลเดอร์เดียวกันหรือไม่
-    try:
-        with open("shelf_ui.html", "r", encoding="utf-8") as f:
-            pass
-        print("✔️  'shelf_ui.html' found.")
-    except FileNotFoundError:
-        print("❌ ERROR: 'shelf_ui.html' not found.")
-        print("Please save the HTML file in the same directory as this script.")
-        exit()
+    except websockets.exceptions.ConnectionClosed:
+        print(f"❌ Client ตัดการเชื่อมต่อ: {websocket.remote_address}")
+    finally:
+        # ถ้า client ที่ตัดการเชื่อมต่อเป็น browser ให้นำออกจาก set
+        if websocket in CONNECTED_BROWSERS:
+            CONNECTED_BROWSERS.remove(websocket)
+            print(f"🖥️  Browser ตัดการเชื่อมต่อ ตอนนี้เหลือ {len(CONNECTED_BROWSERS)} หน้าต่าง")
 
-    with socketserver.TCPServer((HOST, PORT), RequestHandler) as httpd:
-        print(f"\n🚀 Server starting at http://{HOST}:{PORT}")
-        print("   To view the UI, open a browser to http://<YOUR_PI_IP_ADDRESS>:8000")
-        print("   Run 'hostname -I' in the Pi's terminal to find the IP address.")
-        print("   Press Ctrl+C to stop the server.")
+
+async def start_ws_server():
+    # เริ่ม WebSocket server
+    async with websockets.serve(handler, "0.0.0.0", WS_PORT):
+        await asyncio.Future()  # รันไปเรื่อยๆ
+
+# --- HTTP Server Configuration ---
+HTTP_PORT = 8000
+Handler = http.server.SimpleHTTPRequestHandler
+
+def run_http_server():
+    # สร้างและเริ่ม HTTP server ใน Thread แยก
+    with socketserver.TCPServer(("", HTTP_PORT), Handler) as httpd:
+        print(f"HTTP Server เริ่มทำงานที่ http://<Your-Pi-IP>:{HTTP_PORT}/shelf_ui.html")
         httpd.serve_forever()
+
+# --- Main Execution ---
+if __name__ == "__main__":
+    print("▶️  กำลังเริ่ม Server...")
+    
+    # 1. เริ่ม HTTP Server ใน Thread แยก เพื่อไม่ให้ block การทำงานหลัก
+    http_thread = threading.Thread(target=run_http_server)
+    http_thread.daemon = True # ตั้งเป็น daemon เพื่อให้ปิดเองเมื่อโปรแกรมหลักปิด
+    http_thread.start()
+
+    # 2. เริ่ม WebSocket Server ใน Thread หลัก
+    asyncio.run(start_ws_server())
