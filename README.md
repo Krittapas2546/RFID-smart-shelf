@@ -1,78 +1,85 @@
-import socket
+import http.server
+import socketserver
 import json
-import time
+import threading
+import datetime
+
+# --- ส่วนเก็บข้อมูลกลาง (Thread-Safe) ---
+# List นี้จะเก็บ Job ทั้งหมดที่ถูกส่งเข้ามา
+jobs_queue = []
+jobs_lock = threading.Lock()
 
 # --- ตั้งค่า Server ---
-HOST = '0.0.0.0'  # ฟังจากทุก IP Address ที่เข้ามาที่เครื่องนี้
-PORT = 65432      # Port ที่จะใช้สื่อสาร (เลือก Port ที่ไม่ซ้ำกับโปรแกรมอื่น)
-# --------------------
+PORT = 8000
+# ใช้ 0.0.0.0 เพื่อให้ Server รับการเชื่อมต่อจากทุก IP ในเครือข่าย
+HOST = '0.0.0.0'
 
-# สร้าง Socket object
-# AF_INET คือใช้ IPv4, SOCK_STREAM คือใช้ TCP
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+class RequestHandler(http.server.SimpleHTTPRequestHandler):
+    """
+    คลาสสำหรับจัดการ HTTP Request ที่เข้ามา
+    """
+    def do_GET(self):
+        # ถ้า client ขอ path หลัก ('/') ให้ส่งไฟล์ shelf_ui.html กลับไป
+        if self.path == '/':
+            self.path = '/shelf_ui.html'
+            return http.server.SimpleHTTPRequestHandler.do_GET(self)
 
-# ทำให้สามารถใช้ Port เดิมได้ทันทีหลังจากปิดโปรแกรม
-server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        # ถ้าหน้า UI (JavaScript) ขอข้อมูล Job ล่าสุด
+        if self.path == '/api/jobs':
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            with jobs_lock:
+                # ส่งข้อมูลใน jobs_queue กลับไปในรูปแบบ JSON
+                self.wfile.write(json.dumps(jobs_queue).encode('utf-8'))
+            return
+        
+        # สำหรับ request อื่นๆ ให้ทำงานตามปกติ (เช่น โหลดไฟล์ CSS/JS ถ้ามี)
+        return http.server.SimpleHTTPRequestHandler.do_GET(self)
 
-# ผูก Socket กับ Host และ Port
-server_socket.bind((HOST, PORT))
+    def do_POST(self):
+        # ถ้า client ส่งข้อมูล Job ใหม่เข้ามา
+        if self.path == '/api/jobs':
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
+            
+            try:
+                job_data = json.loads(post_data.decode('utf-8'))
+                print(f"✅ Received Job: {job_data.get('lotNo')}")
 
-# รอรับการเชื่อมต่อ (ให้คิวรอได้ 1 การเชื่อมต่อ)
-server_socket.listen(1)
+                # เพิ่ม timestamp และใส่ข้อมูลลงใน queue
+                with jobs_lock:
+                    job_data['timestamp'] = datetime.datetime.now().strftime("%H:%M:%S")
+                    jobs_queue.append(job_data)
+                
+                # ตอบกลับ client ว่าได้รับข้อมูลแล้ว
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                response = {'status': 'success', 'message': 'Job received'}
+                self.wfile.write(json.dumps(response).encode('utf-8'))
 
-print(f"✅ Server เริ่มทำงานแล้วที่ IP: {socket.gethostbyname(socket.gethostname())} Port: {PORT}")
-print("...กำลังรอรับข้อมูล Job...")
+            except json.JSONDecodeError:
+                self.send_error(400, "Invalid JSON received")
+            return
+            
+        self.send_error(404, "Not Found")
 
-def display_job(job_data):
-    """ฟังก์ชันสำหรับแสดงผลข้อมูล Job ที่ได้รับให้สวยงาม"""
-    print("\n" + "="*40)
-    print("⚡️ Add New Job to Queue")
-    print("="*40)
-    print(f"  Action: \t{job_data.get('action', 'N/A')}")
-    print(f"  Lot No.: \t{job_data.get('lotNo', 'N/A')}")
-    print(f"  From: \t\t{job_data.get('from', 'N/A')}")
-    print(f"  Employee ID: \t{job_data.get('employeeId', 'N/A')}")
-    
-    location = job_data.get('location', {})
-    row = location.get('row', 'N/A')
-    col = location.get('col', 'N/A')
-    print(f"  Task Location: \tRow-{row}, Col-{col}")
-    print(f"  Status: \t{job_data.get('status', 'N/A')}")
-    print("="*40)
-
-while True:
+# --- ส่วนสำหรับรันโปรแกรม ---
+if __name__ == "__main__":
+    # ตรวจสอบว่าไฟล์ shelf_ui.html อยู่ในโฟลเดอร์เดียวกันหรือไม่
     try:
-        # ยอมรับการเชื่อมต่อจาก Client
-        conn, addr = server_socket.accept()
-        with conn:
-            print(f"\n🔌 ได้รับการเชื่อมต่อจาก {addr}")
+        with open("shelf_ui.html", "r", encoding="utf-8") as f:
+            pass
+        print("✔️  'shelf_ui.html' found.")
+    except FileNotFoundError:
+        print("❌ ERROR: 'shelf_ui.html' not found.")
+        print("Please save the HTML file in the same directory as this script.")
+        exit()
 
-            # รับข้อมูล (กำหนดขนาด Buffer ไว้ที่ 1024 bytes)
-            data_bytes = conn.recv(1024)
-            if not data_bytes:
-                # ถ้าไม่ได้รับข้อมูล แสดงว่า Client ตัดการเชื่อมต่อ
-                print(f"🔌 Client {addr} ตัดการเชื่อมต่อ")
-                continue
-
-            # แปลงข้อมูลจาก bytes เป็น string
-            data_str = data_bytes.decode('utf-8')
-
-            # แปลง JSON string เป็น Python Dictionary
-            job_data = json.loads(data_str)
-
-            # แสดงผลข้อมูล Job
-            display_job(job_data)
-
-            # ส่งข้อความยืนยันกลับไปหา Client
-            confirmation_message = "✅ Job Received and Added to Queue".encode('utf-8')
-            conn.sendall(confirmation_message)
-
-    except json.JSONDecodeError:
-        print("❌ เกิดข้อผิดพลาด: ไม่สามารถแปลงข้อมูล JSON ที่ได้รับได้")
-        error_message = "Error: Invalid JSON format".encode('utf-8')
-        conn.sendall(error_message)
-    except Exception as e:
-        print(f"❌ เกิดข้อผิดพลาดที่ไม่คาดคิด: {e}")
-        time.sleep(5) # หน่วงเวลาก่อนเริ่มใหม่
-    
-    print("\n...กลับไปรอรับข้อมูล Job ต่อไป...")
+    with socketserver.TCPServer((HOST, PORT), RequestHandler) as httpd:
+        print(f"\n🚀 Server starting at http://{HOST}:{PORT}")
+        print("   To view the UI, open a browser to http://<YOUR_PI_IP_ADDRESS>:8000")
+        print("   Run 'hostname -I' in the Pi's terminal to find the IP address.")
+        print("   Press Ctrl+C to stop the server.")
+        httpd.serve_forever()
