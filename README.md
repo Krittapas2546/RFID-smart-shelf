@@ -1,78 +1,42 @@
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
+from fastapi import FastAPI
 from pydantic import BaseModel
-import json
-import os
+import uvicorn
 
+# สร้าง Instance ของ FastAPI
 app = FastAPI()
 
-# --- Data Structure ---
-# Pydantic model to validate the incoming JSON data from ESP32
-class ShelfData(BaseModel):
-    shelf_id: str
-    items: list[dict]
+# 1. สร้าง Pydantic Model เพื่อกำหนดโครงสร้างข้อมูลของ Job
+#    ข้อมูลที่ส่งมาจาก Client จะต้องมีหน้าตาแบบนี้
+class Job(BaseModel):
+    action: str
+    lot_no: str
+    # เราใช้ from_loc แทน from เพราะ 'from' เป็นคำสงวนใน Python
+    from_loc: str
+    employee_id: str
+    task_location_row: int
+    task_location_col: int
 
-# --- In-memory database ---
-# A simple dictionary to store the latest data for each shelf
-shelf_database = {}
+# 2. สร้าง API Endpoint ชื่อ /api/create_job เพื่อรอรับข้อมูล Job
+#    ใช้เมธอด POST เพราะเป็นการสร้างข้อมูลใหม่
+@app.post("/api/create_job")
+async def create_job(job: Job):
+    # เมื่อได้รับข้อมูลมาแล้ว ก็สามารถนำไปประมวลผลต่อได้
+    # ในตัวอย่างนี้ เราจะแค่พิมพ์ข้อมูลออกมาดู
+    print("✅ Received new job:")
+    print(f"  Action: {job.action}")
+    print(f"  Lot No: {job.lot_no}")
+    print(f"  From: {job.from_loc}")
+    print(f"  Employee ID: {job.employee_id}")
+    print(f"  Task Location: Row {job.task_location_row}, Col {job.task_location_col}")
 
-# --- Mount static files and templates ---
-# Get the absolute path of the directory containing this main.py file
-current_dir = os.path.dirname(os.path.abspath(__file__))
+    # ส่ง response กลับไปบอก Client ว่ารับข้อมูลสำเร็จแล้ว
+    return {"status": "success", "job_received": job.dict()}
 
-# Construct the correct paths to the 'static' and 'templates' directories
-static_path = os.path.join(current_dir, "static")
-templates_path = os.path.join(current_dir, "templates")
+# Endpoint เริ่มต้นสำหรับทดสอบว่า Server ทำงานอยู่
+@app.get("/")
+def read_root():
+    return {"message": "Job server is running"}
 
-# Mount the 'static' directory to serve files like CSS and JavaScript
-app.mount("/static", StaticFiles(directory=static_path), name="static")
-# Initialize the template engine
-templates = Jinja2Templates(directory=templates_path)
-
-
-# --- API Endpoint to receive data from ESP32 ---
-@app.post("/api/update_shelf")
-async def update_shelf(data: ShelfData):
-    """
-    This is the endpoint that the ESP32 will send its data to.
-    It receives shelf data, validates it using the ShelfData model,
-    and updates the in-memory database.
-    """
-    shelf_id = data.shelf_id
-    print(f"Received data for shelf: {shelf_id}")
-    print(f"Items: {data.items}")
-
-    # Store or update the data in our simple dictionary database
-    shelf_database[shelf_id] = data.items
-
-    # Send a success response back to the ESP32
-    return {"status": "success", "shelf_id": shelf_id, "received_items": len(data.items)}
-
-
-# --- Web page endpoint ---
-@app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
-    """
-    This endpoint serves the main HTML web page.
-    It renders the index.html template.
-    """
-    # The template will have access to the 'request' object.
-    # We pass the entire database to the template so it can display initial data if available.
-    return templates.TemplateResponse("index.html", {"request": request, "shelf_data": shelf_database})
-
-
-# --- API Endpoint for the web page to fetch updated data ---
-@app.get("/api/get_shelf_data")
-async def get_shelf_data():
-    """
-    This endpoint is called by the JavaScript on the web page
-    to get the latest shelf data asynchronously.
-    """
-    return shelf_database
-
-# To run this server:
-# 1. Make sure you are in the directory containing this file (e.g., .../src/)
-# 2. Run the command in your terminal:
-#    uvicorn main:app --host 0.0.0.0 --port 8000
+# ส่วนสำหรับรัน Server โดยตรง (ถ้าไม่ใช้ uvicorn command)
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
