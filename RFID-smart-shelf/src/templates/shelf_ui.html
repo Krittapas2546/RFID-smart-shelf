@@ -69,6 +69,13 @@
         .shelf-cell.highlight-error { animation: blink-error 1.2s infinite ease-in-out; }
         @keyframes blink-error { 0%   { background-color: #ffc107; } 50%  { background-color: #dc3545; } 100% { background-color: #ffc107; } }
         
+        /* CSS ใหม่สำหรับช่องที่วางผิด */
+        .shelf-cell.wrong-location {
+            background-color: #ffc107 !important; /* สีเหลืองอำพัน */
+            border-color: #e6a200 !important;
+            box-shadow: 0 0 10px #ffc107;
+        }
+
         .shelf-container.full-shelf-mode {
             justify-content: center;
             align-items: center;
@@ -216,18 +223,23 @@
         function renderActiveJob() {
             const activeJob = getActiveJob();
             
+            // เคลียร์คลาสทั้งหมดออกจาก container และ cell ก่อน
             shelfContainer.classList.remove('error-state', 'full-shelf-mode');
-            detailsPanel.style.display = 'flex';
-
-            const currentShelfState = JSON.parse(localStorage.getItem(GLOBAL_SHELF_STATE_KEY) || '[]');
-            renderShelfFromState(currentShelfState);
+            document.querySelectorAll('.shelf-cell').forEach(c => c.className = 'shelf-cell');
 
             if (!activeJob) {
+                // --- กรณีไม่มีงานที่กำลังทำอยู่ ---
+                // แสดงสถานะของชั้นวางทั้งหมด (โหมดดูภาพรวม)
                 shelfContainer.classList.add('full-shelf-mode');
-                detailsPanel.style.display = 'none';
+                detailsPanel.style.display = 'none'; // ซ่อน panel รายละเอียด
+                const currentShelfState = JSON.parse(localStorage.getItem(GLOBAL_SHELF_STATE_KEY) || '[]');
+                renderShelfFromState(currentShelfState); // แสดงช่องที่มีของ (สีเขียว)
                 return;
             }
             
+            // --- กรณีมีงานที่กำลังทำอยู่ ---
+            // แสดง panel รายละเอียด และซ่อนโหมดภาพรวม
+            detailsPanel.style.display = 'flex';
             detailsPanel.innerHTML = `
                 <div><span class="label">Status  </span><span class="value"><span class="status-badge ${activeJob.status}">${activeJob.status}</span></span></div>
                 <div><span class="label">Lot No.</span><span class="value lot-no">${activeJob.lotNo}</span></div>
@@ -241,11 +253,22 @@
                 shelfContainer.classList.add('error-state');
             }
             
+            // แสดงช่องเป้าหมาย (ที่ควรจะวาง)
             if (activeJob.location) {
                 const { row, col } = activeJob.location;
                 const targetCell = document.getElementById(`cell-${row}-${col}`);
                 if (targetCell) {
+                    // ถ้ามี error ให้กระพริบ, ถ้าไม่มีให้เป็นสีแดงปกติ
                     targetCell.classList.add(activeJob.error ? 'highlight-error' : 'selected-task');
+                }
+            }
+
+            // ถ้ามี error และมีข้อมูลตำแหน่งที่วางผิด ให้แสดงช่องนั้นด้วย
+            if (activeJob.error && activeJob.errorLocation) {
+                const { row, col } = activeJob.errorLocation;
+                const wrongCell = document.getElementById(`cell-${row}-${col}`);
+                if (wrongCell) {
+                    wrongCell.classList.add('wrong-location');
                 }
             }
         }

@@ -52,10 +52,6 @@
 
         <hr>
 
-
-        
-        <hr>
-
         <!-- >> ส่วนใหม่: System Controls << -->
         <h2>System Controls</h2>
         <button onclick="clearAllData()" class="danger-btn">Clear All Data (Reset System)</button>
@@ -142,23 +138,59 @@
 
         function simulateTaskComplete() {
             const activeJob = JSON.parse(localStorage.getItem('activeShelfJob') || 'null');
-            if (!activeJob) return showStatus('ERROR: No active job selected.', 'red');
-            
-            const shelfState = getGlobalShelfState();
-            const jobLocation = activeJob.location.row * 10 + activeJob.location.col;
-            const itemState = activeJob.action === 'PUT' ? 1 : 0;
-            const itemIndex = shelfState.findIndex(([pos]) => pos === jobLocation);
-            if (itemIndex > -1) shelfState[itemIndex][1] = itemState;
-            setGlobalShelfState(shelfState);
+            if (!activeJob) {
+                return showStatus('ERROR: No active job selected.', 'red');
+            }
 
-            const queue = (JSON.parse(localStorage.getItem('shelfQueue') || '[]')).filter(j => j.jobId !== activeJob.jobId);
+            // อัปเดตสถานะชั้นวางจริง
+            const shelfState = getGlobalShelfState();
+            const targetPos = activeJob.location.row * 10 + activeJob.location.col;
+            const itemIndex = shelfState.findIndex(([pos]) => pos === targetPos);
+            if (itemIndex > -1) {
+                shelfState[itemIndex][1] = 1; // 1 = มีของ
+                setGlobalShelfState(shelfState);
+            }
+
+            // ลบงานออกจากคิว
+            let queue = JSON.parse(localStorage.getItem('shelfQueue') || '[]');
+            queue = queue.filter(j => j.jobId !== activeJob.jobId);
             localStorage.setItem('shelfQueue', JSON.stringify(queue));
             localStorage.removeItem('activeShelfJob');
-            
-            renderGlobalShelfGrid(); // อัปเดต Grid หลังทำงานเสร็จ
+
+            renderGlobalShelfGrid();
             showStatus(`SUCCESS: Job for Lot ${activeJob.lotNo} is complete.`, 'green');
         }
-        
+
+        function simulateWrongPick() {
+            const activeJob = JSON.parse(localStorage.getItem('activeShelfJob') || 'null');
+            if (!activeJob) {
+                return showStatus('ERROR: No active job selected to simulate an error on.', 'red');
+            }
+
+            // 1. หาช่องว่างๆ ที่ไม่ใช่ช่องเป้าหมาย เพื่อจำลองการวางผิด
+            const shelfState = getGlobalShelfState();
+            const targetPos = activeJob.location.row * 10 + activeJob.location.col;
+            const emptyCells = shelfState.filter(([pos, hasItem]) => hasItem === 0 && pos !== targetPos);
+
+            if (emptyCells.length === 0) {
+                return showStatus('ERROR: No empty cells available to simulate a wrong pick.', 'orange');
+            }
+
+            // 2. สุ่มเลือกช่องที่วางผิด
+            const wrongCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+            const wrongPos = wrongCell[0];
+            const wrongRow = Math.floor(wrongPos / 10);
+            const wrongCol = wrongPos % 10;
+
+            // 3. อัปเดตงาน (activeJob) ให้มีสถานะ Error และบันทึกตำแหน่งที่วางผิด
+            activeJob.status = "Error";
+            activeJob.error = true;
+            activeJob.errorLocation = { row: wrongRow, col: wrongCol }; // <-- บันทึกตำแหน่งที่ผิด
+            localStorage.setItem('activeShelfJob', JSON.stringify(activeJob));
+
+            showStatus(`ERROR: Simulated wrong pick for Lot ${activeJob.lotNo}. Placed at ${wrongRow}-${wrongCol}.`, 'red');
+        }
+
         // >> ฟังก์ชันใหม่: ล้างข้อมูลทั้งหมด <<
         function clearAllData() {
             if (confirm('Are you sure you want to clear all jobs and reset the shelf? This cannot be undone.')) {
