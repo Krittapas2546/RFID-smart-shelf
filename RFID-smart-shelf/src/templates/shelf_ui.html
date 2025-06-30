@@ -61,20 +61,24 @@
         .shelf-grid { display: grid; grid-template-rows: repeat(4, 60px); grid-template-columns: repeat(6, 60px); gap: 7px; padding: 12px; background-color: #f8f9fa; border: 1px solid #dee2e6; }
         .shelf-frame { border: 10px solid #adb5bd; border-radius: 10px; padding: 6px; }
         .shelf-cell { background-color: #fff; border: 1.8px solid #e9ecef; border-radius: 4px; transition: background .18s; }
-        .shelf-cell.has-item { background-color: #a7f3d0; border-color: #34d399; }
-        .shelf-cell.selected-task { background-color: #dc3545 !important; border-color: #b02a37 !important; }
+        .shelf-cell.has-item { background-color: #adb5bd; border-color: #6c757d; }
+        .shelf-cell.selected-task { background-color: #22c55e !important; border-color: #15803d !important; } /* เขียว */
+        .shelf-cell.wrong-location {
+            background-color: #dc3545 !important; /* แดง */
+            border-color: #b02a37 !important;
+            box-shadow: 0 0 10px #dc3545;
+        }
         .back-to-queue-btn { background: none; border: none; color: #0d6efd; cursor: pointer; font-size: 16px; padding: 8px; margin-top: 20px; text-align: center; width: 100%; }
         .back-to-queue-btn:hover { text-decoration: underline; }
         .shelf-container.error-state { background-color: #fff1f2; }
         .shelf-cell.highlight-error { animation: blink-error 1.2s infinite ease-in-out; }
-        @keyframes blink-error { 0%   { background-color: #ffc107; } 50%  { background-color: #dc3545; } 100% { background-color: #ffc107; } }
+        @keyframes blink-error { 
+            0%   { background-color: #22c55e; }   /* เขียว */
+            50%  { background-color: #15803d; }   /* เขียวเข้ม */
+            100% { background-color: #22c55e; }   /* เขียว */
+}
         
-        /* CSS ใหม่สำหรับช่องที่วางผิด */
-        .shelf-cell.wrong-location {
-            background-color: #ffc107 !important; /* สีเหลืองอำพัน */
-            border-color: #e6a200 !important;
-            box-shadow: 0 0 10px #ffc107;
-        }
+     
 
         .shelf-container.full-shelf-mode {
             justify-content: center;
