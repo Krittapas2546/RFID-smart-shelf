@@ -99,6 +99,20 @@ xdg-open shelf_ui.html # Linux
 - ติดตั้ง Live Server ใน VS Code
 - Right-click บนไฟล์ → "Open with Live Server"
 
+**3. หรือใช้ FastAPI Server (เสริม - ไม่จำเป็น):**
+```bash
+# ติดตั้ง dependencies
+pip install fastapi uvicorn jinja2
+
+# รัน server
+cd RFID-smart-shelf/src
+python main.py
+
+# เข้าไปที่:
+# - http://localhost:8000 (Smart Shelf UI)
+# - http://localhost:8000/simulator (Event Simulator)
+```
+
 ### **📖 วิธีการใช้งาน**
 
 #### **ขั้นตอนการทดสอบระบบ:**
@@ -155,23 +169,23 @@ localStorage.clear();
 
 ---
 
-## � โครงสร้างโปรเจค (Project Structure)
+## 📁 โครงสร้างโปรเจค (Project Structure)
 
 ```
 RFID-smart-shelf/
-├── README.md
-├── API/
-│   └── api_tester.py          # API Testing Script (Legacy)
-├── RFID-smart-shelf/
-│   ├── README.md
-│   ├── requirements.txt       # Python Dependencies (Legacy)
-│   ├── pkgs/                  # Python Packages (Legacy)
-│   └── src/
-│       ├── main.py            # Backend Server (Legacy)
-│       └── templates/
-│           ├── shelf_ui.html      # 🖥️ Smart Shelf UI
-│           └── test_api.html      # 🎮 Event Simulator
+├── README.md                  # 📖 คู่มือหลักของโปรเจค
+└── RFID-smart-shelf/
+    └── src/
+        ├── main.py            # 🔧 Optional FastAPI Server (ไม่จำเป็นต้องใช้)
+        └── templates/ 📂 **ไฟล์หลักที่ใช้งานปัจจุบัน**
+            ├── shelf_ui.html      # 🖥️ Smart Shelf UI (Main Application)
+            └── test_api.html      # 🎮 Event Simulator & Job Creator
 ```
+
+**หมายเหตุ:**
+- **ไฟล์หลัก:** `templates/shelf_ui.html` และ `templates/test_api.html`
+- **ไฟล์เสริม:** `main.py` (FastAPI Server แบบ Optional - ไม่จำเป็นต้องใช้)
+- **สถาปัตยกรรม:** Frontend-only, localStorage-based (ไม่ต้องการ Backend Server)
 
 ## 💾 โครงสร้างข้อมูล (Data Structure)
 
