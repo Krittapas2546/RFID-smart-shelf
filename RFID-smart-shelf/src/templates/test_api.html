@@ -177,14 +177,18 @@
                 return showStatus('ERROR: No active job selected.', 'red');
             }
 
-            // อัปเดตสถานะชั้นวางจริง
+            // อัปเดตสถานะชั้นวางตาม place_flg
             const shelfState = getGlobalShelfState();
             const targetLevel = parseInt(activeJob.level);
             const targetBlock = parseInt(activeJob.block);
             const itemIndex = shelfState.findIndex(([level, block]) => level === targetLevel && block === targetBlock);
+            
             if (itemIndex > -1) {
-                shelfState[itemIndex][2] = 1; // 1 = มีของ
+                // ถ้า place_flg = "1" (Place) → วางของ (hasItem = 1)
+                // ถ้า place_flg = "0" (Pick) → หยิบของ (hasItem = 0)
+                shelfState[itemIndex][2] = activeJob.place_flg === "1" ? 1 : 0;
                 setGlobalShelfState(shelfState);
+                console.log(`Updated shelf state: L${targetLevel}-B${targetBlock} → ${activeJob.place_flg === "1" ? "Has Item" : "Empty"}`);
             }
 
             // ลบงานออกจากคิว
@@ -194,7 +198,8 @@
             localStorage.removeItem('activeShelfJob');
 
             renderGlobalShelfGrid();
-            showStatus(`SUCCESS: Job for Lot ${activeJob.lot_no} is complete.`, 'green');
+            const action = activeJob.place_flg === "1" ? "placed" : "picked";
+            showStatus(`SUCCESS: Job for Lot ${activeJob.lot_no} is complete. Item ${action} at L${targetLevel}-B${targetBlock}.`, 'green');
         }
 
         function simulateWrongPick() {
@@ -220,7 +225,7 @@
             const [wrongLevel, wrongBlock] = wrongCell;
 
             // 3. อัปเดตงาน (activeJob) ให้มีสถานะ Error และบันทึกตำแหน่งที่วางผิด
-            activeJob.trn_status = "3"; // Error status
+            activeJob.trn_status = "2"; // Error status (Updated to match shelf_ui.html)
             activeJob.error = true;
             activeJob.errorLocation = { level: wrongLevel, block: wrongBlock }; // <-- บันทึกตำแหน่งที่ผิด
             localStorage.setItem('activeShelfJob', JSON.stringify(activeJob));

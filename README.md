@@ -197,7 +197,7 @@ RFID-smart-shelf/
   "level": "1",              // Shelf Level 1-4 (Required)
   "block": "3",              // Shelf Block 1-6 (Required)
   "place_flg": "1",          // Place Flag: 1=Place, 0=Pick (Required)
-  "trn_status": "1",         // Transaction Status (Required)
+  "trn_status": "1",         // Transaction Status: 1=Waiting, 2=Error (Required)
   "timestamp": "10:30:25",   // Auto-generated
   "error": null              // Error state (if any)
 }

@@ -62,7 +62,7 @@
         .shelf-frame { border: 10px solid #adb5bd; border-radius: 10px; padding: 6px; }
         .shelf-cell { background-color: #fff; border: 1.8px solid #e9ecef; border-radius: 4px; transition: background .18s; }
         .shelf-cell.has-item { background-color: #adb5bd; border-color: #6c757d; }
-        .shelf-cell.selected-task { background-color: #22c55e !important; border-color: #15803d !important; } /* เขียว */
+        .shelf-cell.selected-task { background-color: #0d6efd !important; border-color: #0d6efd !important; } 
         .shelf-cell.wrong-location {
             background-color: #dc3545 !important; /* แดง */
             border-color: #b02a37 !important;
@@ -74,7 +74,7 @@
         .shelf-cell.highlight-error { animation: blink-error 1.2s infinite ease-in-out; }
         @keyframes blink-error { 
             0%   { background-color: #22c55e; }   /* เขียว */
-            50%  { background-color: #15803d; }   /* เขียวเข้ม */
+            50%  { background-color:rgb(255, 255, 255); }   /* ขาว */
             100% { background-color: #22c55e; }   /* เขียว */
 }
         
@@ -261,13 +261,13 @@
 
             // แปลงค่า place_flg และ trn_status เป็นข้อความที่แสดงผล
             const actionText = activeJob.place_flg === "1" ? "Place To" : "Pick From";
-            const statusText = activeJob.trn_status === "3" || activeJob.trn_status === "Error" ? "Error" : "Waiting";
-            const statusClass = activeJob.trn_status === "3" || activeJob.trn_status === "Error" ? "Error" : "Waiting";
+            const statusText = activeJob.trn_status === "2" || activeJob.trn_status === "Error" ? "Error" : "Waiting";
+            const statusClass = activeJob.trn_status === "2" || activeJob.trn_status === "Error" ? "Error" : "Waiting";
 
             detailsPanel.innerHTML = `
                 <div><span class="label">Status  </span><span class="value"><span class="status-badge ${statusClass}">${statusText}</span></span></div>
                 <div><span class="label">Lot No.</span><span class="value lot-no">${activeJob.lot_no}</span></div>
-                <div><span class="label">${actionText}</span><span class="value">L: ${activeJob.level}, B: ${activeJob.block}</span></div>
+                <div><span class="label">${actionText}</span><span class="value"> Level: ${activeJob.level}, Block: ${activeJob.block}</span></div>
                 <div><span class="label">Time Stamp </span><span class="value">${activeJob.timestamp}</span></div>
                 <button class="back-to-queue-btn" onclick="goBackToQueue()">← Back to Queue</button>
             `;
