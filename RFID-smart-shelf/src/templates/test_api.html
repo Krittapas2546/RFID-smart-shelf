@@ -27,13 +27,9 @@
     <div class="container">
         <h1>Smart Shelf - Event Simulator</h1>
         
-        <!-- >> ส่วนใหม่: Shelf State Editor << -->
-        <h2>Shelf State Editor</h2>
-        <p>คลิกที่ช่องเพื่อกำหนดว่าช่องนั้น "มีของ" หรือ "ว่าง" (สถานะนี้จะถูกใช้เมื่อสร้างงานใหม่)</p>
-        <div id="globalShelfGrid" class="stk-grid"></div>
-
         <hr>
 
+        <!-- 1. Create New Job -->
         <h2>1. Create New Job</h2>
         <div class="form-grid" oninput="updateJsonPreview()">
             <div class="form-group"><label>Lot No.</label><input type="text" id="lot_no" value="ABC123"></div>
@@ -41,23 +37,30 @@
             <div class="form-group"><label>Level (Row)</label><input type="number" id="level" value="1" min="1" max="4"></div>
             <div class="form-group"><label>Block (Column)</label><input type="number" id="block" value="1" min="1" max="6"></div>
         </div>
-        <button onclick="scanNewLot()" class="primary-btn">Add New Job to Queue</button>
         <h3>JSON Preview (for new job)</h3>
-                <h2>2. Simulate Operator Actions</h2>
-        <button onclick="simulateTaskComplete()" class="success-btn">Simulate Task Complete</button>
-        <button onclick="simulateWrongPick()" class="danger-btn">Simulate Wrong Pick</button>
         <pre><code id="json-preview"></code></pre>
-        
+        <button onclick="scanNewLot()" class="primary-btn">Add New Job to Queue</button>
 
         <hr>
 
-        <!-- >> ส่วนใหม่: System Controls << -->
-        <h2>System Controls</h2>
-        <button onclick="clearAllData()" class="danger-btn">Clear All Data (Reset System)</button>
+        <!-- 2. Simulate Operator Actions -->
+        <h2>2. Simulate Operator Actions</h2>
+        <p>Actions below will affect the <b>first job</b> in the queue.</p>
+        <div class="action-grid">
+            <button onclick="simulateTaskComplete()" class="success-btn">Simulate Task Complete</button>
+            <button onclick="simulateWrongPick()" class="danger-btn">Simulate Wrong Pick</button>
+        </div>
 
+        <hr>
 
-        <div id="status-message" style="margin-top: 1em; font-weight: bold; text-align: center; min-height: 20px;"></div>
-        <div style="margin-top: 2em; text-align: center;"><a href="/" target="_blank">Open Shelf UI</a></div>
+        <!-- 3. System Controls -->
+        <h2>3. System Controls</h2>
+        <div class="action-grid">
+            <button onclick="clearAllData()" class="warning-btn">Reset Entire System</button>
+        </div>
+
+        <div id="status-message" class="status-message">Ready</div>
+        <div class="link-to-ui"><a href="/" target="_blank">Open Shelf UI in New Tab</a></div>
     </div>
 
     <script>
@@ -104,157 +107,112 @@
         }
 
         function buildJobObject() {
-            console.log('buildJobObject() called');
-            // ตรวจสอบว่า element มีอยู่หรือไม่ก่อนเรียกใช้
             const lotNoEl = document.getElementById('lot_no');
             const levelEl = document.getElementById('level');
             const blockEl = document.getElementById('block');
             const placeFlagEl = document.getElementById('place_flg');
             
-            console.log('Form elements found:', {
-                lot_no: !!lotNoEl,
-                level: !!levelEl,
-                block: !!blockEl,
-                place_flg: !!placeFlagEl
-            });
-            
             if (!lotNoEl || !levelEl || !blockEl || !placeFlagEl) {
-                console.error('Missing form elements:', {
-                    lot_no: !!lotNoEl,
-                    level: !!levelEl,
-                    block: !!blockEl,
-                    place_flg: !!placeFlagEl
-                });
+                console.error('One or more form elements are missing!');
                 return null;
             }
             
             const jobObject = {
-                jobId: `job_${Date.now()}`,
-                lot_no: lotNoEl.value || 'ABC123',
-                level: levelEl.value || '1',
-                block: blockEl.value || '1',
-                place_flg: placeFlagEl.value || '1',
-                trn_status: "1",
-                timestamp: new Date().toLocaleTimeString(),
-                error: null
+                lot_no: lotNoEl.value,
+                level: levelEl.value,
+                block: blockEl.value,
+                place_flg: placeFlagEl.value,
+                // Server will add default trn_status, timestamp, etc.
             };
             
-            console.log('Created job object:', jobObject);
             return jobObject;
         }
 
         function updateJsonPreview() {
             const jobObject = buildJobObject();
             if (!jobObject) {
-                document.getElementById('json-preview').textContent = '/* Error: Missing form elements */';
+                document.getElementById('json-preview').textContent = '/* Error: Could not build job object. */';
                 return;
             }
-            const { jobId, ...previewJob } = jobObject;
-            document.getElementById('json-preview').textContent = JSON.stringify(previewJob, null, 4);
+            document.getElementById('json-preview').textContent = JSON.stringify(jobObject, null, 4);
         }
 
-        function scanNewLot() {
-            console.log('scanNewLot() called');
-            const jobObject = buildJobObject();
-            console.log('buildJobObject() returned:', jobObject);
+        // --- ฟังก์ชันที่เชื่อมต่อกับ API ---
+
+        async function scanNewLot() {
+            const payload = buildJobObject();
+            if (!payload) return showStatus('ERROR: Cannot create job!', 'red');
             
-            if (!jobObject) {
-                showStatus('ERROR: Cannot create job - missing form elements!', 'red');
-                return;
+            const response = await fetch('/api/jobs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                showStatus(`SUCCESS: Sent "New Job" event for Lot ${payload.lot_no}`, 'green');
+            } else {
+                showStatus(`ERROR: Failed to create job. Server responded with ${response.status}`, 'red');
             }
-            
-            const queue = JSON.parse(localStorage.getItem('shelfQueue') || '[]');
-            queue.push(jobObject);
-            localStorage.setItem('shelfQueue', JSON.stringify(queue));
-            showStatus('SUCCESS: Added new job to queue!', 'green');
-            
-            console.log('Job added to queue. Total jobs:', queue.length);
         }
 
-        function simulateTaskComplete() {
-            const activeJob = JSON.parse(localStorage.getItem('activeShelfJob') || 'null');
-            if (!activeJob) {
-                return showStatus('ERROR: No active job selected.', 'red');
+        async function getFirstJobFromServer() {
+            try {
+                const response = await fetch('/api/jobs');
+                if (!response.ok) return null;
+                const data = await response.json();
+                return (data && data.jobs && data.jobs.length > 0) ? data.jobs[0] : null;
+            } catch (error) {
+                console.error("Failed to fetch jobs:", error);
+                return null;
             }
+        }
 
-            // อัปเดตสถานะชั้นวางตาม place_flg
-            const shelfState = getGlobalShelfState();
-            const targetLevel = parseInt(activeJob.level);
-            const targetBlock = parseInt(activeJob.block);
-            const itemIndex = shelfState.findIndex(([level, block]) => level === targetLevel && block === targetBlock);
+        async function simulateTaskComplete() {
+            const firstJob = await getFirstJobFromServer();
+            if (!firstJob) return showStatus('ERROR: No jobs in the queue.', 'red');
+
+            await fetch(`/api/jobs/${firstJob.jobId}/complete`, { method: 'POST' });
+            showStatus(`SUCCESS: Sent "Task Complete" for Lot ${firstJob.lot_no}`, 'green');
+        }
+
+        async function simulateWrongPick() {
+            const firstJob = await getFirstJobFromServer();
+            if (!firstJob) return showStatus('ERROR: No jobs in the queue.', 'red');
+
+            const shelfStateResponse = await fetch('/api/shelf/state');
+            const shelfStateData = await shelfStateResponse.json();
+            const emptyCell = shelfStateData.shelf_state.find(cell => cell[2] === 0);
             
-            if (itemIndex > -1) {
-                // ถ้า place_flg = "1" (Place) → วางของ (hasItem = 1)
-                // ถ้า place_flg = "0" (Pick) → หยิบของ (hasItem = 0)
-                shelfState[itemIndex][2] = activeJob.place_flg === "1" ? 1 : 0;
-                setGlobalShelfState(shelfState);
-                console.log(`Updated shelf state: L${targetLevel}-B${targetBlock} → ${activeJob.place_flg === "1" ? "Has Item" : "Empty"}`);
-            }
+            if (!emptyCell) return showStatus('ERROR: No empty cells to simulate error.', 'orange');
 
-            // ลบงานออกจากคิว
-            let queue = JSON.parse(localStorage.getItem('shelfQueue') || '[]');
-            queue = queue.filter(j => j.jobId !== activeJob.jobId);
-            localStorage.setItem('shelfQueue', JSON.stringify(queue));
-            localStorage.removeItem('activeShelfJob');
+            const errorPayload = { errorLocation: { level: emptyCell[0], block: emptyCell[1] } };
 
-            renderGlobalShelfGrid();
-            const action = activeJob.place_flg === "1" ? "placed" : "picked";
-            showStatus(`SUCCESS: Job for Lot ${activeJob.lot_no} is complete. Item ${action} at L${targetLevel}-B${targetBlock}.`, 'green');
+            await fetch(`/api/jobs/${firstJob.jobId}/error`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(errorPayload)
+            });
+            showStatus(`ERROR: Sent "Wrong Pick" for Lot ${firstJob.lot_no}`, 'red');
         }
 
-        function simulateWrongPick() {
-            const activeJob = JSON.parse(localStorage.getItem('activeShelfJob') || 'null');
-            if (!activeJob) {
-                return showStatus('ERROR: No active job selected to simulate an error on.', 'red');
-            }
-
-            // 1. หาช่องว่างๆ ที่ไม่ใช่ช่องเป้าหมาย เพื่อจำลองการวางผิด
-            const shelfState = getGlobalShelfState();
-            const targetLevel = parseInt(activeJob.level);
-            const targetBlock = parseInt(activeJob.block);
-            const emptyCells = shelfState.filter(([level, block, hasItem]) => 
-                hasItem === 0 && !(level === targetLevel && block === targetBlock)
-            );
-
-            if (emptyCells.length === 0) {
-                return showStatus('ERROR: No empty cells available to simulate a wrong pick.', 'orange');
-            }
-
-            // 2. สุ่มเลือกช่องที่วางผิด
-            const wrongCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
-            const [wrongLevel, wrongBlock] = wrongCell;
-
-            // 3. อัปเดตงาน (activeJob) ให้มีสถานะ Error และบันทึกตำแหน่งที่วางผิด
-            activeJob.trn_status = "2"; // Error status (Updated to match shelf_ui.html)
-            activeJob.error = true;
-            activeJob.errorLocation = { level: wrongLevel, block: wrongBlock }; // <-- บันทึกตำแหน่งที่ผิด
-            localStorage.setItem('activeShelfJob', JSON.stringify(activeJob));
-
-            showStatus(`ERROR: Simulated wrong pick for Lot ${activeJob.lot_no}. Placed at ${wrongLevel}-${wrongBlock}.`, 'red');
-        }
-
-        // >> ฟังก์ชันใหม่: ล้างข้อมูลทั้งหมด <<
-        function clearAllData() {
-            if (confirm('Are you sure you want to clear all jobs and reset the shelf? This cannot be undone.')) {
-                localStorage.removeItem('shelfQueue');
-                localStorage.removeItem('activeShelfJob');
-                localStorage.removeItem(GLOBAL_SHELF_STATE_KEY);
-                initializeGlobalShelfState();
-                renderGlobalShelfGrid();
-                updateJsonPreview();
-                showStatus('SYSTEM RESET: All data has been cleared.', 'orange');
+        async function clearAllData() {
+            if (confirm('Are you sure you want to reset the entire system on the server?')) {
+                await fetch('/api/system/reset', { method: 'POST' });
+                showStatus('SYSTEM RESET: Sent "Reset" event to server.', 'orange');
             }
         }
 
         function showStatus(message, color) {
             const statusDiv = document.getElementById('status-message');
             statusDiv.textContent = message;
-            statusDiv.style.color = color;
+            statusDiv.className = `status-message ${color}`;
         }
 
         // --- Initial Load ---
-        initializeGlobalShelfState();
-        renderGlobalShelfGrid();
+        // ไม่ต้องใช้ Shelf State Editor ในหน้านี้อีกต่อไป
+        // initializeGlobalShelfState();
+        // renderGlobalShelfGrid();
         updateJsonPreview();
     </script>
 </body>
