@@ -2,6 +2,7 @@ from fastapi import FastAPI
 import uvicorn
 from fastapi.staticfiles import StaticFiles
 import pathlib
+import socket
 
 # --- Import Routers จากไฟล์ที่เราสร้าง ---
 from api import jobs, websockets
@@ -26,9 +27,22 @@ app.include_router(websockets.router)
 
 # --- Main ---
 if __name__ == "__main__":
+    # หา IP address จริงของเครื่อง
+    def get_local_ip():
+        try:
+            # เชื่อมต่อไปยัง DNS ภายนอกเพื่อหา IP ที่ใช้งานจริง
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                s.connect(("8.8.8.8", 80))
+                return s.getsockname()[0]
+        except:
+            return "localhost"
+    
+    local_ip = get_local_ip()
+    
     print("🚀 Starting RFID Smart Shelf Server (v2.0 Refactored)...")
-    print("📱 Smart Shelf UI: http://localhost:8000")
-    print("🎮 Event Simulator: http://localhost:8000/simulator")
-    print("📄 API Docs:       http://localhost:8000/docs")
-    print("🌐 Network API:    http://[YOUR_IP]:8000")  # เพิ่มบรรทัดนี้
+    print(f"📱 Smart Shelf UI: http://localhost:8000")
+    print(f"🎮 Event Simulator: http://localhost:8000/simulator")
+    print(f"📄 API Docs:       http://localhost:8000/docs")
+    print(f"🌐 Network API:    http://{local_ip}:8000")  # แสดง IP จริง
+    print(f"📱 Pi Access:      http://{local_ip}:8000")   # สำหรับ Pi
     uvicorn.run(app, host="0.0.0.0", port=8000)  # เปลี่ยนจาก 127.0.0.1 เป็น 0.0.0.0

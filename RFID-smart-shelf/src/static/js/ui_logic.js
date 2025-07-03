@@ -212,7 +212,7 @@
         // *** START: WebSocket Integration ***
         function setupWebSocket() {
             console.log("Attempting to connect to WebSocket at ws://localhost:8000/ws");
-            const ws = new WebSocket("ws://localhost:8000/ws");
+            const ws = new WebSocket(`ws://${window.location.host}/ws`);
 
             ws.onopen = function(event) {
                 console.log("✅ WebSocket connection established.");
