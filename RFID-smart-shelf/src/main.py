@@ -1,6 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
 import uvicorn
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 import pathlib
 import socket
 
@@ -19,10 +21,22 @@ app = FastAPI(
 STATIC_PATH = pathlib.Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=STATIC_PATH), name="static")
 
+# เพิ่ม Templates สำหรับ HTML
+TEMPLATES_PATH = pathlib.Path(__file__).parent / "templates"
+templates = Jinja2Templates(directory=TEMPLATES_PATH)
+
+# --- เพิ่ม Route สำหรับหน้าแรก ---
+@app.get("/", response_class=HTMLResponse)
+async def serve_shelf_ui(request: Request):
+    """แสดงหน้า Smart Shelf UI"""
+    return templates.TemplateResponse("shelf_ui.html", {"request": request})
+
 # "ประกอบร่าง" Router อื่นๆ ทีหลัง
 app.include_router(jobs.router)
+
+# --- เพิ่มบรรทัดนี้ ---
 app.include_router(websockets.router)
-# --- END: แก้ไขตรงนี้ ---
+# --- สิ้นสุดการแก้ไข ---
 
 
 # --- Main ---
