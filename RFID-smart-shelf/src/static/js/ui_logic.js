@@ -168,18 +168,28 @@
             const queue = getQueue();
             const activeJob = getActiveJob();
 
-            // Logic ในการสลับ View
+            console.log('🔄 renderAll() - Queue:', queue.length, 'Active:', !!activeJob);
+
+            // *** แก้ไข Logic ใหม่: ต้องเลือกก่อนเสมอ ***
             if (queue.length > 0 && !activeJob) {
-                // State 1: มีงานในคิว แต่ยังไม่ได้เลือก -> แสดงหน้าเลือกงาน
+                // มีงานในคิว แต่ยังไม่ได้เลือก -> แสดงหน้าเลือกงานเสมอ (ไม่สนใจว่าจะมี 1 หรือหลาย Job)
                 mainView.style.display = 'none';
                 queueSelectionView.style.display = 'block';
                 renderQueueSelectionView(queue);
-            } else {
-                // State 2: มีงานที่กำลังทำอยู่ หรือไม่มีงานเลย -> แสดงหน้าทำงานหลัก
+                
+            } else if (activeJob) {
+                // มี Active Job อยู่แล้ว -> แสดงหน้าทำงาน
                 queueSelectionView.style.display = 'none';
                 mainView.style.display = 'flex';
-                renderActiveJob(); // ฟังก์ชันนี้จะจัดการทั้งตอนมี activeJob และไม่มี
-                renderShelfGrid(); // เพิ่มการเรียกตรงนี้เพื่อให้แน่ใจว่า Grid ถูกวาดเสมอ
+                renderActiveJob();
+                renderShelfGrid();
+                
+            } else {
+                // ไม่มีงานเลย -> แสดงหน้าหลัก (Idle)
+                queueSelectionView.style.display = 'none';
+                mainView.style.display = 'flex';
+                renderActiveJob(); // จะแสดง "No active job"
+                renderShelfGrid();
             }
         }
 

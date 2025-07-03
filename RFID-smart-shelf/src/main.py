@@ -30,4 +30,5 @@ if __name__ == "__main__":
     print("📱 Smart Shelf UI: http://localhost:8000")
     print("🎮 Event Simulator: http://localhost:8000/simulator")
     print("📄 API Docs:       http://localhost:8000/docs")
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    print("🌐 Network API:    http://[YOUR_IP]:8000")  # เพิ่มบรรทัดนี้
+    uvicorn.run(app, host="0.0.0.0", port=8000)  # เปลี่ยนจาก 127.0.0.1 เป็น 0.0.0.0
