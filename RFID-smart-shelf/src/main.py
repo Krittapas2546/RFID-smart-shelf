@@ -15,11 +15,11 @@ app = FastAPI(
 )
 
 # --- START: แก้ไขตรงนี้ ---
-# 1. Mount โฟลเดอร์ static ก่อน เพื่อให้มีความสำคัญสูงสุดสำหรับ path /static
+# Mount โฟลเดอร์ static ก่อน เพื่อให้มีความสำคัญสูงสุดสำหรับ path /static
 STATIC_PATH = pathlib.Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=STATIC_PATH), name="static")
 
-# 2. "ประกอบร่าง" Router อื่นๆ ทีหลัง
+# "ประกอบร่าง" Router อื่นๆ ทีหลัง
 app.include_router(jobs.router)
 app.include_router(websockets.router)
 # --- END: แก้ไขตรงนี้ ---
@@ -27,7 +27,6 @@ app.include_router(websockets.router)
 
 # --- Main ---
 if __name__ == "__main__":
-    # หา IP address จริงของเครื่อง
     def get_local_ip():
         try:
             # เชื่อมต่อไปยัง DNS ภายนอกเพื่อหา IP ที่ใช้งานจริง
