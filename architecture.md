@@ -31,9 +31,9 @@ graph LR
     B <-->|WebSocket| E
     E -->|Real-time Update| B
     
-    classDef external fill:#ffeaa7,stroke:#fdcb6e,stroke-width:3px
-    classDef client fill:#74b9ff,stroke:#0984e3,stroke-width:3px
-    classDef server fill:#55efc4,stroke:#00b894,stroke-width:3px
+    classDef external fill:#ff7675,stroke:#d63031,stroke-width:3px,color:#ffffff
+    classDef client fill:#0984e3,stroke:#74b9ff,stroke-width:3px,color:#ffffff
+    classDef server fill:#00b894,stroke:#55efc4,stroke-width:3px,color:#ffffff
     
     class EXT,A external
     class CLIENT,B client
