@@ -45,4 +45,4 @@ if __name__ == "__main__":
     print(f"📄 API Docs:       http://localhost:8000/docs")
     print(f"🌐 Network API:    http://{local_ip}:8000") 
     print(f"📱 Pi Access:      http://{local_ip}:8000")  
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8000)
