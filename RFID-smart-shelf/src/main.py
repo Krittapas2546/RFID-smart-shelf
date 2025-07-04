@@ -37,4 +37,4 @@ if __name__ == "__main__":
     print("🎮 Event Simulator: http://localhost:8000/simulator")
     print("⚡ Health Check: http://localhost:8000/health")
     print("\n💡 หมายเหตุ:ไม่ต้องรัน server")
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
