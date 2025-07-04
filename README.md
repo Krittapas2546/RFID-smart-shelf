@@ -62,7 +62,7 @@ RFID-smart-shelf/
     │   ├── shelf_ui.html     # 🖥️ Smart Shelf UI (มี CSS และ JavaScript Logic อยู่ข้างใน)
     │   └── test_api.html     # 🎮 Event Simulator (มี CSS และ JavaScript Logic อยู่ข้างใน)
     │
-    └── main.py               # 🔧 Optional FastAPI Server (ไม่จำเป็นต้องใช้)
+    └── main.py               # 🔧 Run server uvicorn and Use Jinja2Templates
 ```
 
 ---
