@@ -1,14 +1,3 @@
-"""
-RFID Smart Shelf System - Simple FastAPI Server (Optional)
-
-⚠️  หมายเหตุ: ไฟล์นี้เป็น LEGACY CODE ไม่จำเป็นต้องใช้แล้ว
-    ระบบปัจจุบันใช้ Frontend-only (เปิดไฟล์ HTML โดยตรง)
-    
-    หากต้องการใช้ FastAPI Server ให้รันคำสั่ง:
-    uvicorn main:app --reload
-    แล้วเข้าไปที่ http://localhost:8000
-"""
-
 import pathlib
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
