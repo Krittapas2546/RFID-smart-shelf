@@ -1,0 +1,33 @@
+flowchart LR
+    subgraph EXT["External System"]
+        A[🏭<br/>ERP, MES]
+    end
+    
+    subgraph CLIENT["Browser (Client)"]
+        B[🖥️<br/>Frontend UI<br/>ui_logic.js]
+    end
+    
+    subgraph SERVER["Server (Backend)"]
+        C[🚀 FastAPI App<br/>main.py]
+        D[⚡ API Routers<br/>api/jobs.py]
+        E[📡 WebSocket Manager<br/>api/websockets.py]
+        F[🧠 Core Logic & DB<br/>core/database.py]
+        
+        C --> D
+        D --> E  
+        E --> F
+    end
+    
+    A -->|HTTP Request| C
+    B -->|HTTP Request<br/>Complete Job| C
+    B <-->|WebSocket Connect| E
+    E -->|Push Real-time<br/>Update| B
+    
+    %% Styling
+    classDef external fill:#fff2cc,stroke:#d6b656,stroke-width:3px
+    classDef client fill:#dae8fc,stroke:#6c8ebf,stroke-width:3px
+    classDef server fill:#d5e8d4,stroke:#82b366,stroke-width:3px
+    
+    class EXT,A external
+    class CLIENT,B client
+    class SERVER,C,D,E,F server

@@ -6,6 +6,7 @@ import socket
 
 # --- Import Routers จากไฟล์ที่เราสร้าง ---
 from api import jobs, websockets
+from core.websocket_manager import manager
 
 # สร้างแอปพลิเคชัน FastAPI หลัก
 app = FastAPI(
@@ -14,15 +15,15 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# --- START: แก้ไขตรงนี้ ---
+# --- START:---
 # Mount โฟลเดอร์ static ก่อน เพื่อให้มีความสำคัญสูงสุดสำหรับ path /static
 STATIC_PATH = pathlib.Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=STATIC_PATH), name="static")
 
-# "ประกอบร่าง" Router อื่นๆ ทีหลัง
+
 app.include_router(jobs.router)
 app.include_router(websockets.router)
-# --- END: แก้ไขตรงนี้ ---
+# --- END  ---
 
 
 # --- Main ---
@@ -42,6 +43,6 @@ if __name__ == "__main__":
     print(f"📱 Smart Shelf UI: http://localhost:8000")
     print(f"🎮 Event Simulator: http://localhost:8000/simulator")
     print(f"📄 API Docs:       http://localhost:8000/docs")
-    print(f"🌐 Network API:    http://{local_ip}:8000")  # แสดง IP จริง
-    print(f"📱 Pi Access:      http://{local_ip}:8000")   # สำหรับ Pi
-    uvicorn.run(app, host="0.0.0.0", port=8000)  # เปลี่ยนจาก 127.0.0.1 เป็น 0.0.0.0
+    print(f"🌐 Network API:    http://{local_ip}:8000") 
+    print(f"📱 Pi Access:      http://{local_ip}:8000")  
+    uvicorn.run(app, host="0.0.0.0", port=8000)
