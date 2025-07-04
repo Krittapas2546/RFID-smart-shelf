@@ -1,4 +1,4 @@
-# RFID Smart Shelf API (v2.0 Refactored) - เอกสารสำหรับนักพัฒนา
+# RFID Smart Shelf API (v2.0 Refactored)
 
 เอกสารนี้สรุปโครงสร้าง สถาปัตยกรรม และรายละเอียดทางเทคนิคของโปรเจกต์ RFID Smart Shelf API เพื่อให้ง่ายต่อการทำความเข้าใจ บำรุงรักษา และต่อยอดในอนาคต
 
