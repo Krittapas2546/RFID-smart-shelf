@@ -16,7 +16,49 @@
 
 ---
 
-## 📂 2. โครงสร้างโปรเจกต์ (Project Structure)
+## 🏛️ 2. สถาปัตยกรรม (Architecture)
+
+### 2.1. High-Level Diagram
+
+ไดอะแกรมนี้แสดงภาพรวมการไหลของข้อมูลระหว่างส่วนประกอบต่างๆ ของระบบ
+
+```mermaid
+flowchart LR
+    subgraph EXT["External System"]
+        A["🏭<br/><b>ERP, MES</b>"]
+    end
+    
+    subgraph CLIENT["Browser (Client)"]
+        B["🖥️<br/><b>Frontend UI</b><br/>ui_logic.js"]
+    end
+    
+    subgraph SERVER["Server (Backend)"]
+        C["🚀 <b>FastAPI App</b><br/>main.py"]
+        D["⚡ <b>API Routers</b><br/>api/jobs.py"]
+        E["📡 <b>WebSocket Manager</b><br/>api/websockets.py"]
+        F["🧠 <b>Core Logic & DB</b><br/>core/database.py"]
+        
+        C --> D
+        D --> E  
+        E --> F
+    end
+    
+    A -->|"<b>HTTP Request</b>"| C
+    B -->|"<b>HTTP Request</b><br/>Complete Job"| C
+    B <-->|"<b>WebSocket Connect</b>"| E
+    E -->|"<b>Push Real-time</b><br/>Update"| B
+    
+    %% High contrast styling
+    classDef external fill:#e17055,stroke:#d63031,stroke-width:4px,color:#ffffff
+    classDef client fill:#0984e3,stroke:#74b9ff,stroke-width:4px,color:#ffffff
+    classDef server fill:#00b894,stroke:#55efc4,stroke-width:4px,color:#ffffff
+    
+    class EXT,A external
+    class CLIENT,B client
+    class SERVER,C,D,E,F server
+```
+
+### 2.2. โครงสร้างโปรเจกต์ (Project Structure)
 
 ```
 RFID-smart-shelf/
@@ -29,10 +71,12 @@ RFID-smart-shelf/
 │   ├── core/
 │   │   ├── __init__.py
 │   │   ├── database.py     # (สำคัญ) "ฐานข้อมูลจำลอง" ใน Memory เก็บสถานะทั้งหมด
-│   │   └── models.py       # (สำคัญ) Pydantic Models สำหรับ validate request body
+│   │   ├── models.py       # (สำคัญ) Pydantic Models สำหรับ validate request body
+│   │   └── websocket_manager.py # (สำคัญ) จัดการการเชื่อมต่อ WebSocket
 │   │
-│   ├── static/             # เก็บไฟล์ Frontend (HTML, CSS, JS)
+│   ├── static/             # เก็บไฟล์ Frontend (JS, CSS)
 │   │   ├── css/
+|   |   |   └── ui_styles.css # จัดการหน้าตา, Layout, และ Animation ทั้งหมด
 │   │   └── js/
 │   │       └── ui_logic.js # (สำคัญ) Logic ทั้งหมดของหน้า UI
 │   │
@@ -49,18 +93,25 @@ RFID-smart-shelf/
 
 ## ⚙️ 3. การติดตั้งและรันโปรเจกต์ (Setup & Run)
 
-1.  **ติดตั้ง Dependencies:**
+1.  **สร้าง Virtual Environment (แนะนำ)**
+    ```bash
+    python -m venv .venv
+    source .venv/bin/activate  # บน Mac/Linux
+    .venv\Scripts\activate     # บน Windows
+    ```
+
+2.  **ติดตั้ง Dependencies:**
     ```bash
     pip install fastapi "uvicorn[standard]" jinja2
     ```
 
-2.  **รัน Server:**
+3.  **รัน Server:**
     เปิด Terminal แล้วรันคำสั่งจาก root directory ของโปรเจกต์:
     ```bash
     python src/main.py
     ```
 
-3.  **เข้าถึงหน้าต่างๆ:**
+4.  **เข้าถึงหน้าต่างๆ:**
     - **UI หลัก:** `http://localhost:8000/`
     - **Simulator:** `http://localhost:8000/simulator`
     - **API Docs (Swagger):** `http://localhost:8000/docs`
