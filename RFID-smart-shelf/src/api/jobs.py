@@ -66,6 +66,9 @@ def get_all_lots_in_shelf():
 
 @router.post("/api/jobs", status_code=201, tags=["Jobs"])
 async def create_job_via_api(job: JobRequest):
+    if existing_lot:
+        print(f"API: Rejected duplicate job for Lot {job.lot_no}")
+        return {"status": "error", "message": f"Job for lot {job.lot_no} already exists in the queue."}
     print(f"API: Received new job for Lot {job.lot_no}")
     new_job = job.dict()
     DB["job_counter"] += 1
