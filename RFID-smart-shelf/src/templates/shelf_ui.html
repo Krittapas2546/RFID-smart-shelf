@@ -12,9 +12,17 @@
 
     <!-- View 1: หน้าสำหรับเลือกงานจากคิว -->
     <div id="queueSelectionView" style="display: none;">
-        <h1 class="queue-view-title">Job Queue</h1>
+        <h2>Job Queue</h2>
+
+        <!-- 🔽 ADD THIS ENTIRE BLOCK 🔽 -->
+        <div class="barcode-scanner-container">
+            <input type="text" id="lot-no-input" placeholder="Scan or type Lot No. and press Enter...">
+            <button onclick="handleLotSearch()">Find Job</button>
+        </div>
+        <!-- 🔼 END OF ADDED BLOCK 🔼 -->
+
         <ul id="queueListContainer">
-            <!-- JavaScript จะสร้างรายการ Job ที่นี่ -->
+            <!-- Job items will be injected here by JavaScript -->
         </ul>
     </div>
 
@@ -33,5 +41,7 @@
 
     <!-- 3. เรียกใช้ไฟล์ JavaScript ภายนอก (ควรวางไว้ท้าย body) -->
     <script src="/static/js/ui_logic.js"></script>
-</body>
+
+
+</html></body></body>
 </html>

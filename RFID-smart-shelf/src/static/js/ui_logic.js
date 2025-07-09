@@ -64,32 +64,26 @@
                 const cell = document.getElementById(`cell-${level}-${block}`);
                 if (!cell) return;
 
-                cell.className = 'shelf-cell'; // Reset classes
+                // --- START: Logic ที่แก้ไขแล้ว ---
+                cell.className = 'shelf-cell'; // Reset class ทุกครั้ง เพื่อป้องกันสถานะเก่าค้าง
 
                 const isTaskLocation = activeJob && parseInt(activeJob.level) === level && parseInt(activeJob.block) === block;
                 const isError = activeJob && activeJob.error;
 
-                // --- START: Logic ที่แก้ไขแล้ว ---
-                if (isError) {
-                    // ถ้ามี Error: 
-                    if (isTaskLocation) {
-                        // ช่องเป้าหมายต้องเป็นสีแดงกระพริบ (เพื่อบอกว่ายังไม่สำเร็จ ต้องลองใหม่)
+                if (isTaskLocation) {
+                    // 1. ตรวจสอบก่อนเลยว่าเป็นช่องเป้าหมายหรือไม่
+                    if (isError) {
+                        // 1a. ถ้าเป็นเป้าหมายและมี Error ให้แสดงเป็นสีแดง (สำคัญสุด)
                         cell.classList.add('wrong-location');
                     } else {
-                        // ช่องอื่นๆ (รวมทั้งช่องที่วางผิด) แสดงตามสถานะปกติ
-                        if (hasItem) {
-                            cell.classList.add('has-item');
-                        }
+                        // 1b. ถ้าเป็นเป้าหมายและไม่มี Error ให้แสดงเป็นสีน้ำเงินเสมอ
+                        cell.classList.add('selected-task');
                     }
-                } else {
-                    // ถ้าไม่มี Error (สถานะปกติ):
-                    if (isPlacing) {
-                        if (isTaskLocation) cell.classList.add('selected-task');
-                    } else {
-                        if (hasItem) cell.classList.add('has-item');
-                        if (isTaskLocation) cell.classList.add('selected-task');
-                    }
+                } else if (hasItem) {
+                    // 2. ถ้าไม่ใช่ช่องเป้าหมาย ค่อยมาดูว่ามีของหรือไม่
+                    cell.classList.add('has-item');
                 }
+                // ถ้าไม่ใช่ทั้งช่องเป้าหมายและไม่มีของ ก็ไม่ต้องทำอะไร (จะเป็นช่องว่างๆ)
                 // --- END: Logic ที่แก้ไขแล้ว ---
             });
         }
@@ -148,6 +142,18 @@
                 `;
                 queueListContainer.appendChild(li);
             });
+
+            // ทำให้สามารถกด Enter ในช่องค้นหาได้
+            const lotInput = document.getElementById('lot-no-input');
+            if (lotInput) {
+                lotInput.addEventListener('keyup', function(event) {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        handleLotSearch();
+                    }
+                });
+                lotInput.focus(); 
+            }
         }
 
         function selectJob(jobId) {
@@ -158,6 +164,46 @@
                 renderAll();
             }
         }
+
+        // 🔽 ADD THESE TWO NEW FUNCTIONS 🔽
+        /**
+         * ค้นหา Job จาก Lot No. แล้วทำการเลือกโดยอัตโนมัติ
+         * @param {string} lotNo - The Lot No. to search for.
+         */
+        function findAndSelectJobByLot(lotNo) {
+            if (!lotNo) return;
+
+            console.log(`🔍 Searching for Lot No: ${lotNo}`);
+            const queue = getQueue();
+            const foundJob = queue.find(job => job.lot_no === lotNo);
+
+            if (foundJob) {
+                showNotification(`✅ Lot No. ${lotNo} found. Selecting job...`, 'success');
+                // เรียกใช้ฟังก์ชัน selectJob ที่มีอยู่แล้วเพื่อจัดการที่เหลือ
+                selectJob(foundJob.jobId);
+            } else {
+                showNotification(`❌ Lot No. ${lotNo} not found in queue.`, 'error');
+                // ทำให้ช่อง input สั่นเพื่อบอกผู้ใช้ว่าหาไม่เจอ
+                const lotInput = document.getElementById('lot-no-input');
+                if (lotInput) {
+                    lotInput.classList.add('shake');
+                    setTimeout(() => lotInput.classList.remove('shake'), 500);
+                }
+            }
+        }
+
+        /**
+         * ดึงค่าจากช่อง input แล้วส่งไปให้ฟังก์ชันค้นหา
+         */
+        function handleLotSearch() {
+            const lotInput = document.getElementById('lot-no-input');
+            if (lotInput) {
+                const lotNoToSearch = lotInput.value.trim();
+                findAndSelectJobByLot(lotNoToSearch);
+                lotInput.value = ''; // เคลียร์ค่าในช่อง input หลังค้นหา
+            }
+        }
+        // 🔼 END OF ADDED FUNCTIONS 🔼
 
         function goBackToQueue() {
             localStorage.removeItem('activeShelfJob');
