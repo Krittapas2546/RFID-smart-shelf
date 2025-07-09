@@ -133,9 +133,10 @@ RFID-smart-shelf/
     sudo apt install git python3-pip -y
     ```
 
-3.  **Clone โปรเจกต์:**
+3.  **Clone โปรเจกต์ (จาก Branch `barcod_pi`):**
+    ใช้คำสั่ง `git clone` พร้อมกับ option `-b barcod_pi` เพื่อดึงโค้ดจาก branch ที่ต้องการโดยตรง
     ```bash
-    git clone https://github.com/Krittapas2546/RFID-smart-shelf.git
+    git clone -b barcod_pi https://github.com/Krittapas2546/RFID-smart-shelf.git
     cd RFID-smart-shelf
     ```
 
