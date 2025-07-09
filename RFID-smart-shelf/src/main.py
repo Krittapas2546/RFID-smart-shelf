@@ -3,6 +3,9 @@ import uvicorn
 from fastapi.staticfiles import StaticFiles
 import pathlib
 import socket
+import os
+import signal
+import subprocess
 
 # --- Import Routers จากไฟล์ที่เราสร้าง ---
 from api import jobs, websockets
@@ -29,6 +32,22 @@ app.include_router(websockets.router)
 
 # --- Main ---
 if __name__ == "__main__":
+    # --- Kill any existing process on port 8000 before starting ---
+    try:
+        result = subprocess.run("lsof -t -i:8000", shell=True, capture_output=True, text=True)
+        pids = result.stdout.strip().split()
+        if pids:
+            for pid in pids:
+                try:
+                    print(f"🔌 Found existing process {pid} on port 8000. Attempting to terminate.")
+                    os.kill(int(pid), signal.SIGTERM)
+                    print(f"🔪 Process {pid} terminated.")
+                except (ValueError, ProcessLookupError) as e:
+                    print(f"Could not terminate process {pid}: {e}") # Process might have already ended
+    except Exception as e:
+        print(f"Error while trying to kill process on port 8000: {e}")
+
+
     def get_local_ip():
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
@@ -41,6 +60,7 @@ if __name__ == "__main__":
     
     print("🚀 Starting RFID Smart Shelf Server (v2.0 Refactored)...")
     print(f"📱 Smart Shelf UI: http://localhost:8000")
+    print(f"python /home/pi/Documents/GitHub/RFID-smart-shelf/RFID-smart-shelf/src/main.py")
     print(f"🎮 Event Simulator: http://localhost:8000/simulator")
     print(f"📄 API Docs:       http://localhost:8000/docs")
     print(f"🌐 Network API:    http://{local_ip}:8000") 
