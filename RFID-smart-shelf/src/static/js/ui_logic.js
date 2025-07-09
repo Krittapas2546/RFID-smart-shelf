@@ -1,15 +1,22 @@
-// --- DOM Elements ---
+// 🔽 FIX CONSTANTS 🔽
+        const ACTIVE_JOB_KEY = 'activeJob';
+        const GLOBAL_SHELF_STATE_KEY = 'globalShelfState';
+        const QUEUE_KEY = 'shelfQueue';
+        // 🔼 END OF CONSTANTS 🔼
+
+        // 🔽 ADD MISSING DOM ELEMENTS 🔽
         const queueSelectionView = document.getElementById('queueSelectionView');
+        const activeJobView = document.getElementById('activeJobView');
         const queueListContainer = document.getElementById('queueListContainer');
-        const mainView = document.getElementById('mainView');
+        const jobDetailsContainer = document.getElementById('jobDetailsContainer');
         const detailsPanel = document.getElementById('detailsPanel');
+        const mainView = document.getElementById('mainView');
         const shelfGrid = document.getElementById('shelfGrid');
         const shelfContainer = document.getElementById('shelfContainer');
+        // 🔼 END OF DOM ELEMENTS 🔼
 
         const ROWS = 4, COLS = 6;
-        const GLOBAL_SHELF_STATE_KEY = 'globalShelfState';
 
-        // *** START: เพิ่มฟังก์ชันที่หายไป ***
         function initializeShelfState() {
             if (!localStorage.getItem(GLOBAL_SHELF_STATE_KEY)) {
                 const defaultState = [];
@@ -23,11 +30,11 @@
         }
 
         function cleanInvalidJobs() {
-            const queue = JSON.parse(localStorage.getItem('shelfQueue') || '[]');
+            const queue = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
             const cleanedQueue = queue.filter(job => job && job.lot_no && job.level && job.block);
             if (cleanedQueue.length !== queue.length) {
                 console.warn("Removed invalid jobs from the queue.");
-                localStorage.setItem('shelfQueue', JSON.stringify(cleanedQueue));
+                localStorage.setItem(QUEUE_KEY, JSON.stringify(cleanedQueue));
             }
             return cleanedQueue;
         }
@@ -36,62 +43,114 @@
             return cleanInvalidJobs();
         }
 
-        function showNotification(message, type = 'success') {
-            const notification = document.createElement('div');
-            notification.className = `notification ${type}`;
-            notification.textContent = message;
-            document.body.appendChild(notification);
-            setTimeout(() => {
-                notification.remove();
-            }, 3000);
+        function createShelfGridStructure() {
+            if (shelfGrid.children.length > 0) {
+                return;
+            }
+            
+            console.log('🏗️ Creating shelf grid structure...');
+            shelfGrid.innerHTML = '';
+            for (let r = 1; r <= ROWS; r++) {
+                for (let c = 1; c <= COLS; c++) {
+                    const cell = document.createElement('div');
+                    cell.id = `cell-${r}-${c}`;
+                    cell.className = 'shelf-cell';
+                    shelfGrid.appendChild(cell);
+                }
+            }
         }
 
-        // *** START: เพิ่มฟังก์ชันที่หายไป ***
         function getActiveJob() {
-            return JSON.parse(localStorage.getItem('activeShelfJob') || 'null');
+            const activeJobData = localStorage.getItem(ACTIVE_JOB_KEY);
+            console.log('🔍 getActiveJob() called:', activeJobData);
+            
+            if (!activeJobData || activeJobData === 'null') {
+                console.log('❌ No active job found');
+                return null;
+            }
+            
+            try {
+                const job = JSON.parse(activeJobData);
+                console.log('✅ Active job found:', job);
+                return job;
+            } catch (error) {
+                console.error('❌ Error parsing active job:', error);
+                localStorage.removeItem(ACTIVE_JOB_KEY);
+                return null;
+            }
         }
 
         function setActiveJob(job) {
-            localStorage.setItem('activeShelfJob', JSON.stringify(job));
+            console.log('🔍 setActiveJob() called with:', job);
+            localStorage.setItem(ACTIVE_JOB_KEY, JSON.stringify(job));
+            console.log('✅ Active job saved to localStorage');
         }
+
+        // 🔽 FIX goBackToQueue FUNCTION 🔽
+        function goBackToQueue() {
+            localStorage.removeItem(ACTIVE_JOB_KEY); // ใช้ Key ที่ถูกต้อง
+            renderAll();
+        }
+        // 🔼 END OF FIX 🔼
 
         function renderShelfGrid() {
             const shelfState = JSON.parse(localStorage.getItem(GLOBAL_SHELF_STATE_KEY) || '[]');
             const activeJob = getActiveJob();
-            const isPlacing = activeJob && activeJob.place_flg === '1';
+
+            console.log('🔍 DEBUG: renderShelfGrid called');
+            console.log('🔍 DEBUG: activeJob =', activeJob);
+            console.log('🔍 DEBUG: shelfState =', shelfState);
 
             shelfState.forEach(([level, block, hasItem]) => {
                 const cell = document.getElementById(`cell-${level}-${block}`);
                 if (!cell) return;
 
-                // --- START: Logic ที่แก้ไขแล้ว ---
-                cell.className = 'shelf-cell'; // Reset class ทุกครั้ง เพื่อป้องกันสถานะเก่าค้าง
+                // Reset class ทุกครั้ง
+                cell.className = 'shelf-cell';
 
-                const isTaskLocation = activeJob && parseInt(activeJob.level) === level && parseInt(activeJob.block) === block;
-                const isError = activeJob && activeJob.error;
+                // --- START: แก้ไข Logic การแสดงผล ---
+                if (activeJob) {
+                    // เมื่อมี Active Job ให้แสดงเฉพาะช่องเป้าหมาย
+                    const isTaskLocation = Number(activeJob.level) === Number(level) && 
+                                           Number(activeJob.block) === Number(block);
+                    const isError = activeJob.error;
 
-                if (isTaskLocation) {
-                    // 1. ตรวจสอบก่อนเลยว่าเป็นช่องเป้าหมายหรือไม่
-                    if (isError) {
-                        // 1a. ถ้าเป็นเป้าหมายและมี Error ให้แสดงเป็นสีแดง (สำคัญสุด)
-                        cell.classList.add('wrong-location');
-                    } else {
-                        // 1b. ถ้าเป็นเป้าหมายและไม่มี Error ให้แสดงเป็นสีน้ำเงินเสมอ
-                        cell.classList.add('selected-task');
+                    if (isTaskLocation) {
+                        if (isError) {
+                            cell.classList.add('wrong-location');
+                            console.log(`🔴 Error location: [${level},${block}]`);
+                        } else {
+                            cell.classList.add('selected-task');
+                            console.log(`🔵 Target location: [${level},${block}]`);
+                        }
                     }
-                } else if (hasItem) {
-                    // 2. ถ้าไม่ใช่ช่องเป้าหมาย ค่อยมาดูว่ามีของหรือไม่
-                    cell.classList.add('has-item');
+                    // 🔽 ลบส่วนนี้ออก - ไม่แสดงช่องสีเทาเมื่อมี Active Job 🔽
+                    // else if (hasItem) {
+                    //     cell.classList.add('has-item');
+                    //     console.log(`⚫ Has item: [${level},${block}]`);
+                    // }
+                    // 🔼 END OF REMOVAL 🔼
+                } else {
+                    // เมื่อไม่มี Active Job ให้แสดงช่องที่มีของ
+                    if (hasItem) {
+                        cell.classList.add('has-item');
+                        console.log(`⚫ Has item (no active job): [${level},${block}]`);
+                    }
                 }
-                // ถ้าไม่ใช่ทั้งช่องเป้าหมายและไม่มีของ ก็ไม่ต้องทำอะไร (จะเป็นช่องว่างๆ)
-                // --- END: Logic ที่แก้ไขแล้ว ---
+                // --- END: แก้ไข Logic การแสดงผล ---
             });
         }
 
         function renderActiveJob() {
             const activeJob = getActiveJob();
             const queue = getQueue();
-            detailsPanel.innerHTML = ''; // Clear previous details
+            
+            if (!detailsPanel) {
+                console.error('❌ detailsPanel element not found');
+                return;
+            }
+
+            detailsPanel.innerHTML = '';
 
             if (activeJob) {
                 const statusText = activeJob.error ? 'Error' : 'Waiting';
@@ -111,7 +170,19 @@
                         <div class="label">${actionText}</div>
                         <div class="value">Level: ${activeJob.level}, Block: ${activeJob.block}</div>
                     </div>
+                    
+                    <!-- 🔽 ADD ACTION BUTTONS 🔽 -->
+                    <div class="action-buttons" style="margin-top: 20px;">
+                        <button class="complete-btn" onclick="completeCurrentJob()" style="background: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; margin-right: 10px;">
+                            ✅ Complete
+                        </button>
+                        <button class="error-btn" onclick="reportJobError('MANUAL_ERROR', 'Manual error reported')" style="background: #dc3545; color: white; padding: 10px 20px; border: none; border-radius: 5px;">
+                            ❌ Report Error
+                        </button>
+                    </div>
+                    <!-- 🔼 END OF BUTTONS 🔼 -->
                 `;
+                
                 if (queue.length > 0) {
                     detailsPanel.innerHTML += `<button class="back-to-queue-btn" onclick="goBackToQueue()">← Back to Queue</button>`;
                 }
@@ -124,9 +195,8 @@
                     <div class="value" style="font-size: 1.5rem; color: #6c757d;">No active job.</div>
                 `;
             }
-            renderShelfGrid(); // อัปเดต Shelf Grid ทุกครั้งที่ Active Job เปลี่ยน
+            renderShelfGrid();
         }
-        // *** END: เพิ่มฟังก์ชันที่หายไป ***
 
         function renderQueueSelectionView(queue) {
             queueListContainer.innerHTML = '';
@@ -143,29 +213,96 @@
                 queueListContainer.appendChild(li);
             });
 
-            // ทำให้สามารถกด Enter ในช่องค้นหาได้
+            // --- START: แก้ไข Logic Focus แบบแน่นอน ---
+            // ใช้ MutationObserver เพื่อตรวจสอบว่า Input ถูก Render จริงๆ
+            ensureLotInputFocus();
+            // --- END: แก้ไข Logic Focus ---
+        }
+
+        // --- START: เพิ่มฟังก์ชันใหม่ ---
+        function ensureLotInputFocus() {
             const lotInput = document.getElementById('lot-no-input');
-            if (lotInput) {
-                lotInput.addEventListener('keyup', function(event) {
-                    if (event.key === 'Enter') {
-                        event.preventDefault();
-                        handleLotSearch();
+            
+            if (lotInput && lotInput.offsetParent !== null) {
+                // Element มีอยู่และมองเห็นได้
+                setupLotInputBehavior(lotInput);
+            } else {
+                // Element ยังไม่พร้อม ให้รอ DOM Update
+                const observer = new MutationObserver((mutations) => {
+                    const lotInput = document.getElementById('lot-no-input');
+                    if (lotInput && lotInput.offsetParent !== null) {
+                        setupLotInputBehavior(lotInput);
+                        observer.disconnect(); // หยุดการสังเกต
                     }
                 });
-                lotInput.focus(); 
+                
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true
+                });
+                
+                // Safety timeout - หยุดการสังเกตหลัง 2 วินาที
+                setTimeout(() => {
+                    observer.disconnect();
+                }, 2000);
             }
         }
+
+        function setupLotInputBehavior(lotInput) {
+            // ลบ Event Listener เก่าก่อน
+            lotInput.removeEventListener('keyup', handleLotKeyUp);
+            lotInput.addEventListener('keyup', handleLotKeyUp);
+            
+            // เพิ่ม Visual Cue
+            lotInput.style.border = '2px solid #007bff';
+            lotInput.style.boxShadow = '0 0 5px rgba(0,123,255,0.5)';
+            
+            // Force Focus หลายครั้ง
+            lotInput.focus();
+            
+            setTimeout(() => {
+                lotInput.focus();
+                console.log('✅ Second focus attempt');
+            }, 100);
+            
+            setTimeout(() => {
+                lotInput.focus();
+                console.log('✅ Third focus attempt');
+                
+                // ตรวจสอบว่า Focus สำเร็จหรือไม่
+                if (document.activeElement === lotInput) {
+                    console.log('🎯 Focus successful!');
+                } else {
+                    console.log('❌ Focus failed. Active element:', document.activeElement);
+                }
+            }, 200);
+        }
+
+        function handleLotKeyUp(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                handleLotSearch();
+            }
+        }
+        // --- END: เพิ่มฟังก์ชันใหม่ ---
 
         function selectJob(jobId) {
             const queue = getQueue();
             const selectedJob = queue.find(job => job.jobId === jobId);
+            
+            console.log('🔍 selectJob() called with:', jobId);
+            console.log('🔍 Selected job:', selectedJob);
+            
             if (selectedJob) {
                 setActiveJob(selectedJob);
+                console.log('✅ Active job set:', selectedJob);
                 renderAll();
+            } else {
+                console.error('❌ Job not found:', jobId);
             }
         }
 
-        // 🔽 ADD THESE TWO NEW FUNCTIONS 🔽
+        // --- START: คืนค่าฟังก์ชันให้เป็นแบบง่าย ---
         /**
          * ค้นหา Job จาก Lot No. แล้วทำการเลือกโดยอัตโนมัติ
          * @param {string} lotNo - The Lot No. to search for.
@@ -179,11 +316,9 @@
 
             if (foundJob) {
                 showNotification(`✅ Lot No. ${lotNo} found. Selecting job...`, 'success');
-                // เรียกใช้ฟังก์ชัน selectJob ที่มีอยู่แล้วเพื่อจัดการที่เหลือ
                 selectJob(foundJob.jobId);
             } else {
                 showNotification(`❌ Lot No. ${lotNo} not found in queue.`, 'error');
-                // ทำให้ช่อง input สั่นเพื่อบอกผู้ใช้ว่าหาไม่เจอ
                 const lotInput = document.getElementById('lot-no-input');
                 if (lotInput) {
                     lotInput.classList.add('shake');
@@ -199,14 +334,24 @@
             const lotInput = document.getElementById('lot-no-input');
             if (lotInput) {
                 const lotNoToSearch = lotInput.value.trim();
-                findAndSelectJobByLot(lotNoToSearch);
-                lotInput.value = ''; // เคลียร์ค่าในช่อง input หลังค้นหา
+                
+                // --- START: ป้องกันการส่งข้อมูลไปยัง Server ---
+                if (lotNoToSearch.length > 0) {
+                    // หยุดการแพร่กระจายของ Event เพื่อป้องกันการส่งข้อมูลไปยัง API
+                    event?.stopPropagation();
+                    event?.preventDefault();
+                    
+                    console.log(`🔍 Local search for: ${lotNoToSearch}`);
+                    findAndSelectJobByLot(lotNoToSearch);
+                    lotInput.value = ''; // เคลียร์ค่าในช่อง input
+                }
+                // --- END: ป้องกันการส่งข้อมูลไปยัง Server ---
             }
         }
-        // 🔼 END OF ADDED FUNCTIONS 🔼
+        // --- END: คืนค่าฟังก์ชันให้เป็นแบบง่าย ---
 
         function goBackToQueue() {
-            localStorage.removeItem('activeShelfJob');
+            localStorage.removeItem(ACTIVE_JOB_KEY); // ใช้ Key ที่ถูกต้อง
             renderAll();
         }
 
@@ -241,14 +386,9 @@
 
         // --- Initial Load ---
         document.addEventListener('DOMContentLoaded', () => {
-            // สร้าง grid cell ไว้ล่วงหน้า
-            for (let r = 1; r <= ROWS; r++) for (let c = 1; c <= COLS; c++) {
-                const cell = document.createElement('div');
-                cell.classList.add('shelf-cell');
-                cell.id = `cell-${r}-${c}`;
-                shelfGrid.appendChild(cell);
-            }
+            createShelfGridStructure();
             initializeShelfState();
+            setupWebSocket();
             renderAll();
         });
         
@@ -256,9 +396,14 @@
         window.removeEventListener('storage', renderAll);
         
         // *** START: WebSocket Integration ***
+        let websocketConnection = null; // เก็บ WebSocket connection
+
         function setupWebSocket() {
             console.log("Attempting to connect to WebSocket at ws://localhost:8000/ws");
             const ws = new WebSocket(`ws://${window.location.host}/ws`);
+            
+            // เก็บ connection ไว้ใช้ส่งข้อมูล
+            websocketConnection = ws;
 
             ws.onopen = function(event) {
                 console.log("✅ WebSocket connection established.");
@@ -271,15 +416,15 @@
 
                     switch (data.type) {
                         case "initial_state":
-                            localStorage.setItem('shelfQueue', JSON.stringify(data.payload.jobs));
-                            localStorage.setItem('globalShelfState', JSON.stringify(data.payload.shelf_state));
+                            localStorage.setItem(QUEUE_KEY, JSON.stringify(data.payload.jobs));
+                            localStorage.setItem(GLOBAL_SHELF_STATE_KEY, JSON.stringify(data.payload.shelf_state));
                             renderAll();
                             break;
                         case "new_job":
                             const queue = getQueue();
                             if (!queue.some(job => job.jobId === data.payload.jobId)) {
                                 queue.push(data.payload);
-                                localStorage.setItem('shelfQueue', JSON.stringify(queue));
+                                localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
                                 renderAll();
                                 showNotification(`New job added: ${data.payload.lot_no}`);
                             }
@@ -287,14 +432,14 @@
                         case "job_completed":
                             let currentQueue = getQueue();
                             currentQueue = currentQueue.filter(j => j.jobId !== data.payload.completedJobId);
-                            localStorage.setItem('shelfQueue', JSON.stringify(currentQueue));
-                            localStorage.setItem('globalShelfState', JSON.stringify(data.payload.shelf_state));
-                            localStorage.removeItem('activeShelfJob');
+                            localStorage.setItem(QUEUE_KEY, JSON.stringify(currentQueue));
+                            localStorage.setItem(GLOBAL_SHELF_STATE_KEY, JSON.stringify(data.payload.shelf_state));
+                            localStorage.removeItem(ACTIVE_JOB_KEY); // ใช้ Key ที่ถูกต้อง
                             renderAll();
                             showNotification(`Job completed.`);
                             break;
                         case "job_error":
-                            localStorage.setItem('activeShelfJob', JSON.stringify(data.payload));
+                            localStorage.setItem(ACTIVE_JOB_KEY, JSON.stringify(data.payload)); // ใช้ Key ที่ถูกต้อง
                             renderAll();
                             showNotification(`Job error reported for Lot ${data.payload.lot_no}`, 'error');
                             break;
@@ -312,14 +457,10 @@
 
             ws.onclose = function(event) {
                 console.log("❌ WebSocket connection closed. Reconnecting in 3 seconds...");
-                setTimeout(setupWebSocket, 3000); // ลองเชื่อมต่อใหม่
+                setTimeout(setupWebSocket, 3000);
             };
 
             ws.onerror = function(error) {
                 console.error("💥 WebSocket error:", error);
             };
         }
-        
-        // เริ่มการเชื่อมต่อ WebSocket หลังจากที่หน้าเว็บโหลดเสร็จ
-        setupWebSocket();
-        // *** END: WebSocket Integration ***
