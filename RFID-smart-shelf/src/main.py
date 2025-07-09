@@ -30,7 +30,6 @@ app.include_router(websockets.router)
 if __name__ == "__main__":
     def get_local_ip():
         try:
-            # เชื่อมต่อไปยัง DNS ภายนอกเพื่อหา IP ที่ใช้งานจริง
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
                 s.connect(("8.8.8.8", 80))
                 return s.getsockname()[0]

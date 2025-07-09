@@ -2,7 +2,6 @@
 # เมื่อ Server รีสตาร์ท ข้อมูลจะหายไป (เหมาะสำหรับการพัฒนา)
 DB = {
     "jobs": [],
-    # เปลี่ยนจาก [level, block, has_item] เป็น [level, block, has_item, lot_no]
     "shelf_state": [[r, c, 0, None] for r in range(1, 5) for c in range(1, 6)], 
     "job_counter": 0
 }
