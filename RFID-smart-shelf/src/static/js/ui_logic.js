@@ -17,6 +17,68 @@
 
         const ROWS = 4, COLS = 6;
 
+        // 🔽 ADD THIS FUNCTION 🔽
+        function showNotification(message, type = 'info') {
+            console.log(`📢 ${type.toUpperCase()}: ${message}`);
+            
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            
+            // Basic styling
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 20px;
+                border-radius: 8px;
+                color: white;
+                font-weight: bold;
+                z-index: 1000;
+                opacity: 0;
+                transition: all 0.3s ease-in-out;
+                transform: translateX(100%);
+                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            `;
+            
+            // Colors based on type
+            switch (type) {
+                case 'success':
+                    notification.style.backgroundColor = '#28a745';
+                    break;
+                case 'error':
+                    notification.style.backgroundColor = '#dc3545';
+                    break;
+                case 'warning':
+                    notification.style.backgroundColor = '#ffc107';
+                    notification.style.color = '#212529';
+                    break;
+                default: // info
+                    notification.style.backgroundColor = '#17a2b8';
+                    break;
+            }
+            
+            document.body.appendChild(notification);
+            
+            // Animate in
+            setTimeout(() => {
+                notification.style.opacity = '1';
+                notification.style.transform = 'translateX(0)';
+            }, 100);
+            
+            // Animate out and remove
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    if (document.body.contains(notification)) {
+                        document.body.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
+        }
+        // 🔼 END OF ADDED FUNCTION 🔼
+
         function initializeShelfState() {
             if (!localStorage.getItem(GLOBAL_SHELF_STATE_KEY)) {
                 const defaultState = [];
@@ -171,16 +233,13 @@
                         <div class="value">Level: ${activeJob.level}, Block: ${activeJob.block}</div>
                     </div>
                     
-                    <!-- 🔽 ADD ACTION BUTTONS 🔽 -->
+                    <!-- 🔽 ใส่ Comment ปิดปุ่มเหล่านี้ 🔽 -->
+                    <!--
                     <div class="action-buttons" style="margin-top: 20px;">
-                        <button class="complete-btn" onclick="completeCurrentJob()" style="background: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; margin-right: 10px;">
-                            ✅ Complete
-                        </button>
-                        <button class="error-btn" onclick="reportJobError('MANUAL_ERROR', 'Manual error reported')" style="background: #dc3545; color: white; padding: 10px 20px; border: none; border-radius: 5px;">
-                            ❌ Report Error
-                        </button>
+                        <button class="complete-btn" onclick="completeCurrentJob()">✅ Complete</button>
+                        <button class="error-btn" onclick="reportJobError('MANUAL_ERROR', 'Manual error reported')">❌ Report Error</button>
                     </div>
-                    <!-- 🔼 END OF BUTTONS 🔼 -->
+                    -->
                 `;
                 
                 if (queue.length > 0) {
@@ -213,78 +272,26 @@
                 queueListContainer.appendChild(li);
             });
 
-            // --- START: แก้ไข Logic Focus แบบแน่นอน ---
-            // ใช้ MutationObserver เพื่อตรวจสอบว่า Input ถูก Render จริงๆ
-            ensureLotInputFocus();
+            // --- START: ลบ Logic Focus ที่ไม่จำเป็นออก ---
+            const lotInput = document.getElementById('lot-no-input');
+            if (lotInput) {
+                lotInput.focus();
+                lotInput.onkeyup = function(event) {
+                    if (event.key === 'Enter') {
+                        handleLotSearch();
+                    }
+                };
+            }
             // --- END: แก้ไข Logic Focus ---
         }
 
-        // --- START: เพิ่มฟังก์ชันใหม่ ---
-        function ensureLotInputFocus() {
-            const lotInput = document.getElementById('lot-no-input');
-            
-            if (lotInput && lotInput.offsetParent !== null) {
-                // Element มีอยู่และมองเห็นได้
-                setupLotInputBehavior(lotInput);
-            } else {
-                // Element ยังไม่พร้อม ให้รอ DOM Update
-                const observer = new MutationObserver((mutations) => {
-                    const lotInput = document.getElementById('lot-no-input');
-                    if (lotInput && lotInput.offsetParent !== null) {
-                        setupLotInputBehavior(lotInput);
-                        observer.disconnect(); // หยุดการสังเกต
-                    }
-                });
-                
-                observer.observe(document.body, {
-                    childList: true,
-                    subtree: true
-                });
-                
-                // Safety timeout - หยุดการสังเกตหลัง 2 วินาที
-                setTimeout(() => {
-                    observer.disconnect();
-                }, 2000);
-            }
-        }
-
-        function setupLotInputBehavior(lotInput) {
-            // ลบ Event Listener เก่าก่อน
-            lotInput.removeEventListener('keyup', handleLotKeyUp);
-            lotInput.addEventListener('keyup', handleLotKeyUp);
-            
-            // เพิ่ม Visual Cue
-            lotInput.style.border = '2px solid #007bff';
-            lotInput.style.boxShadow = '0 0 5px rgba(0,123,255,0.5)';
-            
-            // Force Focus หลายครั้ง
-            lotInput.focus();
-            
-            setTimeout(() => {
-                lotInput.focus();
-                console.log('✅ Second focus attempt');
-            }, 100);
-            
-            setTimeout(() => {
-                lotInput.focus();
-                console.log('✅ Third focus attempt');
-                
-                // ตรวจสอบว่า Focus สำเร็จหรือไม่
-                if (document.activeElement === lotInput) {
-                    console.log('🎯 Focus successful!');
-                } else {
-                    console.log('❌ Focus failed. Active element:', document.activeElement);
-                }
-            }, 200);
-        }
-
-        function handleLotKeyUp(event) {
-            if (event.key === 'Enter') {
-                event.preventDefault();
-                handleLotSearch();
-            }
-        }
-        // --- END: เพิ่มฟังก์ชันใหม่ ---
+        // --- START: ลบฟังก์ชันที่ไม่จำเป็นออก ---
+        /*
+        function ensureLotInputFocus() { ... }
+        function setupLotInputBehavior(lotInput) { ... }
+        function handleLotKeyUp(event) { ... }
+        */
+        // --- END: ลบฟังก์ชันที่ไม่จำเป็นออก ---
 
         function selectJob(jobId) {
             const queue = getQueue();
