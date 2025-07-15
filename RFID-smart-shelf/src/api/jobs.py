@@ -66,12 +66,13 @@ def get_all_lots_in_shelf():
 
 @router.post("/api/jobs", status_code=201, tags=["Jobs"])
 async def create_job_via_api(job: JobRequest):
-    # --- ตรวจสอบ Lot ซ้ำ ---
-    existing_lot = next((j for j in DB["jobs"] if j.get("lot_no") == job.lot_no), None)
+    # --- START: ปิดการตรวจสอบงานซ้ำชั่วคราว (สำหรับทดสอบ) ---
+    existing_lot = any(j['lot_no'] == job.lot_no for j in DB["jobs"])
     if existing_lot:
-        print(f"API: Rejected duplicate job for Lot {job.lot_no}")
-        return {"status": "error", "message": f"Job for lot {job.lot_no} already exists in the queue."}
-    
+         print(f"API: Rejected duplicate job for Lot {job.lot_no}")
+         return {"status": "error", "message": f"Job for lot {job.lot_no} already exists in the queue."}
+    # --- END: ปิดการตรวจสอบ ---
+
     print(f"API: Received new job for Lot {job.lot_no}")
     new_job = job.dict()
     DB["job_counter"] += 1
@@ -95,9 +96,34 @@ async def complete_job(job_id: str):
     
     await manager.broadcast(json.dumps({
         "type": "job_completed", 
-        "payload": {"completedJobId": job_id, "shelf_state": DB["shelf_state"]}
+        "payload": {
+            "completedJobId": job_id, 
+            "shelf_state": DB["shelf_state"],
+            "lot_no": job["lot_no"],  # เพิ่มการส่ง lot_no กลับไป
+            "action": "placed" if job["place_flg"] == "1" else "picked"
+        }
     }))
-    return {"status": "success"}
+    return {
+        "status": "success", 
+        "lot_no": job["lot_no"],
+        "action": "placed" if job["place_flg"] == "1" else "picked",
+        "location": f"L{job['level']}B{job['block']}"
+    }
+
+# เพิ่ม endpoint ใหม่สำหรับรับข้อมูลจาก JavaScript
+@router.post("/api/jobs/complete", tags=["Jobs"])
+async def complete_job_by_data(request_data: dict):
+    """Complete job โดยใช้ข้อมูลที่ส่งมาจาก client"""
+    job_id = request_data.get("job_id")
+    lot_no = request_data.get("lot_no")
+    
+    print(f"API: Received 'Task Complete' via new endpoint for job {job_id}, lot {lot_no}")
+    
+    if not job_id:
+        return {"status": "error", "message": "job_id is required"}
+    
+    # เรียกใช้ฟังก์ชันเดิม
+    return await complete_job(job_id)
 
 @router.post("/api/jobs/{job_id}/error", tags=["Jobs"])
 async def error_job(job_id: str, body: ErrorRequest):
