@@ -21,6 +21,12 @@
         function showNotification(message, type = 'info') {
             console.log(`📢 ${type.toUpperCase()}: ${message}`);
             
+            // ลบ notification เก่าทั้งหมดก่อน
+            const existingNotifications = document.querySelectorAll('.notification');
+            existingNotifications.forEach(notification => {
+                notification.remove();
+            });
+            
             const notification = document.createElement('div');
             notification.className = `notification ${type}`;
             notification.textContent = message;
@@ -39,6 +45,8 @@
                 transition: all 0.3s ease-in-out;
                 transform: translateX(100%);
                 box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                max-width: 350px;
+                word-wrap: break-word;
             `;
             
             // Colors based on type
@@ -110,7 +118,6 @@
                 return;
             }
             
-            console.log('🏗️ Creating shelf grid structure...');
             shelfGrid.innerHTML = '';
             for (let r = 1; r <= ROWS; r++) {
                 for (let c = 1; c <= COLS; c++) {
@@ -124,16 +131,13 @@
 
         function getActiveJob() {
             const activeJobData = localStorage.getItem(ACTIVE_JOB_KEY);
-            console.log('🔍 getActiveJob() called:', activeJobData);
             
             if (!activeJobData || activeJobData === 'null') {
-                console.log('❌ No active job found');
                 return null;
             }
             
             try {
                 const job = JSON.parse(activeJobData);
-                console.log('✅ Active job found:', job);
                 return job;
             } catch (error) {
                 console.error('❌ Error parsing active job:', error);
@@ -143,9 +147,7 @@
         }
 
         function setActiveJob(job) {
-            console.log('🔍 setActiveJob() called with:', job);
             localStorage.setItem(ACTIVE_JOB_KEY, JSON.stringify(job));
-            console.log('✅ Active job saved to localStorage');
         }
 
         // 🔽 FIX goBackToQueue FUNCTION 🔽
@@ -159,12 +161,10 @@
             const shelfState = JSON.parse(localStorage.getItem(GLOBAL_SHELF_STATE_KEY) || '[]');
             const activeJob = getActiveJob();
 
-            console.log('🔍 DEBUG: renderShelfGrid called');
-            console.log('🔍 DEBUG: activeJob =', activeJob);
-            console.log('🔍 DEBUG: shelfState =', shelfState);
-
             shelfState.forEach(([level, block, hasItem]) => {
-                const cell = document.getElementById(`cell-${level}-${block}`);
+                const cellId = `cell-${level}-${block}`;
+                const cell = document.getElementById(cellId);
+                
                 if (!cell) return;
 
                 // Reset class ทุกครั้ง
@@ -180,10 +180,8 @@
                     if (isTaskLocation) {
                         if (isError) {
                             cell.classList.add('wrong-location');
-                            console.log(`🔴 Error location: [${level},${block}]`);
                         } else {
                             cell.classList.add('selected-task');
-                            console.log(`🔵 Target location: [${level},${block}]`);
                         }
                     }
                     // 🔽 ลบส่วนนี้ออก - ไม่แสดงช่องสีเทาเมื่อมี Active Job 🔽
@@ -196,7 +194,6 @@
                     // เมื่อไม่มี Active Job ให้แสดงช่องที่มีของ
                     if (hasItem) {
                         cell.classList.add('has-item');
-                        console.log(`⚫ Has item (no active job): [${level},${block}]`);
                     }
                 }
                 // --- END: แก้ไข Logic การแสดงผล ---
@@ -297,12 +294,8 @@
             const queue = getQueue();
             const selectedJob = queue.find(job => job.jobId === jobId);
             
-            console.log('🔍 selectJob() called with:', jobId);
-            console.log('🔍 Selected job:', selectedJob);
-            
             if (selectedJob) {
                 setActiveJob(selectedJob);
-                console.log('✅ Active job set:', selectedJob);
                 renderAll();
             } else {
                 console.error('❌ Job not found:', jobId);
@@ -317,7 +310,6 @@
         function findAndSelectJobByLot(lotNo) {
             if (!lotNo) return;
 
-            console.log(`🔍 Searching for Lot No: ${lotNo}`);
             const queue = getQueue();
             const foundJob = queue.find(job => job.lot_no === lotNo);
 
@@ -342,20 +334,213 @@
             if (lotInput) {
                 const lotNoToSearch = lotInput.value.trim();
                 
-                // --- START: ป้องกันการส่งข้อมูลไปยัง Server ---
                 if (lotNoToSearch.length > 0) {
-                    // หยุดการแพร่กระจายของ Event เพื่อป้องกันการส่งข้อมูลไปยัง API
                     event?.stopPropagation();
                     event?.preventDefault();
                     
-                    console.log(`🔍 Local search for: ${lotNoToSearch}`);
                     findAndSelectJobByLot(lotNoToSearch);
-                    lotInput.value = ''; // เคลียร์ค่าในช่อง input
+                    lotInput.value = '';
                 }
-                // --- END: ป้องกันการส่งข้อมูลไปยัง Server ---
             }
         }
         // --- END: คืนค่าฟังก์ชันให้เป็นแบบง่าย ---
+
+        // 🔽 ADD BARCODE SCANNING FUNCTIONALITY 🔽
+        /**
+         * ตั้งค่าการทำงานของช่องสแกนบาร์โค้ดในหน้า Active Job
+         */
+        function setupBarcodeScanner() {
+            const barcodeInput = document.getElementById('barcode-scanner-input');
+            if (!barcodeInput) return;
+
+            // ให้ focus ที่ช่องสแกนบาร์โค้ดเมื่อแสดงหน้า Active Job
+            barcodeInput.focus();
+
+            // จัดการเมื่อมีการสแกนบาร์โค้ด (Enter key)
+            barcodeInput.onkeyup = function(event) {
+                if (event.key === 'Enter') {
+                    handleBarcodeScanned();
+                }
+            };
+
+            // ให้ focus กลับมาที่ช่องสแกนเสมอ
+            barcodeInput.onblur = function() {
+                setTimeout(() => {
+                    if (document.getElementById('mainView').style.display !== 'none') {
+                        barcodeInput.focus();
+                    }
+                }, 100);
+            };
+        }
+
+        /**
+         * จัดการเมื่อมีการสแกนบาร์โค้ด
+         */
+        function handleBarcodeScanned() {
+            const barcodeInput = document.getElementById('barcode-scanner-input');
+            if (!barcodeInput) return;
+
+            const scannedData = barcodeInput.value.trim();
+            barcodeInput.value = '';
+
+            if (!scannedData) return;
+
+            console.log(`📱 Barcode scanned: ${scannedData}`);
+            
+            const activeJob = getActiveJob();
+            if (!activeJob) {
+                showNotification('❌ No active job to process barcode.', 'error');
+                return;
+            }
+
+            const locationMatch = parseLocationFromBarcode(scannedData);
+            
+            if (!locationMatch) {
+                showNotification(`❌ Invalid barcode format: ${scannedData}`, 'error');
+                return;
+            }
+
+            const { level, block } = locationMatch;
+            
+            if (Number(level) === Number(activeJob.level) && Number(block) === Number(activeJob.block)) {
+                if (activeJob.error) {
+                    const cleanJob = { ...activeJob };
+                    delete cleanJob.error;
+                    delete cleanJob.errorType;
+                    delete cleanJob.errorMessage;
+                    setActiveJob(cleanJob);
+                    renderAll();
+                }
+                
+                showNotification(`✅ Correct location! Completing job for Lot ${activeJob.lot_no}...`, 'success');
+                completeCurrentJob();
+            } else {
+                showNotification(`❌ Wrong location! Expected: L${activeJob.level}-B${activeJob.block}, Got: L${level}-B${block}`, 'error');
+                reportJobError('WRONG_LOCATION', `Scanned wrong location: L${level}-B${block}, Expected: L${activeJob.level}-B${activeJob.block}`);
+            }
+        }
+
+        /**
+         * แยกข้อมูลตำแหน่งจากบาร์โค้ด
+         * รูปแบบที่รองรับ: L1-B2, 1-2, L1B2, 1,2 เป็นต้น
+         */
+        function parseLocationFromBarcode(barcode) {
+            // ลบช่องว่างและแปลงเป็นตัวพิมพ์ใหญ่
+            const cleaned = barcode.replace(/\s+/g, '').toUpperCase();
+            
+            // รูปแบบต่างๆ ที่รองรับ
+            const patterns = [
+                /^L(\d+)-?B(\d+)$/,  // L1-B2 หรือ L1B2
+                /^(\d+)-(\d+)$/,     // 1-2
+                /^(\d+),(\d+)$/,     // 1,2
+                /^(\d+)_(\d+)$/,     // 1_2
+                /^L(\d+)B(\d+)$/     // L1B2
+            ];
+
+            for (const pattern of patterns) {
+                const match = cleaned.match(pattern);
+                if (match) {
+                    return {
+                        level: parseInt(match[1]),
+                        block: parseInt(match[2])
+                    };
+                }
+            }
+
+            return null;
+        }
+
+        /**
+         * ส่งคำสั่ง Complete Job ไปยัง Server
+         */
+        function completeCurrentJob() {
+            let activeJob = getActiveJob();
+            if (!activeJob) {
+                showNotification('❌ No active job to complete.', 'error');
+                return;
+            }
+
+            // ตรวจสอบและเคลียร์ error state ถ้ามี
+            if (activeJob.error) {
+                activeJob = { ...activeJob };
+                delete activeJob.error;
+                delete activeJob.errorType;  
+                delete activeJob.errorMessage;
+                setActiveJob(activeJob);
+            }
+
+            console.log('🚀 Completing job:', activeJob.jobId);
+            
+            // ส่งข้อมูลผ่าน WebSocket
+            if (websocketConnection && websocketConnection.readyState === WebSocket.OPEN) {
+                const message = {
+                    type: 'complete_job',
+                    payload: {
+                        jobId: activeJob.jobId,
+                        lot_no: activeJob.lot_no,
+                        level: activeJob.level,
+                        block: activeJob.block
+                    }
+                };
+                websocketConnection.send(JSON.stringify(message));
+                console.log('📤 Complete job message sent via WebSocket');
+            } else {
+                console.warn('⚠️ WebSocket not available, using HTTP fallback');
+                
+                fetch('/api/jobs/complete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        job_id: activeJob.jobId,
+                        lot_no: activeJob.lot_no
+                    })
+                })
+                .then(response => {
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('✅ Job completed via HTTP API:', data);
+                    showNotification(`✅ Job completed successfully!`, 'success');
+                    
+                    localStorage.removeItem(ACTIVE_JOB_KEY);
+                    renderAll();
+                })
+                .catch(error => {
+                    console.error('❌ Error completing job:', error);
+                    showNotification('❌ Error completing job. Please try again.', 'error');
+                });
+            }
+        }
+
+        /**
+         * รายงานข้อผิดพลาดของงาน
+         */
+        function reportJobError(errorType, errorMessage) {
+            const activeJob = getActiveJob();
+            if (!activeJob) return;
+
+            console.log(`🚨 Reporting job error: ${errorType}`);
+            
+            const errorJob = { ...activeJob, error: true, errorType, errorMessage };
+            setActiveJob(errorJob);
+            renderAll();
+
+            if (websocketConnection && websocketConnection.readyState === WebSocket.OPEN) {
+                const message = {
+                    type: 'job_error',
+                    payload: {
+                        jobId: activeJob.jobId,
+                        errorType,
+                        errorMessage,
+                        lot_no: activeJob.lot_no
+                    }
+                };
+                websocketConnection.send(JSON.stringify(message));
+            }
+        }
+        // 🔼 END OF BARCODE SCANNING FUNCTIONALITY 🔼
 
         function goBackToQueue() {
             localStorage.removeItem(ACTIVE_JOB_KEY); // ใช้ Key ที่ถูกต้อง
@@ -366,27 +551,22 @@
             const queue = getQueue();
             const activeJob = getActiveJob();
 
-            console.log('🔄 renderAll() - Queue:', queue.length, 'Active:', !!activeJob);
-
-            // *** แก้ไข Logic ใหม่: ต้องเลือกก่อนเสมอ ***
             if (queue.length > 0 && !activeJob) {
-                // มีงานในคิว แต่ยังไม่ได้เลือก -> แสดงหน้าเลือกงานเสมอ (ไม่สนใจว่าจะมี 1 หรือหลาย Job)
                 mainView.style.display = 'none';
                 queueSelectionView.style.display = 'block';
                 renderQueueSelectionView(queue);
                 
             } else if (activeJob) {
-                // มี Active Job อยู่แล้ว -> แสดงหน้าทำงาน
                 queueSelectionView.style.display = 'none';
                 mainView.style.display = 'flex';
                 renderActiveJob();
                 renderShelfGrid();
+                setupBarcodeScanner();
                 
             } else {
-                // ไม่มีงานเลย -> แสดงหน้าหลัก (Idle)
                 queueSelectionView.style.display = 'none';
                 mainView.style.display = 'flex';
-                renderActiveJob(); // จะแสดง "No active job"
+                renderActiveJob();
                 renderShelfGrid();
             }
         }
@@ -406,20 +586,17 @@
         let websocketConnection = null; // เก็บ WebSocket connection
 
         function setupWebSocket() {
-            console.log("Attempting to connect to WebSocket at ws://localhost:8000/ws");
             const ws = new WebSocket(`ws://${window.location.host}/ws`);
             
-            // เก็บ connection ไว้ใช้ส่งข้อมูล
             websocketConnection = ws;
 
             ws.onopen = function(event) {
-                console.log("✅ WebSocket connection established.");
+                console.log("✅ WebSocket connected");
             };
 
             ws.onmessage = function(event) {
                 try {
                     const data = JSON.parse(event.data);
-                    console.log("📩 Received message from server:", data);
 
                     switch (data.type) {
                         case "initial_state":
@@ -441,14 +618,14 @@
                             currentQueue = currentQueue.filter(j => j.jobId !== data.payload.completedJobId);
                             localStorage.setItem(QUEUE_KEY, JSON.stringify(currentQueue));
                             localStorage.setItem(GLOBAL_SHELF_STATE_KEY, JSON.stringify(data.payload.shelf_state));
-                            localStorage.removeItem(ACTIVE_JOB_KEY); // ใช้ Key ที่ถูกต้อง
+                            localStorage.removeItem(ACTIVE_JOB_KEY);
                             renderAll();
-                            showNotification(`Job completed.`);
+                            showNotification(`Job completed for Lot ${data.payload.lot_no || 'Unknown'}!`, 'success');
                             break;
                         case "job_error":
                             localStorage.setItem(ACTIVE_JOB_KEY, JSON.stringify(data.payload)); // ใช้ Key ที่ถูกต้อง
                             renderAll();
-                            showNotification(`Job error reported for Lot ${data.payload.lot_no}`, 'error');
+                            showNotification(`❌ Lot ${data.payload.lot_no} Must place at L${data.payload.level}-B${data.payload.block}`, 'error');
                             break;
                         case "system_reset":
                             localStorage.clear();
@@ -463,7 +640,7 @@
             };
 
             ws.onclose = function(event) {
-                console.log("❌ WebSocket connection closed. Reconnecting in 3 seconds...");
+                console.log("❌ WebSocket disconnected. Reconnecting in 3 seconds...");
                 setTimeout(setupWebSocket, 3000);
             };
 

@@ -2,7 +2,7 @@
 # เมื่อ Server รีสตาร์ท ข้อมูลจะหายไป (เหมาะสำหรับการพัฒนา)
 DB = {
     "jobs": [],
-    "shelf_state": [[r, c, 0, None] for r in range(1, 5) for c in range(1, 6)], 
+    "shelf_state": [[r, c, 0, None] for r in range(1, 5) for c in range(1, 7)], 
     "job_counter": 0
 }
 
