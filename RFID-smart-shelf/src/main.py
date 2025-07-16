@@ -13,9 +13,9 @@ from core.websocket_manager import manager
 
 # สร้างแอปพลิเคชัน FastAPI หลัก
 app = FastAPI(
-    title="RFID Smart Shelf API (Refactored)",
+    title="Smart Shelf API (Refactored)",
     description="A professional, well-structured server for the Smart Shelf system.",
-    version="2.0.0"
+    version="3.0.0"
     
 )
 

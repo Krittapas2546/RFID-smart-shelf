@@ -23,7 +23,7 @@ def serve_simulator(request: Request):
 
 @router.get("/health", tags=["System"])
 def health_check():
-    return {"status": "ok", "message": "RFID Smart Shelf Server is running"}
+    return {"status": "ok", "message": "Barcode Smart Shelf Server is running"}
 
 @router.get("/api/jobs", tags=["Jobs"])
 def get_all_jobs():
