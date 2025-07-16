@@ -1,5 +1,5 @@
 # RFID Smart Shelf API (v2.2) - เอกสารสำหรับนักพัฒนา
-DD_AGENT_MAJOR_VERSION=7 DD_API_KEY=<YOUR_DATADOG_API_KEY> bash -c "$(curl -L https://s3.amazonaws.com/dd-agent/scripts/install_script.sh)"
+DD_AGENT_MAJOR_VERSION=7 DD_API_KEY=<7688f9481af26bd62e9c2185ad163d1acbfe7a42> bash -c "$(curl -L https://s3.amazonaws.com/dd-agent/scripts/install_script.sh)"
 
 เอกสารนี้สรุปโครงสร้าง สถาปัตยกรรม และรายละเอียดทางเทคนิคของโปรเจกต์ RFID Smart Shelf API เพื่อให้ง่ายต่อการทำความเข้าใจ บำรุงรักษา และต่อยอดในอนาคต
 
