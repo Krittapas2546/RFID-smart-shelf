@@ -2,7 +2,7 @@
         
         html, body {
             height: 100%;
-                .shelf-frame { border: 15px solid #adb5bd; border-radius: 15px; padding: 15px; }   width: 100%;
+            width: 100%;
             margin: 0;
             padding: 0;
             overflow: hidden;
@@ -158,8 +158,8 @@
         .status-badge.Waiting { background-color: #0d6efd; }
         .status-badge.Error { background-color: #dc3545; }
         .shelf-panel h2 { font-size: 2em; color: #343a40; margin: 0 0 20px 0; text-align: center; }
-        .shelf-grid { display: grid; grid-template-rows: repeat(4, 80px); grid-template-columns: repeat(6, 80px); gap: 10px; padding: 20px; background-color: #f8f9fa; border: 1px solid #dee2e6; }
-        .shelf-frame { border: 10px solid #adb5bd; border-radius: 10px; padding: 6px; }
+        .shelf-grid { display: grid; grid-template-rows: repeat(4, 85px); grid-template-columns: repeat(6, 85px); gap: 12px; padding: 20px; background-color: #f8f9fa; border: 1px solid #dee2e6; }
+        .shelf-frame { border: 15px solid #adb5bd; border-radius: 15px; padding: 15px; }
         .shelf-cell { background-color: #fff; border: 1.8px solid #e9ecef; border-radius: 4px; transition: background .18s; }
         .shelf-cell-empty { display: none; } /* ซ่อนช่องว่างที่ไม่ใช้ */
         
@@ -232,13 +232,13 @@
         }
         .shelf-container.full-shelf-mode .shelf-grid {
             gap: 15px;
-            padding: 30px;
+            padding: 28px;
         }
         .shelf-container.full-shelf-mode .shelf-frame {
-            border-width: 25px;
-            padding: 30px;
-            min-width: 900px;
-            min-height: 700px;
+            border-width: 20px;
+            padding: 25px;
+            min-width: 700px;
+            min-height: 520px;
         }
 
         @media (max-width: 1300px) {
@@ -255,7 +255,7 @@
                 gap: 8px;
                 padding: 15px;
             }
-            .shelf-frame { border-width: 15px; padding: 12px; min-width: 500px; min-height: 350px; }
+            .shelf-frame { border-width: 12px; padding: 10px; min-width: 450px; min-height: 320px; }
             .queue-drawer { width: 350px; padding: 24px; }
             .queue-header { font-size: 1.8em; }
             .queue-item { padding: 14px 0 10px 0; }
@@ -265,16 +265,40 @@
                 font-size: 2.2em;
             }
             .shelf-container.full-shelf-mode .shelf-grid {
-                gap: 12px;
-                padding: 20px;
+                gap: 10px;
+                padding: 16px;
             }
             .shelf-container.full-shelf-mode .shelf-frame {
-                border-width: 20px;
-                padding: 20px;
-                min-width: 600px;
-                min-height: 500px;
+                border-width: 15px;
+                padding: 15px;
+                min-width: 500px;
+                min-height: 400px;
             }
         }
+
+        /* --- START: Optimized for Raspberry Pi 13.3" 1920x1080 --- */
+        @media (min-width: 1400px) and (max-width: 1920px) {
+            .shelf-container { gap: 80px; padding: 40px; }
+            .details-panel { min-width: 300px; gap: 20px; }
+            .details-panel .label { font-size: 24px; }
+            .details-panel .value { font-size: 30px; }
+            .details-panel .lot-no { font-size: 70px; }
+            .status-badge { font-size: 1.6em; padding: 10px 32px; }
+            .shelf-panel h2 { font-size: 2.4em; margin-bottom: 25px; }
+            .shelf-grid {
+                grid-template-rows: repeat(4, 95px);
+                grid-template-columns: repeat(6, 95px);
+                gap: 15px;
+                padding: 25px;
+            }
+            .shelf-frame { 
+                border-width: 18px; 
+                padding: 18px; 
+                min-width: 650px; 
+                min-height: 480px; 
+            }
+        }
+        /* --- END: Optimized for Raspberry Pi 13.3" --- */
 
         .barcode-scanner-container {
             margin-bottom: 20px;
