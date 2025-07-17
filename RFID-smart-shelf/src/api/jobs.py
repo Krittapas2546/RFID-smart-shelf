@@ -6,7 +6,7 @@ import pathlib
 
 # --- Import จากไฟล์ที่เราสร้างขึ้น ---
 from core.models import JobRequest, ErrorRequest
-from core.database import DB, get_job_by_id, update_shelf_state, get_lot_in_position
+from core.database import DB, get_job_by_id, update_shelf_state, get_lot_in_position, validate_position, get_shelf_info
 from api.websockets import manager # <-- import manager มาจากที่ใหม่
 
 router = APIRouter() # <-- สร้าง router สำหรับไฟล์นี้
@@ -33,9 +33,20 @@ def get_all_jobs():
 def get_shelf_state():
     return {"shelf_state": DB["shelf_state"]}
 
+@router.get("/api/shelf/config", tags=["Jobs"])
+def get_shelf_config():
+    """ดึงข้อมูลการกำหนดค่าของชั้นวาง"""
+    return get_shelf_info()
+
 @router.get("/api/shelf/position/{level}/{block}", tags=["Jobs"])
 def get_position_info(level: int, block: int):
     """ดึงข้อมูลของช่องเฉพาะ (level, block)"""
+    if not validate_position(level, block):
+        return {
+            "error": "Invalid position",
+            "message": f"Position L{level}B{block} does not exist in shelf configuration"
+        }
+    
     lot_no = get_lot_in_position(level, block)
     has_item = 1 if lot_no else 0
     

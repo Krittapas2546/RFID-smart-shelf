@@ -2,7 +2,7 @@
         
         html, body {
             height: 100%;
-            width: 100%;
+                .shelf-frame { border: 15px solid #adb5bd; border-radius: 15px; padding: 15px; }   width: 100%;
             margin: 0;
             padding: 0;
             overflow: hidden;
@@ -158,9 +158,16 @@
         .status-badge.Waiting { background-color: #0d6efd; }
         .status-badge.Error { background-color: #dc3545; }
         .shelf-panel h2 { font-size: 2em; color: #343a40; margin: 0 0 20px 0; text-align: center; }
-        .shelf-grid { display: grid; grid-template-rows: repeat(4, 60px); grid-template-columns: repeat(6, 60px); gap: 7px; padding: 12px; background-color: #f8f9fa; border: 1px solid #dee2e6; }
+        .shelf-grid { display: grid; grid-template-rows: repeat(4, 80px); grid-template-columns: repeat(6, 80px); gap: 10px; padding: 20px; background-color: #f8f9fa; border: 1px solid #dee2e6; }
         .shelf-frame { border: 10px solid #adb5bd; border-radius: 10px; padding: 6px; }
         .shelf-cell { background-color: #fff; border: 1.8px solid #e9ecef; border-radius: 4px; transition: background .18s; }
+        .shelf-cell-empty { display: none; } /* ซ่อนช่องว่างที่ไม่ใช้ */
+        
+        /* Dynamic cell sizes for flexible shelf configuration */
+        .shelf-cell.size-small { width: 50px; height: 50px; }
+        .shelf-cell.size-medium { width: 60px; height: 60px; }
+        .shelf-cell.size-large { width: 100px; height: 100px; }
+        .shelf-cell.size-xlarge { width: 130px; height: 130px; }
         .shelf-cell.has-item { background-color: #adb5bd; border-color: #6c757d; }
         .shelf-cell.selected-task { background-color: #0d6efd !important; border-color: #0d6efd !important; } 
         .shelf-cell.wrong-location {
@@ -224,12 +231,14 @@
             font-size: 2.5em;
         }
         .shelf-container.full-shelf-mode .shelf-grid {
-            grid-template-rows: repeat(4, 130px);
-            grid-template-columns: repeat(6, 130px);
             gap: 15px;
+            padding: 30px;
         }
         .shelf-container.full-shelf-mode .shelf-frame {
-            border-width: 15px;
+            border-width: 25px;
+            padding: 30px;
+            min-width: 900px;
+            min-height: 700px;
         }
 
         @media (max-width: 1300px) {
@@ -243,11 +252,10 @@
             .shelf-panel h2 { font-size: 1.6em; margin-bottom: 15px; }
             .shelf-grid {
                 /* ปรับขนาดช่อง Shelf Grid ทั้งหมดที่นี่ */
-                grid-template-rows: repeat(4, 50px);
-                grid-template-columns: repeat(6, 50px);
-                gap: 5px;
+                gap: 8px;
+                padding: 15px;
             }
-            .shelf-frame { border-width: 8px; padding: 5px; }
+            .shelf-frame { border-width: 15px; padding: 12px; min-width: 500px; min-height: 350px; }
             .queue-drawer { width: 350px; padding: 24px; }
             .queue-header { font-size: 1.8em; }
             .queue-item { padding: 14px 0 10px 0; }
@@ -257,12 +265,14 @@
                 font-size: 2.2em;
             }
             .shelf-container.full-shelf-mode .shelf-grid {
-                grid-template-rows: repeat(4, 100px);
-                grid-template-columns: repeat(6, 100px);
-                gap: 10px;
+                gap: 12px;
+                padding: 20px;
             }
             .shelf-container.full-shelf-mode .shelf-frame {
-                border-width: 12px;
+                border-width: 20px;
+                padding: 20px;
+                min-width: 600px;
+                min-height: 500px;
             }
         }
 

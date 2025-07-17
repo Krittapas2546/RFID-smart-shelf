@@ -15,7 +15,40 @@
         const shelfContainer = document.getElementById('shelfContainer');
         // 🔼 END OF DOM ELEMENTS 🔼
 
-        const ROWS = 4, COLS = 6;
+        // --- Clear only active job on page reload, keep queue and shelf state ---
+        localStorage.removeItem(ACTIVE_JOB_KEY);
+
+        // 🔽 FLEXIBLE SHELF CONFIGURATION 🔽
+        // ข้อมูลจะถูกโหลดจาก Server ผ่าน API
+        let SHELF_CONFIG = {
+            1: 3,  // Default fallback
+            2: 6,  
+            3: 4,  
+            4: 5   
+        };
+        let TOTAL_LEVELS = 4;
+        let MAX_BLOCKS = 6;
+        
+        // ฟังก์ชันโหลดการกำหนดค่าจาก Server
+        async function loadShelfConfig() {
+            try {
+                const response = await fetch('/api/shelf/config');
+                const data = await response.json();
+                SHELF_CONFIG = data.config;
+                TOTAL_LEVELS = data.total_levels;
+                MAX_BLOCKS = data.max_blocks;
+                console.log('📐 Shelf configuration loaded:', SHELF_CONFIG);
+                
+                // สร้าง grid structure ใหม่หลังจากโหลด config
+                if (shelfGrid) {
+                    shelfGrid.innerHTML = ''; // เคลียร์ grid เก่า
+                    createShelfGridStructure(); // สร้างใหม่ตาม config
+                }
+            } catch (error) {
+                console.warn('⚠️ Failed to load shelf config, using defaults:', error);
+            }
+        }
+        // 🔼 END OF FLEXIBLE CONFIGURATION 🔼
 
         // 🔽 ADD THIS FUNCTION 🔽
         function showNotification(message, type = 'info') {
@@ -90,9 +123,11 @@
         function initializeShelfState() {
             if (!localStorage.getItem(GLOBAL_SHELF_STATE_KEY)) {
                 const defaultState = [];
-                for (let r = 1; r <= ROWS; r++) {
-                    for (let c = 1; c <= COLS; c++) {
-                        defaultState.push([r, c, 0]); // [level, block, hasItem]
+                // สร้างสถานะเริ่มต้นตาม SHELF_CONFIG
+                for (let level = 1; level <= TOTAL_LEVELS; level++) {
+                    const blocksInThisLevel = SHELF_CONFIG[level];
+                    for (let block = 1; block <= blocksInThisLevel; block++) {
+                        defaultState.push([level, block, 0]); // [level, block, hasItem]
                     }
                 }
                 localStorage.setItem(GLOBAL_SHELF_STATE_KEY, JSON.stringify(defaultState));
@@ -119,14 +154,55 @@
             }
             
             shelfGrid.innerHTML = '';
-            for (let r = 1; r <= ROWS; r++) {
-                for (let c = 1; c <= COLS; c++) {
-                    const cell = document.createElement('div');
-                    cell.id = `cell-${r}-${c}`;
-                    cell.className = 'shelf-cell';
-                    shelfGrid.appendChild(cell);
-                }
+            
+            // สร้าง Grid container หลัก
+            shelfGrid.style.display = 'flex';
+            shelfGrid.style.flexDirection = 'column';
+            shelfGrid.style.gap = '8px';
+            shelfGrid.style.padding = '12px';
+            shelfGrid.style.background = '#f8f9fa';
+            shelfGrid.style.border = '1px solid #dee2e6';
+            shelfGrid.style.width = '100%';
+            shelfGrid.style.height = '100%';
+            
+            // กำหนดขนาด cell ตาม viewport และ full-shelf mode
+            const isFullShelfMode = document.querySelector('.shelf-container').classList.contains('full-shelf-mode');
+            let cellHeight = 60; // default height
+            
+            if (window.innerWidth <= 1300) {
+                cellHeight = isFullShelfMode ? 100 : 50;
+            } else {
+                cellHeight = isFullShelfMode ? 130 : 60;
             }
+            
+            // สร้างแต่ละ Level เป็น flexbox แยกกัน
+            for (let level = 1; level <= TOTAL_LEVELS; level++) {
+                const blocksInThisLevel = SHELF_CONFIG[level];
+                
+                // สร้าง container สำหรับแต่ละ level
+                const levelContainer = document.createElement('div');
+                levelContainer.className = 'shelf-level';
+                levelContainer.style.display = 'flex';
+                levelContainer.style.gap = '7px';
+                levelContainer.style.height = `${cellHeight}px`;
+                levelContainer.style.width = '100%';
+                
+                // สร้าง cells สำหรับ level นี้
+                for (let block = 1; block <= blocksInThisLevel; block++) {
+                    const cell = document.createElement('div');
+                    cell.id = `cell-${level}-${block}`;
+                    cell.className = 'shelf-cell';
+                    cell.style.flex = '1'; // ให้แต่ละ cell ขยายเต็มพื้นที่
+                    cell.style.height = '100%';
+                    cell.style.minWidth = '40px'; // ขนาดขั้นต่ำ
+                    
+                    levelContainer.appendChild(cell);
+                }
+                
+                shelfGrid.appendChild(levelContainer);
+            }
+            
+            console.log(`📐 Created flexible shelf grid: ${TOTAL_LEVELS} levels with configuration:`, SHELF_CONFIG);
         }
 
         function getActiveJob() {
@@ -440,10 +516,14 @@
             for (const pattern of patterns) {
                 const match = cleaned.match(pattern);
                 if (match) {
-                    return {
-                        level: parseInt(match[1]),
-                        block: parseInt(match[2])
-                    };
+                    const level = parseInt(match[1]);
+                    const block = parseInt(match[2]);
+                    
+                    // ตรวจสอบว่า Level และ Block ที่สแกนมาอยู่ในช่วงที่ถูกต้องหรือไม่
+                    if (level >= 1 && level <= TOTAL_LEVELS && 
+                        block >= 1 && block <= SHELF_CONFIG[level]) {
+                        return { level, block };
+                    }
                 }
             }
 
@@ -572,8 +652,8 @@
         }
 
         // --- Initial Load ---
-        document.addEventListener('DOMContentLoaded', () => {
-            createShelfGridStructure();
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadShelfConfig(); // โหลดการกำหนดค่าชั้นวางก่อน (จะสร้าง grid structure ด้วย)
             initializeShelfState();
             setupWebSocket();
             renderAll();
@@ -647,4 +727,58 @@
             ws.onerror = function(error) {
                 console.error("💥 WebSocket error:", error);
             };
+        }
+
+        // ฟังก์ชันสำหรับอัปเดตขนาด cell ตาม viewport และ full-shelf mode
+        function updateCellSizes() {
+            const isFullShelfMode = document.querySelector('.shelf-container').classList.contains('full-shelf-mode');
+            let cellHeight = 60; // default height
+            
+            if (window.innerWidth <= 1300) {
+                cellHeight = isFullShelfMode ? 100 : 50;
+            } else {
+                cellHeight = isFullShelfMode ? 130 : 60;
+            }
+            
+            // อัปเดต level containers
+            const levelContainers = document.querySelectorAll('.shelf-level');
+            levelContainers.forEach(container => {
+                container.style.height = `${cellHeight}px`;
+            });
+            
+            // อัปเดตขนาดของ cell ทั้งหมด แต่เก็บ state classes ไว้
+            const allCells = document.querySelectorAll('.shelf-cell');
+            allCells.forEach(cell => {
+                // เก็บ state classes ที่สำคัญไว้
+                const hasItem = cell.classList.contains('has-item');
+                const isSelectedTask = cell.classList.contains('selected-task');
+                const isWrongLocation = cell.classList.contains('wrong-location');
+                const hasHighlightError = cell.classList.contains('highlight-error');
+                
+                // cells ใช้ flex: 1 แล้ว ไม่ต้องกำหนดขนาดเฉพาะ
+                
+                // เพิ่ม state classes กลับคืน
+                if (hasItem) cell.classList.add('has-item');
+                if (isSelectedTask) cell.classList.add('selected-task');
+                if (isWrongLocation) cell.classList.add('wrong-location');
+                if (hasHighlightError) cell.classList.add('highlight-error');
+            });
+        }
+
+        // เพิ่ม event listeners สำหรับ window resize และ full-shelf mode toggle
+        window.addEventListener('resize', updateCellSizes);
+        
+        // ฟังการเปลี่ยนแปลง full-shelf mode
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                    updateCellSizes();
+                }
+            });
+        });
+        
+        // เฝ้าดู shelf-container สำหรับการเปลี่ยนแปลง class
+        const shelfContainerElement = document.querySelector('.shelf-container');
+        if (shelfContainerElement) {
+            observer.observe(shelfContainerElement, { attributes: true, attributeFilter: ['class'] });
         }
