@@ -15,10 +15,10 @@
         localStorage.removeItem(ACTIVE_JOB_KEY);
 
         let SHELF_CONFIG = {
-            1: 8,  // Level 1: 6 blocks
-            2: 8,  // Level 2: 4 blocks  
-            3: 8,  // Level 3: 5 blocks
-            4: 8   
+            1: 1,
+            2: 2,    
+            3: 4,
+            4: 5   
         };
         let TOTAL_LEVELS = 4;
         let MAX_BLOCKS = 8;
