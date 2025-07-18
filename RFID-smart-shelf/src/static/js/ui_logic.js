@@ -1,10 +1,8 @@
-// 🔽 FIX CONSTANTS 🔽
+
         const ACTIVE_JOB_KEY = 'activeJob';
         const GLOBAL_SHELF_STATE_KEY = 'globalShelfState';
         const QUEUE_KEY = 'shelfQueue';
-        // 🔼 END OF CONSTANTS 🔼
 
-        // 🔽 ADD MISSING DOM ELEMENTS 🔽
         const queueSelectionView = document.getElementById('queueSelectionView');
         const activeJobView = document.getElementById('activeJobView');
         const queueListContainer = document.getElementById('queueListContainer');
@@ -13,22 +11,33 @@
         const mainView = document.getElementById('mainView');
         const shelfGrid = document.getElementById('shelfGrid');
         const shelfContainer = document.getElementById('shelfContainer');
-        // 🔼 END OF DOM ELEMENTS 🔼
 
-        // --- Clear only active job on page reload, keep queue and shelf state ---
         localStorage.removeItem(ACTIVE_JOB_KEY);
 
-        // 🔽 FLEXIBLE SHELF CONFIGURATION 🔽
-        // ข้อมูลจะถูกโหลดจาก Server ผ่าน API
         let SHELF_CONFIG = {
-            1: 3,  // Default fallback
-            2: 6,  
-            3: 4,  
-            4: 5   
+            1: 8,  // Level 1: 6 blocks
+            2: 8,  // Level 2: 4 blocks  
+            3: 8,  // Level 3: 5 blocks
+            4: 8   
         };
         let TOTAL_LEVELS = 4;
-        let MAX_BLOCKS = 6;
+        let MAX_BLOCKS = 8;
         
+        // ฟังก์ชันสำหรับ Force Refresh Shelf Grid Structure
+        function refreshShelfGrid() {
+            console.log('🔄 Force refreshing shelf grid with config:', SHELF_CONFIG);
+            
+            // เคลียร์ localStorage เพื่อให้สร้าง state ใหม่
+            localStorage.removeItem(GLOBAL_SHELF_STATE_KEY);
+            
+            if (shelfGrid) {
+                createShelfGridStructure();
+                initializeShelfState(); // สร้าง state ใหม่ตาม config ปัจจุบัน
+                renderShelfGrid();
+                console.log('✅ Shelf grid refreshed successfully');
+            }
+        }
+
         // ฟังก์ชันโหลดการกำหนดค่าจาก Server
         async function loadShelfConfig() {
             try {
@@ -37,15 +46,18 @@
                 SHELF_CONFIG = data.config;
                 TOTAL_LEVELS = data.total_levels;
                 MAX_BLOCKS = data.max_blocks;
-                console.log('📐 Shelf configuration loaded:', SHELF_CONFIG);
+                console.log('📐 Shelf configuration loaded from server:', SHELF_CONFIG);
                 
                 // สร้าง grid structure ใหม่หลังจากโหลด config
                 if (shelfGrid) {
-                    shelfGrid.innerHTML = ''; // เคลียร์ grid เก่า
-                    createShelfGridStructure(); // สร้างใหม่ตาม config
+                    refreshShelfGrid(); // ใช้ refreshShelfGrid แทน
                 }
             } catch (error) {
-                console.warn('⚠️ Failed to load shelf config, using defaults:', error);
+                console.warn('⚠️ Failed to load shelf config from server, using local config:', SHELF_CONFIG);
+                // ใช้ config ท้องถิ่นแทน และสร้าง grid
+                if (shelfGrid) {
+                    refreshShelfGrid();
+                }
             }
         }
         // 🔼 END OF FLEXIBLE CONFIGURATION 🔼
@@ -149,10 +161,7 @@
         }
 
         function createShelfGridStructure() {
-            if (shelfGrid.children.length > 0) {
-                return;
-            }
-            
+            // เคลียร์ grid เก่าทิ้งเสมอ เพื่อให้สามารถสร้างใหม่ได้ตาม config ปัจจุบัน
             shelfGrid.innerHTML = '';
             
             // สร้าง Grid container หลัก
@@ -653,7 +662,13 @@
 
         // --- Initial Load ---
         document.addEventListener('DOMContentLoaded', async () => {
-            await loadShelfConfig(); // โหลดการกำหนดค่าชั้นวางก่อน (จะสร้าง grid structure ด้วย)
+            // ปิดการโหลด config จาก server ชั่วคราว เพื่อใช้ค่าท้องถิ่น
+            // await loadShelfConfig(); // Comment ออกเพื่อใช้ SHELF_CONFIG ท้องถิ่น
+            
+            // ใช้ค่า config ท้องถิ่นแทน
+            console.log('📐 Using local shelf configuration:', SHELF_CONFIG);
+            refreshShelfGrid(); // สร้าง grid ตาม config ท้องถิ่น
+            
             initializeShelfState();
             setupWebSocket();
             renderAll();

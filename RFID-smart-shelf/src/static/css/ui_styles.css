@@ -157,20 +157,36 @@
         .status-badge { background-color: #6c757d; color: white; padding: 8px 28px; border-radius: 24px; font-weight: 700; font-size: 1.45em; display: inline-block; }
         .status-badge.Waiting { background-color: #0d6efd; }
         .status-badge.Error { background-color: #dc3545; }
-        .shelf-panel h2 { font-size: 2em; color: #343a40; margin: 0 0 20px 0; text-align: center; }
-        .shelf-grid { display: grid; grid-template-rows: repeat(4, 85px); grid-template-columns: repeat(6, 85px); gap: 12px; padding: 15px; background-color: #f8f9fa; border: 1px solid #dee2e6; }
+        
+        /* --- START: Shelf Panel & Grid Styles --- */
+        /* 
+          หมายเหตุ: ขนาด, padding, และ gap ของ grid และ frame
+          จะถูกควบคุมโดย JavaScript ในไฟล์ ui_logic.js แบบไดนามิก
+          เพื่อรองรับ Shelf Configuration ที่ยืดหยุ่น
+        */
+        .shelf-panel h2 { 
+            font-size: 2em; 
+            color: #343a40; 
+            margin: 0 0 20px 0; 
+            text-align: center; 
+        }
+
+        .shelf-grid { 
+            background-color: #f8f9fa; 
+            border: 1px solid #dee2e6;
+            box-sizing: border-box; /* เพิ่มเพื่อให้การคำนวณขนาดใน JS ง่ายขึ้น */
+        }
+
         .shelf-frame { 
-            border-width: 15px; 
-            padding: 0px; 
-            min-width: 700px; 
-            min-height: 520px; 
             border: 15px solid #adb5bd; 
             border-radius: 15px; 
             display: inline-block; 
-            box-sizing: border-box; 
-            width: calc(6 * 85px + 5 * 12px); /* 6 columns + 5 gaps */
-            height: calc(4 * 85px + 3 * 12px); /* 4 rows + 3 gaps */ 
+            padding: 0;
+            /* ขนาดของ Frame จะถูกกำหนดโดย JS ให้พอดีกับ Grid ภายใน */
         }
+
+        /* --- END: Shelf Panel & Grid Styles --- */
+
         .shelf-cell { background-color: #fff; border: 1.8px solid #e9ecef; border-radius: 4px; transition: background .18s; }
         .shelf-cell-empty { display: none; } /* ซ่อนช่องว่างที่ไม่ใช้ */
         
@@ -241,16 +257,6 @@
         .shelf-container.full-shelf-mode .shelf-panel h2 {
             font-size: 2.5em;
         }
-        .shelf-container.full-shelf-mode .shelf-grid {
-            gap: 15px;
-            padding: 20px;
-        }
-        .shelf-container.full-shelf-mode .shelf-frame {
-            border-width: 20px;
-            padding: 0px;
-            min-width: 700px;
-            min-height: 520px;
-        }
 
         @media (max-width: 1300px) {
             body { font-size: 14px; }
@@ -261,12 +267,7 @@
             .details-panel .lot-no { font-size: 48px; } /* <-- ปรับขนาดฟอนต์ Lot No. ที่นี่ */
             .status-badge { font-size: 1.25em; padding: 6px 20px; }
             .shelf-panel h2 { font-size: 1.6em; margin-bottom: 15px; }
-            .shelf-grid {
-                /* ปรับขนาดช่อง Shelf Grid ทั้งหมดที่นี่ */
-                gap: 8px;
-                padding: 15px;
-            }
-            .shelf-frame { border-width: 12px; padding: 0px; min-width: 450px; min-height: 320px; }
+
             .queue-drawer { width: 350px; padding: 24px; }
             .queue-header { font-size: 1.8em; }
             .queue-item { padding: 14px 0 10px 0; }
@@ -274,16 +275,6 @@
 
             .shelf-container.full-shelf-mode .shelf-panel h2 {
                 font-size: 2.2em;
-            }
-            .shelf-container.full-shelf-mode .shelf-grid {
-                gap: 10px;
-                padding: 16px;
-            }
-            .shelf-container.full-shelf-mode .shelf-frame {
-                border-width: 15px;
-                padding: 0px;
-                min-width: 500px;
-                min-height: 400px;
             }
         }
 
@@ -296,18 +287,6 @@
             .details-panel .lot-no { font-size: 70px; }
             .status-badge { font-size: 1.6em; padding: 10px 32px; }
             .shelf-panel h2 { font-size: 2.4em; margin-bottom: 25px; }
-            .shelf-grid {
-                grid-template-rows: repeat(4, 95px);
-                grid-template-columns: repeat(6, 95px);
-                gap: 15px;
-                padding: 15px;
-            }
-            .shelf-frame { 
-                border-width: 18px; 
-                padding: 0px; 
-                min-width: 650px; 
-                min-height: 480px; 
-            }
         }
         /* --- END: Optimized for Raspberry Pi 13.3" --- */
 
