@@ -232,11 +232,11 @@
         }
         .shelf-container.full-shelf-mode .shelf-grid {
             gap: 15px;
-            padding: 28px;
+            padding: 20px;
         }
         .shelf-container.full-shelf-mode .shelf-frame {
             border-width: 20px;
-            padding: 25px;
+            padding: 0px;
             min-width: 700px;
             min-height: 520px;
         }
@@ -255,7 +255,7 @@
                 gap: 8px;
                 padding: 15px;
             }
-            .shelf-frame { border-width: 12px; padding: 10px; min-width: 450px; min-height: 320px; }
+            .shelf-frame { border-width: 12px; padding: 0px; min-width: 450px; min-height: 320px; }
             .queue-drawer { width: 350px; padding: 24px; }
             .queue-header { font-size: 1.8em; }
             .queue-item { padding: 14px 0 10px 0; }
@@ -266,11 +266,11 @@
             }
             .shelf-container.full-shelf-mode .shelf-grid {
                 gap: 10px;
-                padding: 16px;
+                padding: 12px;
             }
             .shelf-container.full-shelf-mode .shelf-frame {
                 border-width: 15px;
-                padding: 15px;
+                padding: 0px;
                 min-width: 500px;
                 min-height: 400px;
             }
@@ -289,11 +289,11 @@
                 grid-template-rows: repeat(4, 95px);
                 grid-template-columns: repeat(6, 95px);
                 gap: 15px;
-                padding: 25px;
+                padding: 20px;
             }
             .shelf-frame { 
                 border-width: 18px; 
-                padding: 18px; 
+                padding: 0px; 
                 min-width: 650px; 
                 min-height: 480px; 
             }
