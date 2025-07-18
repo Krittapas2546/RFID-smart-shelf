@@ -5,3 +5,4 @@ flask
 itsdangerous
 click
 markupsafe
+websockets
