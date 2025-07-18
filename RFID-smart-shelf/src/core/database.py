@@ -4,10 +4,10 @@
 # 🔽 FLEXIBLE SHELF CONFIGURATION 🔽
 # กำหนดจำนวน Block ของแต่ละ Level (สามารถปรับได้ตามต้องการ)
 SHELF_CONFIG = {
-    1: 5,  # Level 1 มี 3 blocks
-    2: 6,  # Level 2 มี 6 blocks  
-    3: 4,  # Level 3 มี 4 blocks
-    4: 5   # Level 4 มี 5 blocks
+    1: 6, 
+    2: 5,  
+    3: 4,  
+    4: 8   
 }
 
 # สร้าง shelf_state ตาม SHELF_CONFIG
