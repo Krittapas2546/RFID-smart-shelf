@@ -159,7 +159,18 @@
         .status-badge.Error { background-color: #dc3545; }
         .shelf-panel h2 { font-size: 2em; color: #343a40; margin: 0 0 20px 0; text-align: center; }
         .shelf-grid { display: grid; grid-template-rows: repeat(4, 85px); grid-template-columns: repeat(6, 85px); gap: 12px; padding: 15px; background-color: #f8f9fa; border: 1px solid #dee2e6; }
-        .shelf-frame { border: 15px solid #adb5bd; border-radius: 15px; padding: 0px; display: inline-block; box-sizing: border-box; }
+        .shelf-frame { 
+            border-width: 15px; 
+            padding: 0px; 
+            min-width: 700px; 
+            min-height: 520px; 
+            border: 15px solid #adb5bd; 
+            border-radius: 15px; 
+            display: inline-block; 
+            box-sizing: border-box; 
+            width: calc(6 * 85px + 5 * 12px); /* 6 columns + 5 gaps */
+            height: calc(4 * 85px + 3 * 12px); /* 4 rows + 3 gaps */ 
+        }
         .shelf-cell { background-color: #fff; border: 1.8px solid #e9ecef; border-radius: 4px; transition: background .18s; }
         .shelf-cell-empty { display: none; } /* ซ่อนช่องว่างที่ไม่ใช้ */
         
@@ -266,7 +277,7 @@
             }
             .shelf-container.full-shelf-mode .shelf-grid {
                 gap: 10px;
-                padding: 12px;
+                padding: 16px;
             }
             .shelf-container.full-shelf-mode .shelf-frame {
                 border-width: 15px;
@@ -289,7 +300,7 @@
                 grid-template-rows: repeat(4, 95px);
                 grid-template-columns: repeat(6, 95px);
                 gap: 15px;
-                padding: 20px;
+                padding: 15px;
             }
             .shelf-frame { 
                 border-width: 18px; 
