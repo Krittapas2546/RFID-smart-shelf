@@ -75,7 +75,7 @@ def get_all_lots_in_shelf():
         "lots": lots_info
     }
 
-@router.post("/api/jobs", status_code=201, tags=["Jobs"])
+@router.post("/command", status_code=201, tags=["Jobs"])
 async def create_job_via_api(job: JobRequest):
     # --- START: ปิดการตรวจสอบงานซ้ำชั่วคราว (สำหรับทดสอบ) ---
     existing_lot = any(j['lot_no'] == job.lot_no for j in DB["jobs"])
