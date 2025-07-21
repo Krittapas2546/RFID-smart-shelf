@@ -1,5 +1,4 @@
-
-        const ACTIVE_JOB_KEY = 'activeJob';
+const ACTIVE_JOB_KEY = 'activeJob';
         const GLOBAL_SHELF_STATE_KEY = 'globalShelfState';
         const QUEUE_KEY = 'shelfQueue';
 
@@ -646,6 +645,9 @@
                 renderQueueSelectionView(queue);
                 
             } else if (activeJob) {
+                // เรียกควบคุมไฟที่นี่
+                controlLEDByActiveJob();
+
                 queueSelectionView.style.display = 'none';
                 mainView.style.display = 'flex';
                 renderActiveJob();
@@ -796,4 +798,15 @@
         const shelfContainerElement = document.querySelector('.shelf-container');
         if (shelfContainerElement) {
             observer.observe(shelfContainerElement, { attributes: true, attributeFilter: ['class'] });
+        }
+
+        function controlLEDByActiveJob() {
+            const activeJob = getActiveJob();
+            if (activeJob) {
+                const level = activeJob.level;
+                const block = activeJob.block;
+                // ตัวอย่าง: ส่งข้อมูลไปยัง hardware หรือ API
+                // เช่น: sendToLEDController(level, block);
+                console.log("ควบคุมไฟ LED ที่ Level:", level, "Block:", block);
+            }
         }
