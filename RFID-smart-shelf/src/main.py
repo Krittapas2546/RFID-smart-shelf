@@ -6,7 +6,7 @@ import socket
 import os
 import signal
 import subprocess
-
+import json
 # --- Import Routers จากไฟล์ที่เราสร้าง ---
 from api import jobs, websockets
 from core.websocket_manager import manager

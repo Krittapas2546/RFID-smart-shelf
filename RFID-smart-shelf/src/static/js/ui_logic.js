@@ -14,10 +14,10 @@ const ACTIVE_JOB_KEY = 'activeJob';
         localStorage.removeItem(ACTIVE_JOB_KEY);
 
         let SHELF_CONFIG = {
-            1: 6,
-            2: 6,    
+            1: 3,
+            2: 4,    
             3: 6,
-            4: 6
+            4: 8
         };
         let TOTAL_LEVELS = 4;
         let MAX_BLOCKS = 8;
@@ -720,6 +720,8 @@ const ACTIVE_JOB_KEY = 'activeJob';
                             localStorage.removeItem(ACTIVE_JOB_KEY);
                             renderAll();
                             showNotification(`Job completed for Lot ${data.payload.lot_no || 'Unknown'}!`, 'success');
+
+                            fetch('/api/led/clear', { method: 'POST' });
                             break;
                         case "job_error":
                             localStorage.setItem(ACTIVE_JOB_KEY, JSON.stringify(data.payload)); // ใช้ Key ที่ถูกต้อง
