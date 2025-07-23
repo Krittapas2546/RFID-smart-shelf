@@ -43,6 +43,15 @@ async def control_led(request: Request):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": "LED control failed", "detail": str(e)})
     
+@router.post("/api/led/clear", tags=["System"])
+async def clear_leds():
+    try:
+        from core.led_controller import clear_all_leds
+        clear_all_leds()
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": "LED clear failed", "detail": str(e)})
+    
 @router.get("/", response_class=HTMLResponse, include_in_schema=False)
 def serve_shelf_ui(request: Request):
     return templates.TemplateResponse("shelf_ui.html", {"request": request})

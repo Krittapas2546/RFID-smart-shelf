@@ -19,3 +19,10 @@ except ImportError:
     def set_led(level, block, r, g, b):
         print(f"[MOCK] Would light LED at level {level}, block {block}, color=({r},{g},{b})")
         return {"ok": True, "index": (level-1)*6+(block-1), "mock": True}
+
+def clear_all_leds():
+    if 'neo' in globals() and neo:
+        neo.clear_strip()
+        neo.update_strip()
+    else:
+        print("[MOCK] Would clear all LEDs")
