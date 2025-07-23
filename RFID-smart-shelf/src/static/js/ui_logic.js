@@ -591,9 +591,11 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 .then(data => {
                     console.log('✅ Job completed via HTTP API:', data);
                     showNotification(`✅ Job completed successfully!`, 'success');
-                    
                     localStorage.removeItem(ACTIVE_JOB_KEY);
                     renderAll();
+
+                    // ดับไฟ LED หลังงานเสร็จ
+                    fetch('/api/led/clear', { method: 'POST' });
                 })
                 .catch(error => {
                     console.error('❌ Error completing job:', error);
