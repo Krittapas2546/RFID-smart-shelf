@@ -13,15 +13,10 @@ const ACTIVE_JOB_KEY = 'activeJob';
 
         localStorage.removeItem(ACTIVE_JOB_KEY);
 
-        let SHELF_CONFIG = {
-            1: 3,
-            2: 4,    
-            3: 6,
-            4: 8
-        };
-        let TOTAL_LEVELS = 4;
-        let MAX_BLOCKS = 8;
-        
+        let SHELF_CONFIG = {};
+        let TOTAL_LEVELS = 0;
+        let MAX_BLOCKS = 0;
+
         // ฟังก์ชันสำหรับ Force Refresh Shelf Grid Structure
         function refreshShelfGrid() {
             console.log('🔄 Force refreshing shelf grid with config:', SHELF_CONFIG);
@@ -666,13 +661,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
 
         // --- Initial Load ---
         document.addEventListener('DOMContentLoaded', async () => {
-            // ปิดการโหลด config จาก server ชั่วคราว เพื่อใช้ค่าท้องถิ่น
-            // await loadShelfConfig(); // Comment ออกเพื่อใช้ SHELF_CONFIG ท้องถิ่น
-            
-            // ใช้ค่า config ท้องถิ่นแทน
-            console.log('📐 Using local shelf configuration:', SHELF_CONFIG);
-            refreshShelfGrid(); // สร้าง grid ตาม config ท้องถิ่น
-            
+            await loadShelfConfig();
             initializeShelfState();
             setupWebSocket();
             renderAll();

@@ -9,7 +9,7 @@ from core.led_controller import set_led
 
 # --- Import จากไฟล์ที่เราสร้างขึ้น ---
 from core.models import JobRequest, ErrorRequest
-from core.database import DB, get_job_by_id, update_shelf_state, get_lot_in_position, validate_position, get_shelf_info
+from core.database import DB, get_job_by_id, update_shelf_state, get_lot_in_position, validate_position, get_shelf_info, SHELF_CONFIG
 from api.websockets import manager # <-- import manager มาจากที่ใหม่
 
 router = APIRouter() # <-- สร้าง router สำหรับไฟล์นี้
@@ -20,6 +20,17 @@ templates = Jinja2Templates(directory=str(pathlib.Path(__file__).parent.parent /
 # --- LED Control Endpoint ---
 from fastapi import Request
 from fastapi.responses import JSONResponse
+
+@router.get("/api/shelf/config", tags=["System"])
+def get_shelf_config():
+    config = SHELF_CONFIG
+    total_levels = len(config)
+    max_blocks = max(config.values())
+    return JSONResponse(content={
+        "config": config,
+        "total_levels": total_levels,
+        "max_blocks": max_blocks
+    })
 
 @router.post("/api/led", tags=["System"])
 async def control_led(request: Request):
@@ -43,6 +54,7 @@ async def control_led(request: Request):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": "LED control failed", "detail": str(e)})
     
+
 @router.post("/api/led/clear", tags=["System"])
 async def clear_leds():
     try:

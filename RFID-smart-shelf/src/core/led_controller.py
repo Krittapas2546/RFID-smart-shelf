@@ -3,7 +3,7 @@
 Module สำหรับควบคุม LED (Pi5Neo) หรือ mock สำหรับ dev
 """
 
-SHELF_CONFIG = {1: 3, 2: 4, 3: 6, 4: 8}
+from core.database import SHELF_CONFIG
 NUM_PIXELS = sum(SHELF_CONFIG.values())
 
 def idx(level, block):
