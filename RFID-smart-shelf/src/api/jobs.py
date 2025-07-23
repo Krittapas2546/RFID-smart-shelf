@@ -4,6 +4,9 @@ from fastapi.templating import Jinja2Templates
 import json
 import pathlib
 
+# --- สำหรับควบคุม LED ---
+from core.led_controller import set_led
+
 # --- Import จากไฟล์ที่เราสร้างขึ้น ---
 from core.models import JobRequest, ErrorRequest
 from core.database import DB, get_job_by_id, update_shelf_state, get_lot_in_position, validate_position, get_shelf_info
@@ -13,6 +16,33 @@ router = APIRouter() # <-- สร้าง router สำหรับไฟล์
 templates = Jinja2Templates(directory=str(pathlib.Path(__file__).parent.parent / "templates"))
 
 # --- Routes ---
+
+# --- LED Control Endpoint ---
+from fastapi import Request
+from fastapi.responses import JSONResponse
+
+@router.post("/api/led", tags=["System"])
+async def control_led(request: Request):
+    """รับ level, block แล้วควบคุม LED (Pi5Neo)"""
+    try:
+        data = await request.json()
+        level = int(data.get('level', 0))
+        block = int(data.get('block', 0))
+        r = int(data.get('r', 0))
+        g = int(data.get('g', 255))
+        b = int(data.get('b', 0))
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"error": "Invalid JSON", "detail": str(e)})
+
+    if not (1 <= level <= 4 and 1 <= block <= 6):
+        return JSONResponse(status_code=400, content={"error": "Invalid level or block"})
+
+    try:
+        result = set_led(level, block, r, g, b)
+        return result
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": "LED control failed", "detail": str(e)})
+    
 @router.get("/", response_class=HTMLResponse, include_in_schema=False)
 def serve_shelf_ui(request: Request):
     return templates.TemplateResponse("shelf_ui.html", {"request": request})

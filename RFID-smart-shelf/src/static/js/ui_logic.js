@@ -15,9 +15,9 @@ const ACTIVE_JOB_KEY = 'activeJob';
 
         let SHELF_CONFIG = {
             1: 6,
-            2: 5,    
-            3: 4,
-            4: 8   
+            2: 6,    
+            3: 6,
+            4: 6
         };
         let TOTAL_LEVELS = 4;
         let MAX_BLOCKS = 8;
@@ -800,13 +800,38 @@ const ACTIVE_JOB_KEY = 'activeJob';
             observer.observe(shelfContainerElement, { attributes: true, attributeFilter: ['class'] });
         }
 
+        /**
+         * ฟังก์ชันควบคุม LED ตามสถานะ active job (logic อยู่ฝั่ง frontend)
+         * สามารถปรับ mapping สี/สถานะได้ที่นี่
+         */
         function controlLEDByActiveJob() {
             const activeJob = getActiveJob();
-            if (activeJob) {
-                const level = activeJob.level;
-                const block = activeJob.block;
-                // ตัวอย่าง: ส่งข้อมูลไปยัง hardware หรือ API
-                // เช่น: sendToLEDController(level, block);
-                console.log("ควบคุมไฟ LED ที่ Level:", level, "Block:", block);
+            if (!activeJob) return;
+
+            const level = Number(activeJob.level);
+            const block = Number(activeJob.block);
+            let color = { r: 0, g: 255, b: 0 }; // Default: เขียว
+
+            // Mapping ตัวอย่าง: เปลี่ยนสีตามสถานะ
+            if (activeJob.error) {
+                color = { r: 255, g: 0, b: 0 }; // แดง
+            } else if (activeJob.place_flg === '1') {
+                color = { r: 0, g: 0, b: 255 }; // น้ำเงิน (place)
+            } else if (activeJob.place_flg === '0') {
+                color = { r: 255, g: 255, b: 0 }; // เหลือง (pick)
             }
+
+            // ส่งข้อมูลไป backend (FastAPI)
+            fetch('/api/led', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ level, block, ...color })
+            })
+            .then(res => res.json())
+            .then(data => {
+                console.log('LED API response:', data);
+            })
+            .catch(err => {
+                console.error('LED API error:', err);
+            });
         }

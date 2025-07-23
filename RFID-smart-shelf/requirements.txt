@@ -6,3 +6,4 @@ itsdangerous
 click
 markupsafe
 websockets
+pi5neo
