@@ -1,3 +1,25 @@
+        /**
+         * แสดงไฟฟ้าทุกช่องที่มี job ใน queue (queueSelectionView)
+         */
+        function controlLEDByQueue() {
+            const queue = getQueue();
+            if (!queue || queue.length === 0) {
+                fetch('/api/led/clear', { method: 'POST' });
+                return;
+            }
+            // เตรียม batch สำหรับทุก job ใน queue
+            const leds = queue.map(job => ({
+                level: Number(job.level),
+                block: Number(job.block),
+                r: 0, g: 0, b: 255 // ฟ้า
+            }));
+            fetch('/api/led/clear', { method: 'POST' })
+                .then(() => fetch('/api/led/batch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ leds })
+                }));
+        }
 const ACTIVE_JOB_KEY = 'activeJob';
         const GLOBAL_SHELF_STATE_KEY = 'globalShelfState';
         const QUEUE_KEY = 'shelfQueue';
@@ -662,7 +684,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 mainView.style.display = 'none';
                 queueSelectionView.style.display = 'block';
                 renderQueueSelectionView(queue);
-                
+                controlLEDByQueue();
             } else if (activeJob) {
                 // เรียกควบคุมไฟที่นี่ (ไม่ต้องส่ง wrongLocation)
                 controlLEDByActiveJob();
