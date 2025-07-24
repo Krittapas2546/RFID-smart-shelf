@@ -480,8 +480,10 @@ const ACTIVE_JOB_KEY = 'activeJob';
             }
 
             const { level, block } = locationMatch;
-            
-            if (Number(level) === Number(activeJob.level) && Number(block) === Number(activeJob.block)) {
+            const correctLevel = Number(activeJob.level);
+            const correctBlock = Number(activeJob.block);
+
+            if (Number(level) === correctLevel && Number(block) === correctBlock) {
                 if (activeJob.error) {
                     const cleanJob = { ...activeJob };
                     delete cleanJob.error;
@@ -490,12 +492,37 @@ const ACTIVE_JOB_KEY = 'activeJob';
                     setActiveJob(cleanJob);
                     renderAll();
                 }
-                
                 showNotification(`✅ Correct location! Completing job for Lot ${activeJob.lot_no}...`, 'success');
                 completeCurrentJob();
             } else {
-                showNotification(`❌ Wrong location! Expected: L${activeJob.level}-B${activeJob.block}, Got: L${level}-B${block}`, 'error');
-                reportJobError('WRONG_LOCATION', `Scanned wrong location: L${level}-B${block}, Expected: L${activeJob.level}-B${activeJob.block}`);
+                // 1. ช่องที่ถูกต้องยังคงสีฟ้า (selected-task)
+                // 2. ช่องที่ scan ผิด (level, block) ให้แสดงสีแดง (wrong-location) และสั่ง LED สีแดง
+                showNotification(`❌ Wrong location! Expected: L${correctLevel}-B${correctBlock}, Got: L${level}-B${block}`, 'error');
+
+                // อัปเดต UI: เพิ่ม class wrong-location ให้ cell ที่ scan ผิด
+                const wrongCell = document.getElementById(`cell-${level}-${block}`);
+                if (wrongCell) {
+                    wrongCell.classList.add('wrong-location');
+                    // ลบ class อื่นที่อาจ conflict
+                    wrongCell.classList.remove('selected-task');
+                }
+
+                // สั่ง LED: ช่องที่ถูกต้อง (ฟ้า), ช่องที่ผิด (แดง)
+                // 1. ช่องที่ถูกต้อง (selected-task) - ส่งสีฟ้า
+                fetch('/api/led', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ level: correctLevel, block: correctBlock, r: 0, g: 0, b: 255 })
+                });
+                // 2. ช่องที่ผิด (wrong-location) - ส่งสีแดง
+                fetch('/api/led', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ level, block, r: 255, g: 0, b: 0 })
+                });
+
+                // อัปเดต state error ใน activeJob
+                reportJobError('WRONG_LOCATION', `Scanned wrong location: L${level}-B${block}, Expected: L${correctLevel}-B${correctBlock}`);
             }
         }
 
