@@ -525,7 +525,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 completeCurrentJob();
             } else {
                 // แสดง error UI ให้เหมือน LED: ช่องถูกต้อง (selected-task, ฟ้า), ช่องที่ผิด (wrong-location, แดง)
-                showNotification(`❌ Wrong location! Expected: L${correctLevel}-B${correctBlock}, Got: L${level}-B${block}`, 'error');
+                //showNotification(`❌ Wrong location! Expected: L${correctLevel}-B${correctBlock}, Got: L${level}-B${block}`, 'error');
 
                 // อัปเดต UI: ช่องถูกต้อง (selected-task)
                 const correctCell = document.getElementById(`cell-${correctLevel}-${correctBlock}`);
