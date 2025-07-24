@@ -504,9 +504,10 @@ const ACTIVE_JOB_KEY = 'activeJob';
                     renderAll();
                 }
                 showNotification(`✅ Correct location! Completing job for Lot ${activeJob.lot_no}...`, 'success');
+                controlLEDByActiveJob();
                 completeCurrentJob();
             } else {
-                // แสดง error UI ให้เหมือน LED: ช่องถูกต้อง (selected-task, ฟ้า), ช่องผิด (wrong-location, แดง)
+                // แสดง error UI ให้เหมือน LED: ช่องถูกต้อง (selected-task, ฟ้า), ช่องที่ผิด (wrong-location, แดง)
                 showNotification(`❌ Wrong location! Expected: L${correctLevel}-B${correctBlock}, Got: L${level}-B${block}`, 'error');
 
                 // อัปเดต UI: ช่องถูกต้อง (selected-task)
@@ -520,21 +521,9 @@ const ACTIVE_JOB_KEY = 'activeJob';
                     wrongCell.classList.add('wrong-location');
                     wrongCell.classList.remove('selected-task');
                 }
-
-                // สั่ง LED: ช่องที่ถูกต้อง (ฟ้า), ช่องที่ผิด (แดง)
-                fetch('/api/led', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ level: correctLevel, block: correctBlock, r: 0, g: 0, b: 255 })
-                });
-                fetch('/api/led', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ level, block, r: 255, g: 0, b: 0 })
-                });
-
                 // อัปเดต state error ใน activeJob
                 reportJobError('WRONG_LOCATION', `Scanned wrong location: L${level}-B${block}, Expected: L${correctLevel}-B${correctBlock}`);
+                controlLEDByActiveJob({ level, block });
             }
         }
 
@@ -836,34 +825,34 @@ const ACTIVE_JOB_KEY = 'activeJob';
          * ฟังก์ชันควบคุม LED ตามสถานะ active job (logic อยู่ฝั่ง frontend)
          * สามารถปรับ mapping สี/สถานะได้ที่นี่
          */
-        function controlLEDByActiveJob() {
+        function controlLEDByActiveJob(wrongLocation = null) {
             const activeJob = getActiveJob();
             if (!activeJob) return;
 
             const level = Number(activeJob.level);
             const block = Number(activeJob.block);
-            let color = { r: 0, g: 255, b: 0 }; // Default: เขียว
-
-            // Mapping ตัวอย่าง: เปลี่ยนสีตามสถานะ
-            if (activeJob.error) {
-                color = { r: 255, g: 0, b: 0 }; // แดง
-            } else if (activeJob.place_flg === '1') {
-                color = { r: 0, g: 0, b: 255 }; // น้ำเงิน (place)
-            } else if (activeJob.place_flg === '0') {
+            // ช่องเป้าหมาย: ฟ้า (place) หรือ เหลือง (pick)
+            let color = { r: 0, g: 0, b: 255 }; // default: ฟ้า (place)
+            if (activeJob.place_flg === '0') {
                 color = { r: 255, g: 255, b: 0 }; // เหลือง (pick)
             }
 
-            // ส่งข้อมูลไป backend (FastAPI)
+            // ดับไฟทั้งหมดก่อน (เพื่อป้องกัน ghost LED)
+            fetch('/api/led/clear', { method: 'POST' });
+
+            // ช่องเป้าหมาย (ฟ้า/เหลือง)
             fetch('/api/led', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ level, block, ...color })
-            })
-            .then(res => res.json())
-            .then(data => {
-                console.log('LED API response:', data);
-            })
-            .catch(err => {
-                console.error('LED API error:', err);
             });
+
+            // ถ้ามีช่องผิด (wrongLocation) ให้สั่งไฟแดง
+            if (wrongLocation && wrongLocation.level && wrongLocation.block) {
+                fetch('/api/led', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ level: wrongLocation.level, block: wrongLocation.block, r: 255, g: 0, b: 0 })
+                });
+            }
         }
