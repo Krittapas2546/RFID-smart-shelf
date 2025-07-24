@@ -844,8 +844,10 @@ const ACTIVE_JOB_KEY = 'activeJob';
             const block = Number(activeJob.block);
             let color = { r: 0, g: 255, b: 0 }; // Default: เขียว
 
-            // Mapping: ช่องเป้าหมายต้องไม่เป็นสีแดงอัตโนมัติ
-            if (activeJob.place_flg === '1') {
+            // Mapping ตัวอย่าง: เปลี่ยนสีตามสถานะ
+            if (activeJob.error) {
+                color = { r: 255, g: 0, b: 0 }; // แดง
+            } else if (activeJob.place_flg === '1') {
                 color = { r: 0, g: 0, b: 255 }; // น้ำเงิน (place)
             } else if (activeJob.place_flg === '0') {
                 color = { r: 255, g: 255, b: 0 }; // เหลือง (pick)
