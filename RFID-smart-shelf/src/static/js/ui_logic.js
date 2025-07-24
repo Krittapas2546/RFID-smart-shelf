@@ -504,7 +504,6 @@ const ACTIVE_JOB_KEY = 'activeJob';
                     renderAll();
                 }
                 showNotification(`✅ Correct location! Completing job for Lot ${activeJob.lot_no}...`, 'success');
-                controlLEDByActiveJob();
                 completeCurrentJob();
             } else {
                 // แสดง error UI ให้เหมือน LED: ช่องถูกต้อง (selected-task, ฟ้า), ช่องที่ผิด (wrong-location, แดง)
@@ -523,7 +522,6 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 }
                 // อัปเดต state error ใน activeJob
                 reportJobError('WRONG_LOCATION', `Scanned wrong location: L${level}-B${block}, Expected: L${correctLevel}-B${correctBlock}`);
-                controlLEDByActiveJob({ level, block });
             }
         }
 
@@ -670,15 +668,13 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 renderQueueSelectionView(queue);
                 
             } else if (activeJob) {
-                // เรียกควบคุมไฟที่นี่
+                // เรียกควบคุมไฟที่นี่ (ไม่ต้องส่ง wrongLocation)
                 controlLEDByActiveJob();
-
                 queueSelectionView.style.display = 'none';
                 mainView.style.display = 'flex';
                 renderActiveJob();
                 renderShelfGrid();
                 setupBarcodeScanner();
-                
             } else {
                 queueSelectionView.style.display = 'none';
                 mainView.style.display = 'flex';
@@ -840,19 +836,32 @@ const ACTIVE_JOB_KEY = 'activeJob';
             // ดับไฟทั้งหมดก่อน (เพื่อป้องกัน ghost LED)
             fetch('/api/led/clear', { method: 'POST' });
 
-            // ช่องเป้าหมาย (ฟ้า/เหลือง)
+            // ถ้าอยู่ใน error และ errorType เป็น WRONG_LOCATION ให้โชว์ไฟแดงที่ตำแหน่งผิด
+            if (activeJob.error && activeJob.errorType === 'WRONG_LOCATION' && activeJob.errorMessage) {
+                // parse wrong location from errorMessage
+                const match = activeJob.errorMessage.match(/L(\d+)-B(\d+)/);
+                if (match) {
+                    const wrongLevel = Number(match[1]);
+                    const wrongBlock = Number(match[2]);
+                    // ช่องเป้าหมาย (ฟ้า/เหลือง)
+                    fetch('/api/led', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ level, block, ...color })
+                    });
+                    // ช่องผิด (แดง)
+                    fetch('/api/led', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ level: wrongLevel, block: wrongBlock, r: 255, g: 0, b: 0 })
+                    });
+                    return;
+                }
+            }
+            // ถ้าไม่ error หรือ error อื่น ให้โชว์เฉพาะช่องเป้าหมาย
             fetch('/api/led', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ level, block, ...color })
             });
-
-            // ถ้ามีช่องผิด (wrongLocation) ให้สั่งไฟแดง
-            if (wrongLocation && wrongLocation.level && wrongLocation.block) {
-                fetch('/api/led', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ level: wrongLocation.level, block: wrongLocation.block, r: 255, g: 0, b: 0 })
-                });
-            }
         }
