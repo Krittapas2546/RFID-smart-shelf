@@ -845,10 +845,10 @@ const ACTIVE_JOB_KEY = 'activeJob';
 
             const level = Number(activeJob.level);
             const block = Number(activeJob.block);
-            // ช่องเป้าหมาย: ฟ้า (place) หรือ เหลือง (pick)
+            // ช่องเป้าหมาย: ฟ้า (place) หรือ ฟ้า (pick)
             let color = { r: 0, g: 0, b: 255 }; // default: ฟ้า (place)
             if (activeJob.place_flg === '0') {
-                color = { r: 255, g: 255, b: 0 }; // เหลือง (pick)
+                color = { r: 0, g: 0, b: 22 }; // ฟ้า (pick)
             }
 
             // ดับไฟทั้งหมดก่อน (เพื่อป้องกัน ghost LED)
