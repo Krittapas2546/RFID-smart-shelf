@@ -6,6 +6,75 @@
     <title>Smart Shelf UI</title>
     <!-- 1. เรียกใช้ไฟล์ CSS ภายนอก -->
     <link rel="stylesheet" href="/static/css/ui_styles.css">
+    <style>
+      .arrow {
+        width: 0;
+        height: 0;
+        border-left: 12px solid transparent;
+        border-right: 12px solid transparent;
+        display: inline-block;
+        vertical-align: middle;
+        margin-right: 8px;
+      }
+      .arrow.up {
+        border-bottom: 18px solid #3498db;
+        animation: bounce-up 1s infinite;
+      }
+      .arrow.down {
+        border-top: 18px solid #2ecc71;
+        animation: bounce-down 1s infinite;
+      }
+      @keyframes bounce-up {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-6px); }
+      }
+      @keyframes bounce-down {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(6px); }
+      }
+      .queue-list-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        padding: 18px 24px;
+        margin-bottom: 18px;
+        min-height: 56px;
+      }
+      .queue-list-item .info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .queue-list-item .lot {
+        font-size: 1.15em;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .queue-list-item .action {
+        font-size: 0.98em;
+        color: #666;
+        margin-left: 2px;
+      }
+      .select-btn {
+        background: #27ae60;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 22px;
+        font-size: 1em;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .select-btn:hover {
+        background: #219150;
+      }
+    </style>
 </head>
 <body>
     <!-- 2. เพิ่มโครงสร้าง HTML สำหรับแสดงผล -->
@@ -45,6 +114,43 @@
 
     <!-- 3. เรียกใช้ไฟล์ JavaScript ภายนอก (ควรวางไว้ท้าย body) -->
     <script src="/static/js/ui_logic.js"></script>
+    <script>
+      // ปรับ renderQueueSelectionView: ลูกศรอยู่หน้า Lot, ไม่มี label Pick/Place, ดูสะอาด
+      window.renderQueueSelectionView = function(queue) {
+        const queueListContainer = document.getElementById('queueListContainer');
+        queueListContainer.innerHTML = '';
+        queue.forEach(job => {
+          const li = document.createElement('li');
+          li.className = 'queue-list-item';
+          // เลือก icon ตาม action
+          let arrowHtml = '';
+          if (job.place_flg === '0') {
+            arrowHtml = `<span class="arrow up"></span>`;
+          } else {
+            arrowHtml = `<span class="arrow down"></span>`;
+          }
+          li.innerHTML = `
+            <div class="info">
+              <div class="lot">${arrowHtml}Lot: ${job.lot_no}</div>
+              <div class="action">Action: ${job.place_flg === '1' ? 'Place' : 'Pick'} at L:${job.level}, B:${job.block}</div>
+            </div>
+            <button class="select-btn" onclick="selectJob('${job.jobId}')">Select</button>
+          `;
+          queueListContainer.appendChild(li);
+        });
+
+        // Logic focus เดิม
+        const lotInput = document.getElementById('lot-no-input');
+        if (lotInput) {
+          lotInput.focus();
+          lotInput.onkeyup = function(event) {
+            if (event.key === 'Enter') {
+              handleLotSearch();
+            }
+          };
+        }
+      };
+    </script>
 
 
 </html></body></body>
