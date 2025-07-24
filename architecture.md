@@ -55,7 +55,7 @@ graph LR
 
 *   **`api/` (API Layer)**
     *   **`jobs.py` (HTTP API Router)**
-        *   **หน้าที่:** กำหนด HTTP Endpoints ทั้งหมด เช่น `/api/jobs`, `/api/system/reset`
+        *   **หน้าที่:** กำหนด HTTP Endpoints ทั้งหมด เช่น `/command`, `/api/system/reset`
         *   **การทำงาน:** รับ Request, เรียกใช้ Logic จาก `core` เพื่อจัดการข้อมูล, และส่ง Response กลับไป
     *   **`websockets.py` (WebSocket Router)**
         *   **หน้าที่:** กำหนด Endpoint `/ws` สำหรับการเชื่อมต่อแบบ Real-time
@@ -88,7 +88,7 @@ graph LR
 
 ### Flow A: Creating a New Job (HTTP Request)
 
-1.  **External System** ส่ง `POST /api/jobs` พร้อมข้อมูล Job ใน Request Body
+1.  **External System** ส่ง `POST /command` พร้อมข้อมูล Job ใน Request Body
 2.  **`main.py`** รับ Request และส่งต่อไปยัง `jobs.router`
 3.  **`jobs.py`** ใช้ `JobRequest` model จาก **`models.py`** เพื่อ Validate ข้อมูล
 4.  ข้อมูลถูกบันทึกลงใน `DB` dictionary ใน **`database.py`**

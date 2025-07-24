@@ -592,7 +592,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
             } else {
                 console.warn('⚠️ WebSocket not available, using HTTP fallback');
                 
-                fetch('/api/jobs/complete', {
+                fetch('/command/complete', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

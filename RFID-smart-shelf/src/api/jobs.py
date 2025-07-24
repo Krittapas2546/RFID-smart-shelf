@@ -94,7 +94,7 @@ def serve_simulator(request: Request):
 def health_check():
     return {"status": "ok", "message": "Barcode Smart Shelf Server is running"}
 
-@router.get("/api/jobs", tags=["Jobs"])
+@router.get("/command", tags=["Jobs"])
 def get_all_jobs():
     return {"jobs": DB["jobs"]}
 
@@ -144,7 +144,7 @@ def get_all_lots_in_shelf():
         "lots": lots_info
     }
 
-@router.post("/api/jobs", status_code=201, tags=["Jobs"])
+@router.post("/command", status_code=201, tags=["Jobs"])
 async def create_job_via_api(job: JobRequest):
     # --- START: ปิดการตรวจสอบงานซ้ำชั่วคราว (สำหรับทดสอบ) ---
     existing_lot = any(j['lot_no'] == job.lot_no for j in DB["jobs"])
@@ -161,7 +161,7 @@ async def create_job_via_api(job: JobRequest):
     await manager.broadcast(json.dumps({"type": "new_job", "payload": new_job}))
     return {"status": "success", "job_data": new_job}
 
-@router.post("/api/jobs/{job_id}/complete", tags=["Jobs"])
+@router.post("/command/{job_id}/complete", tags=["Jobs"])
 async def complete_job(job_id: str):
     print(f"API: Received 'Task Complete' for job {job_id}")
     job = get_job_by_id(job_id)
@@ -191,7 +191,7 @@ async def complete_job(job_id: str):
     }
 
 # เพิ่ม endpoint ใหม่สำหรับรับข้อมูลจาก JavaScript
-@router.post("/api/jobs/complete", tags=["Jobs"])
+@router.post("/command/complete", tags=["Jobs"])
 async def complete_job_by_data(request_data: dict):
     """Complete job โดยใช้ข้อมูลที่ส่งมาจาก client"""
     job_id = request_data.get("job_id")
@@ -205,7 +205,7 @@ async def complete_job_by_data(request_data: dict):
     # เรียกใช้ฟังก์ชันเดิม
     return await complete_job(job_id)
 
-@router.post("/api/jobs/{job_id}/error", tags=["Jobs"])
+@router.post("/command/{job_id}/error", tags=["Jobs"])
 async def error_job(job_id: str, body: ErrorRequest):
     print(f"API: Received 'Error' for job {job_id}")
     job = get_job_by_id(job_id)
