@@ -240,42 +240,38 @@ const ACTIVE_JOB_KEY = 'activeJob';
             const shelfState = JSON.parse(localStorage.getItem(GLOBAL_SHELF_STATE_KEY) || '[]');
             const activeJob = getActiveJob();
 
+            // เตรียมตำแหน่ง error (ถ้ามี)
+            let wrongLevel = null, wrongBlock = null;
+            if (activeJob && activeJob.error && activeJob.errorType === 'WRONG_LOCATION' && activeJob.errorMessage) {
+                const match = activeJob.errorMessage.match(/L(\d+)-B(\d+)/);
+                if (match) {
+                    wrongLevel = Number(match[1]);
+                    wrongBlock = Number(match[2]);
+                }
+            }
+
             shelfState.forEach(([level, block, hasItem]) => {
                 const cellId = `cell-${level}-${block}`;
                 const cell = document.getElementById(cellId);
-                
                 if (!cell) return;
 
                 // Reset class ทุกครั้ง
                 cell.className = 'shelf-cell';
 
-                // --- START: แก้ไข Logic การแสดงผล ---
                 if (activeJob) {
-                    // เมื่อมี Active Job ให้แสดงเฉพาะช่องเป้าหมาย
-                    const isTaskLocation = Number(activeJob.level) === Number(level) && 
-                                           Number(activeJob.block) === Number(block);
-                    const isError = activeJob.error;
-
-                    if (isTaskLocation) {
-                        if (isError) {
-                            cell.classList.add('wrong-location');
-                        } else {
-                            cell.classList.add('selected-task');
-                        }
+                    const isTarget = (Number(activeJob.level) === level && Number(activeJob.block) === block);
+                    if (isTarget) {
+                        cell.classList.add('selected-task');
                     }
-                    // 🔽 ลบส่วนนี้ออก - ไม่แสดงช่องสีเทาเมื่อมี Active Job 🔽
-                    // else if (hasItem) {
-                    //     cell.classList.add('has-item');
-                    //     console.log(`⚫ Has item: [${level},${block}]`);
-                    // }
-                    // 🔼 END OF REMOVAL 🔼
+                    if (wrongLevel === level && wrongBlock === block) {
+                        cell.classList.add('wrong-location');
+                        cell.classList.remove('selected-task');
+                    }
                 } else {
-                    // เมื่อไม่มี Active Job ให้แสดงช่องที่มีของ
                     if (hasItem) {
                         cell.classList.add('has-item');
                     }
                 }
-                // --- END: แก้ไข Logic การแสดงผล ---
             });
         }
 
