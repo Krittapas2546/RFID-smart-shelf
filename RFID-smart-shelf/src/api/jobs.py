@@ -32,6 +32,8 @@ def get_shelf_config():
         "max_blocks": max_blocks
     })
 
+
+# รองรับสั่งทีละดวง (เดิม)
 @router.post("/api/led", tags=["System"])
 async def control_led(request: Request):
     """รับ level, block แล้วควบคุม LED (Pi5Neo)"""
@@ -53,6 +55,22 @@ async def control_led(request: Request):
         return result
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": "LED control failed", "detail": str(e)})
+
+# รองรับสั่งหลายดวงพร้อมกัน
+@router.post("/api/led/batch", tags=["System"])
+async def control_led_batch(request: Request):
+    """รับ array ของ led objects แล้วควบคุม LED หลายดวงพร้อมกัน"""
+    try:
+        data = await request.json()
+        leds = data.get('leds', [])
+        if not isinstance(leds, list):
+            return JSONResponse(status_code=400, content={"error": "Invalid format: 'leds' must be a list"})
+        # ตัวอย่าง: [{level, block, r, g, b}, ...]
+        from core.led_controller import set_led_batch
+        set_led_batch(leds)
+        return {"ok": True, "count": len(leds)}
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"error": "Invalid JSON or batch", "detail": str(e)})
     
 
 @router.post("/api/led/clear", tags=["System"])
