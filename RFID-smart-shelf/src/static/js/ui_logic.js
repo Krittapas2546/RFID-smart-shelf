@@ -483,6 +483,17 @@ const ACTIVE_JOB_KEY = 'activeJob';
             const correctLevel = Number(activeJob.level);
             const correctBlock = Number(activeJob.block);
 
+            // ก่อนอัปเดต UI ให้ลบ class error เดิมออกจากทุก cell
+            const allCells = document.querySelectorAll('.shelf-cell');
+            allCells.forEach(cell => {
+                cell.classList.remove('wrong-location');
+                // ไม่ลบ selected-task ที่ cell เป้าหมาย
+                const cellId = cell.id;
+                if (cellId !== `cell-${correctLevel}-${correctBlock}`) {
+                    cell.classList.remove('selected-task');
+                }
+            });
+
             if (Number(level) === correctLevel && Number(block) === correctBlock) {
                 if (activeJob.error) {
                     const cleanJob = { ...activeJob };
@@ -495,26 +506,27 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 showNotification(`✅ Correct location! Completing job for Lot ${activeJob.lot_no}...`, 'success');
                 completeCurrentJob();
             } else {
-                // 1. ช่องที่ถูกต้องยังคงสีฟ้า (selected-task)
-                // 2. ช่องที่ scan ผิด (level, block) ให้แสดงสีแดง (wrong-location) และสั่ง LED สีแดง
+                // แสดง error UI ให้เหมือน LED: ช่องถูกต้อง (selected-task, ฟ้า), ช่องผิด (wrong-location, แดง)
                 showNotification(`❌ Wrong location! Expected: L${correctLevel}-B${correctBlock}, Got: L${level}-B${block}`, 'error');
 
-                // อัปเดต UI: เพิ่ม class wrong-location ให้ cell ที่ scan ผิด
+                // อัปเดต UI: ช่องถูกต้อง (selected-task)
+                const correctCell = document.getElementById(`cell-${correctLevel}-${correctBlock}`);
+                if (correctCell) {
+                    correctCell.classList.add('selected-task');
+                }
+                // ช่องผิด (wrong-location)
                 const wrongCell = document.getElementById(`cell-${level}-${block}`);
                 if (wrongCell) {
                     wrongCell.classList.add('wrong-location');
-                    // ลบ class อื่นที่อาจ conflict
                     wrongCell.classList.remove('selected-task');
                 }
 
                 // สั่ง LED: ช่องที่ถูกต้อง (ฟ้า), ช่องที่ผิด (แดง)
-                // 1. ช่องที่ถูกต้อง (selected-task) - ส่งสีฟ้า
                 fetch('/api/led', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ level: correctLevel, block: correctBlock, r: 0, g: 0, b: 255 })
                 });
-                // 2. ช่องที่ผิด (wrong-location) - ส่งสีแดง
                 fetch('/api/led', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
