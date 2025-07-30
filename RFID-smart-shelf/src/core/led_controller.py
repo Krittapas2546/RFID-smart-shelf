@@ -1,7 +1,4 @@
 # core/led_controller.py
-"""
-Module สำหรับควบคุม LED (Pi5Neo) หรือ mock สำหรับ dev
-"""
 
 from core.database import SHELF_CONFIG
 NUM_PIXELS = sum(SHELF_CONFIG.values())
@@ -11,7 +8,7 @@ def idx(level, block):
 
 
 # --- LED State Management ---
-_led_state = [(0, 0, 0)] * NUM_PIXELS  # (r,g,b) for each pixel
+_led_state = [(0, 0, 0)] * NUM_PIXELS 
 
 try:
     from pi5neo import Pi5Neo
