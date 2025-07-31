@@ -16,7 +16,7 @@ function renderCellPreview({ level, block, lots, targetLotNo }) {
     const box = document.createElement('div');
     box.className = 'cell-preview-box';
     box.style.display = 'flex';
-    box.style.flexDirection = 'column-reverse'; // bottom-to-top
+    box.style.flexDirection = 'column'; // bottom-to-top (index 0 = bottom)
     box.style.height = '180px';
     box.style.width = '110px';
     box.style.border = '2px solid #222';
@@ -24,8 +24,15 @@ function renderCellPreview({ level, block, lots, targetLotNo }) {
     box.style.background = '#fff';
     box.style.position = 'relative';
 
-    // Debug: log lots in cell preview
-    console.log('🟦 [Preview] Lots in cell', { level, block, lots });
+    // Debug: log lots in cell preview (with index order)
+    if (Array.isArray(lots)) {
+        console.log(`🟦 [Preview] Lots in cell (Level: ${level}, Block: ${block}) [index 0 = bottom, last = top]:`);
+        lots.forEach((lot, idx) => {
+            console.log(`   [${idx}] Lot:`, lot);
+        });
+    } else {
+        console.log(`🟦 [Preview] Lots in cell (Level: ${level}, Block: ${block}):`, lots);
+    }
     // Render lots from index 0 (bottom) to last (top)
     if (Array.isArray(lots) && lots.length > 0) {
         for (let idx = 0; idx < lots.length; idx++) {
@@ -392,6 +399,14 @@ const ACTIVE_JOB_KEY = 'activeJob';
                         return;
                     }
                     if (!Array.isArray(lots)) lots = [];
+                    // Debug: log lots in every cell (index 0 = bottom, last = top) แบบละเอียด
+                    if (lots.length > 0) {
+                        console.log(`🟫 [Grid] Lots in cell (Level: ${level}, Block: ${block}) [index 0 = bottom, last = top]:`);
+                        lots.forEach((lot, idx) => {
+                            console.log(`   [${idx}] LotNo: ${lot.lot_no}, Tray: ${lot.tray_count}`);
+                        });
+                        console.log(`   All lots:`, JSON.stringify(lots));
+                    }
                     const cellId = `cell-${level}-${block}`;
                     const cell = document.getElementById(cellId);
                     if (!cell) return;
@@ -454,6 +469,11 @@ const ACTIVE_JOB_KEY = 'activeJob';
 
             // Render cell preview (stacked lots) for the active job
             if (activeJob) {
+                // Log clearly which lot is currently selected as active job, and lots in that cell
+                const lotsInCell = getLotsInCell(activeJob.level, activeJob.block);
+                console.log(`ActiveJobLot: ${activeJob.lot_no} (Level: ${activeJob.level}, Block: ${activeJob.block})`);
+                console.log(`Lots in cell (${activeJob.level}, ${activeJob.block}):`, lotsInCell);
+                
                 const statusText = activeJob.error ? 'Error' : 'Waiting';
                 const statusClass = activeJob.error ? 'Error' : 'Waiting';
                 const actionText = activeJob.place_flg === '1' ? 'Place To' : 'Pick From';
