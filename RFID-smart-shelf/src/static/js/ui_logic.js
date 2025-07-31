@@ -1,3 +1,92 @@
+// --- Cell Preview: Render lots bottom-to-top (index 0 = bottom, last = top) ---
+function renderCellPreview({ level, block, lots, targetLotNo }) {
+    const previewDiv = document.getElementById('cellPreviewLegend');
+    if (!previewDiv) return;
+    previewDiv.innerHTML = '';
+
+    // Header
+    const header = document.createElement('div');
+    header.style.textAlign = 'center';
+    header.style.fontWeight = 'bold';
+    header.style.marginBottom = '6px';
+    header.innerText = `Level ${level} Block ${block}`;
+    previewDiv.appendChild(header);
+
+    // Preview box
+    const box = document.createElement('div');
+    box.className = 'cell-preview-box';
+    box.style.display = 'flex';
+    box.style.flexDirection = 'column-reverse'; // bottom-to-top
+    box.style.height = '180px';
+    box.style.width = '110px';
+    box.style.border = '2px solid #222';
+    box.style.margin = '0 auto 8px auto';
+    box.style.background = '#fff';
+    box.style.position = 'relative';
+
+    // Debug: log lots in cell preview
+    console.log('🟦 [Preview] Lots in cell', { level, block, lots });
+    // Render lots from index 0 (bottom) to last (top)
+    if (Array.isArray(lots) && lots.length > 0) {
+        for (let idx = 0; idx < lots.length; idx++) {
+            const lot = lots[idx];
+            const lotDiv = document.createElement('div');
+            lotDiv.className = 'cell-preview-lot';
+            lotDiv.style.height = '36px';
+            lotDiv.style.display = 'flex';
+            lotDiv.style.alignItems = 'center';
+            lotDiv.style.justifyContent = 'space-between';
+            lotDiv.style.padding = '0 8px';
+            lotDiv.style.borderBottom = '1px solid #ccc';
+            lotDiv.style.background = (String(lot.lot_no) === String(targetLotNo)) ? 'linear-gradient(90deg, #e3f0ff 60%, #b3d8ff 100%)' : '#f9f9f9';
+            lotDiv.style.fontWeight = (String(lot.lot_no) === String(targetLotNo)) ? 'bold' : 'normal';
+            lotDiv.innerHTML = `<span>${lot.lot_no}</span> <span style="font-size:0.9em;color:#888;">${lot.tray_count}</span>`;
+            box.appendChild(lotDiv);
+        }
+    } else {
+        // Empty
+        const emptyDiv = document.createElement('div');
+        emptyDiv.style.height = '36px';
+        emptyDiv.style.display = 'flex';
+        emptyDiv.style.alignItems = 'center';
+        emptyDiv.style.justifyContent = 'center';
+        emptyDiv.style.color = '#aaa';
+        emptyDiv.style.fontStyle = 'italic';
+        emptyDiv.innerText = '(empty)';
+        box.appendChild(emptyDiv);
+    }
+    previewDiv.appendChild(box);
+
+    // Scale/legend (optional)
+    const scale = document.createElement('div');
+    scale.className = 'cell-preview-scale';
+    scale.style.fontSize = '0.9em';
+    scale.style.color = '#888';
+    scale.style.textAlign = 'center';
+    scale.innerHTML = '24 <span style="float:right;">2</span><br>12 <span style="float:right;">8</span>';
+    previewDiv.appendChild(scale);
+}
+// Utility: Get lots in a specific cell (level, block)
+function getLotsInCell(level, block) {
+    const shelfState = JSON.parse(localStorage.getItem(GLOBAL_SHELF_STATE_KEY) || '[]');
+    for (const cellData of shelfState) {
+        let cellLevel, cellBlock, cellLots;
+        if (Array.isArray(cellData)) {
+            cellLevel = cellData[0];
+            cellBlock = cellData[1];
+            cellLots = cellData[2];
+        } else if (cellData && typeof cellData === 'object') {
+            ({ level: cellLevel, block: cellBlock, lots: cellLots } = cellData);
+        }
+        if (String(cellLevel) === String(level) && String(cellBlock) === String(block)) {
+            return Array.isArray(cellLots) ? cellLots : [];
+        }
+    }
+    return [];
+}
+
+// Example usage: log lots in Level 1, Block 2
+// console.log(getLotsInCell(1, 2));
         /**
          * แสดงไฟฟ้าทุกช่องที่มี job ใน queue (queueSelectionView)
          */
@@ -258,7 +347,10 @@ const ACTIVE_JOB_KEY = 'activeJob';
         }
         // 🔼 END OF FIX 🔼
 
+        // --- Global: Track which cells have been logged for lots (persist across renderShelfGrid calls) ---
+        if (!window.__rfid_loggedCells) window.__rfid_loggedCells = new Set();
         function renderShelfGrid() {
+            // Expect shelfState as array of {level, block, lots}
             const shelfState = JSON.parse(localStorage.getItem(GLOBAL_SHELF_STATE_KEY) || '[]');
             const activeJob = getActiveJob();
 
@@ -272,29 +364,81 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 }
             }
 
-            shelfState.forEach(([level, block, hasItem]) => {
-                const cellId = `cell-${level}-${block}`;
-                const cell = document.getElementById(cellId);
-                if (!cell) return;
+            // Clear all cells first
+            for (let level = 1; level <= TOTAL_LEVELS; level++) {
+                const blocksInThisLevel = SHELF_CONFIG[level];
+                for (let block = 1; block <= blocksInThisLevel; block++) {
+                    const cellId = `cell-${level}-${block}`;
+                    const cell = document.getElementById(cellId);
+                    if (!cell) continue;
+                    cell.className = 'shelf-cell';
+                    cell.innerHTML = '';
+                }
+            }
 
-                // Reset class ทุกครั้ง
-                cell.className = 'shelf-cell';
+            // Render stacked lots in each cell (bottom-to-top: index 0 = bottom)
+            const loggedCells = window.__rfid_loggedCells;
+            if (Array.isArray(shelfState)) {
+                shelfState.forEach(cellData => {
+                    let level, block, lots;
+                    if (Array.isArray(cellData)) {
+                        level = cellData[0];
+                        block = cellData[1];
+                        lots = cellData[2];
+                    } else if (cellData && typeof cellData === 'object') {
+                        ({ level, block, lots } = cellData);
+                    } else {
+                        console.warn('⚠️ Invalid cellData in shelfState:', cellData);
+                        return;
+                    }
+                    if (!Array.isArray(lots)) lots = [];
+                    const cellId = `cell-${level}-${block}`;
+                    const cell = document.getElementById(cellId);
+                    if (!cell) return;
 
-                if (activeJob) {
-                    const isTarget = (Number(activeJob.level) === level && Number(activeJob.block) === block);
-                    if (isTarget) {
-                        cell.classList.add('selected-task');
+            // --- Visual stacked lots (FIFO bottom-to-top: index 0 = bottom, last = top) ---
+            const safeLots = Array.isArray(lots) ? lots : [];
+            let totalTray = safeLots.reduce((sum, lot) => sum + (parseInt(lot.tray_count) || 1), 0);
+            totalTray = Math.max(totalTray, 1);
+            const scale = totalTray > 24 ? 24 / totalTray : 1;
+            // Render lots from index 0 (bottom) to last (top)
+            for (let idx = 0; idx < safeLots.length; idx++) {
+                const lot = safeLots[idx];
+                const lotDiv = document.createElement('div');
+                let isTarget = false;
+                if (activeJob && String(activeJob.level) === String(level) && String(activeJob.block) === String(block)) {
+                    isTarget = (String(lot.lot_no) === String(activeJob.lot_no));
+                }
+                lotDiv.className = 'stacked-lot' + (isTarget ? ' target-lot' : '');
+                let percent = ((parseInt(lot.tray_count) || 1) * scale / 24) * 100;
+                percent = Math.max(8, Math.round(percent));
+                lotDiv.style.height = percent + '%';
+                lotDiv.title = `Lot: ${lot.lot_no}, Tray: ${lot.tray_count}`;
+                lotDiv.innerText = lot.lot_no;
+                cell.appendChild(lotDiv);
+            }
+
+                    // --- State classes for selection/error ---
+                    let isSelected = false;
+                    if (activeJob) {
+                        const isTargetCell = (String(activeJob.level) === String(level) && String(activeJob.block) === String(block));
+                        if (isTargetCell) {
+                            cell.classList.add('selected-task');
+                            isSelected = true;
+                        }
+                        if (wrongLevel === Number(level) && wrongBlock === Number(block)) {
+                            cell.classList.add('wrong-location');
+                            cell.classList.remove('selected-task');
+                            isSelected = false;
+                        }
                     }
-                    if (wrongLevel === level && wrongBlock === block) {
-                        cell.classList.add('wrong-location');
-                        cell.classList.remove('selected-task');
-                    }
-                } else {
-                    if (hasItem) {
+                    if (!isSelected && !(wrongLevel === Number(level) && wrongBlock === Number(block)) && Array.isArray(lots) && lots.length > 0) {
                         cell.classList.add('has-item');
                     }
-                }
-            });
+                });
+            } else {
+                console.error('❌ shelfState is not an array:', shelfState);
+            }
         }
 
         function renderActiveJob() {
@@ -308,11 +452,11 @@ const ACTIVE_JOB_KEY = 'activeJob';
 
             detailsPanel.innerHTML = '';
 
+            // Render cell preview (stacked lots) for the active job
             if (activeJob) {
                 const statusText = activeJob.error ? 'Error' : 'Waiting';
                 const statusClass = activeJob.error ? 'Error' : 'Waiting';
                 const actionText = activeJob.place_flg === '1' ? 'Place To' : 'Pick From';
-                
                 detailsPanel.innerHTML = `
                     <div>
                         <div class="label">Status</div>
@@ -326,7 +470,6 @@ const ACTIVE_JOB_KEY = 'activeJob';
                         <div class="label">${actionText}</div>
                         <div class="value">Level: ${activeJob.level}, Block: ${activeJob.block}</div>
                     </div>
-                    
                     <!-- 🔽 ใส่ Comment ปิดปุ่มเหล่านี้ 🔽 -->
                     <!--
                     <div class="action-buttons" style="margin-top: 20px;">
@@ -335,9 +478,19 @@ const ACTIVE_JOB_KEY = 'activeJob';
                     </div>
                     -->
                 `;
-                
                 if (queue.length > 0) {
                     detailsPanel.innerHTML += `<button class="back-to-queue-btn" onclick="goBackToQueue()">← Back to Queue</button>`;
+                }
+                // --- Render cell preview (FIFO bottom-to-top: index 0 = bottom, last = top) ---
+                const lots = getLotsInCell(activeJob.level, activeJob.block);
+                if (typeof renderCellPreview === 'function') {
+                    // Render lots from index 0 (bottom) to last (top)
+                    renderCellPreview({
+                        level: activeJob.level,
+                        block: activeJob.block,
+                        lots: lots,
+                        targetLotNo: activeJob.lot_no
+                    });
                 }
             } else {
                 detailsPanel.innerHTML = `
@@ -347,6 +500,9 @@ const ACTIVE_JOB_KEY = 'activeJob';
                     </div>
                     <div class="value" style="font-size: 1.5rem; color: #6c757d;">No active job.</div>
                 `;
+                // Clear cell preview if no active job
+                const previewDiv = document.getElementById('cellPreviewLegend');
+                if (previewDiv) previewDiv.innerHTML = '';
             }
             renderShelfGrid();
         }
@@ -597,7 +753,10 @@ const ACTIVE_JOB_KEY = 'activeJob';
             }
 
             console.log('🚀 Completing job:', activeJob.jobId);
-            
+
+            // Clear loggedCells so next render logs new state
+            if (window.__rfid_loggedCells) window.__rfid_loggedCells.clear();
+
             // ส่งข้อมูลผ่าน WebSocket
             if (websocketConnection && websocketConnection.readyState === WebSocket.OPEN) {
                 const message = {

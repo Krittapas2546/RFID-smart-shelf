@@ -6,6 +6,7 @@ class JobRequest(BaseModel):
     level: str
     block: str
     place_flg: str
+    tray_count: str
     # trn_status: str = "1"       
     # timestamp: Optional[str] = None 
     # error: Optional[dict] = None  

@@ -2,7 +2,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from typing import List
 import json
 
-from core.database import DB, get_job_by_id, update_shelf_state # <-- เพิ่ม import
+from core.database import DB, get_job_by_id # <-- เพิ่ม import
 
 # --- Connection Manager for WebSockets ---
 class ConnectionManager:
@@ -56,7 +56,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         print(f"📦 Updating shelf state: Level {job['level']}, Block {job['block']}, Item: {has_item}, Lot: {lot_no_to_store}")
                         
                         # อัปเดต shelf_state
-                        update_shelf_state(int(job["level"]), int(job["block"]), has_item, lot_no_to_store)
+                        # update_shelf_state ถูกลบออกในระบบใหม่ (ใช้ helper function อื่นแทน)
                         
                         # ลบงานออกจากคิว
                         print(f"🗑️ Removing job {job_id} from queue")

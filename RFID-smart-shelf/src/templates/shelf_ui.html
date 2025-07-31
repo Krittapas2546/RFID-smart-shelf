@@ -106,14 +106,92 @@
                 <!-- JavaScript จะสร้างรายละเอียดงานที่นี่ -->
             </div>
             <div class="shelf-panel" id="shelfPanel">
-                <h2>Shelf</h2>
-                <div class="shelf-frame"><div class="shelf-grid" id="shelfGrid"></div></div>
+                <div style="display: flex; align-items: flex-start; gap: 32px;">
+                  <div id="cellPreviewLegend" style="min-width: 240px; max-width: 300px;">
+                    <!-- Cell Preview will be rendered here by JS -->
+                  </div>
+                  <div style="flex: 1;">
+                    <h2>Shelf</h2>
+                    <div class="shelf-frame"><div class="shelf-grid" id="shelfGrid"></div></div>
+                  </div>
+                </div>
             </div>
         </div>
     </main>
 
     <!-- 3. เรียกใช้ไฟล์ JavaScript ภายนอก (ควรวางไว้ท้าย body) -->
     <script src="/static/js/ui_logic.js"></script>
+    <style>
+      .cell-preview-box {
+        height: 240px; width: 120px; border: 2px solid #222; border-radius: 8px;
+        margin: auto; background: #fafbfc; display: flex; flex-direction: column-reverse; overflow: hidden;
+        position: relative;
+      }
+      .cell-preview-title {
+        text-align: center; font-weight: bold; margin-bottom: 8px; font-size: 1.1em;
+      }
+      .cell-preview-lot {
+        display: flex; align-items: center; justify-content: center; font-size: 1.08em; border-bottom: 1px solid #bbb;
+        color: #222; background: #fff; font-weight: 500;
+      }
+      .cell-preview-lot.target {
+        background: repeating-linear-gradient(135deg, #e6f2ff, #e6f2ff 8px, #cce6ff 12px, #e6f2ff 16px);
+        border-bottom: 2px solid #3498db; border-left: 4px solid #3498db; font-weight: bold;
+      }
+      .cell-preview-lot .count {
+        font-size: 0.95em; color: #888; margin-left: 6px;
+      }
+      .cell-preview-empty {
+        background: #e0e0e0; color: #888; display: flex; align-items: center; justify-content: center; font-size: 1.05em; border-bottom: 1px solid #bbb;
+      }
+      .cell-preview-scale { display: flex; justify-content: space-between; font-size: 0.95em; margin-top: 8px; }
+      .cell-preview-arrow { position: absolute; left: -32px; top: 0; bottom: 0; display: flex; flex-direction: column; justify-content: space-between; align-items: center; height: 100%; }
+      .cell-preview-arrow .arrow-label { font-size: 1.1em; color: #222; }
+      .cell-preview-arrow .arrow-v { width: 2px; height: 100px; background: #222; margin: 0 0 0 0; }
+    </style>
+    <script>
+      // Render cell preview for selected job
+      function renderCellPreview({level, block, lots, targetLotNo}) {
+        const maxTray = 24;
+        let totalTray = 0;
+        let html = '';
+        // lots: array of {lot_no, tray_count}
+        if (!Array.isArray(lots)) lots = [];
+        // Sum tray_count
+        totalTray = lots.reduce((sum, l) => sum + (parseInt(l.tray_count)||0), 0);
+        // Build stacked lots (bottom-up)
+        let stackHtml = '';
+        let emptyTop = maxTray - totalTray;
+        if (emptyTop > 0) {
+          stackHtml += `<div class='cell-preview-empty' style='height:${(emptyTop/maxTray)*100}%;'>(empty)</div>`;
+        }
+        // Render each lot (bottom-up)
+        for (let i = lots.length-1; i >= 0; i--) {
+          const lot = lots[i];
+          const h = ((parseInt(lot.tray_count)||0)/maxTray)*100;
+          const isTarget = lot.lot_no === targetLotNo;
+          stackHtml += `<div class='cell-preview-lot${isTarget ? ' target' : ''}' style='height:${h}%;'>${lot.lot_no} <span class='count'>${lot.tray_count}</span></div>`;
+        }
+        if (totalTray === 0) {
+          stackHtml = `<div class='cell-preview-empty' style='height:100%'>(empty)</div>`;
+        }
+        html += `<div class='cell-preview-title'>Level ${level} Block ${block}</div>`;
+        html += `<div style='position:relative;'>`;
+        html += `<div class='cell-preview-box'>${stackHtml}</div>`;
+        // Arrow and scale
+        html += `<div class='cell-preview-arrow' style='left:-38px;top:0;bottom:0;'><span class='arrow-label'>24</span><div class='arrow-v'></div><span class='arrow-label'>6</span></div>`;
+        html += `</div>`;
+        html += `<div class='cell-preview-scale'><span>24</span><span>12</span><span>8</span><span>2</span></div>`;
+        // Legend
+        html += `<div style='display:flex;flex-direction:column;gap:10px;margin-top:18px;'>`;
+        html += `<div style='display:flex;align-items:center;gap:10px;'><div style='width:28px;height:18px;background:#e6f2ff;border-radius:3px;border:1.5px solid #3498db;'></div> <span style='font-size:1em;'>Lot เป้าหมาย (ฟ้า)</span></div>`;
+        html += `<div style='display:flex;align-items:center;gap:10px;'><div style='width:28px;height:18px;background:#fff;border-radius:3px;border:1.5px solid #bbb;'></div> <span style='font-size:1em;'>Lot อื่นในช่อง (ขาว)</span></div>`;
+        html += `</div>`;
+        document.getElementById('cellPreviewLegend').innerHTML = html;
+      }
+      // Example usage: (replace with real data after job select)
+      // renderCellPreview({level:1, block:3, lots:[{lot_no:'test_1',tray_count:6},{lot_no:'test_2',tray_count:6},{lot_no:'test_3',tray_count:6}], targetLotNo:'test_2'});
+    </script>
     <script>
       // ปรับ renderQueueSelectionView: ลูกศรอยู่หน้า Lot, ไม่มี label Pick/Place, ดูสะอาด
       window.renderQueueSelectionView = function(queue) {

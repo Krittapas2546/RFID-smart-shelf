@@ -383,3 +383,18 @@
             animation: shake 0.5s;
         }
         /* --- END: Barcode Scanner Styles --- */
+
+/* --- START: Stacked Lot Styles for Shelf Grid --- */
+.shelf-cell .stacked-lot {
+  width: 80%;
+  margin: 0 auto 2px auto;
+  border-radius: 4px;
+  background: #adb5bd; /* สีเทาเริ่มต้น */
+  transition: height 0.2s, background 0.2s;
+  display: block;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.07);
+}
+.shelf-cell .stacked-lot.target-lot {
+  background: #0d6efd; /* สีฟ้าสำหรับ lot ที่เลือก */
+}
+/* --- END: Stacked Lot Styles --- */
