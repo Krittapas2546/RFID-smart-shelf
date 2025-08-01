@@ -46,44 +46,60 @@
             pointer-events: auto;
         }
         
-        /* --- START: Responsive Design for pi */
-        @media (max-width: 768px) {
-            .main-container {
-                flex-direction: column; /* เปลี่ยนจากแนวนอนเป็นแนวตั้ง */
-                padding: 15px;
-            }
-
-            .details-panel {
-                width: 100%; /* ทำให้ Panel เต็มความกว้าง */
-                margin-right: 0;
-                margin-bottom: 20px; /* เพิ่มระยะห่างด้านล่าง */
-                padding: 20px;
-            }
-
-            .details-panel .value.lot-no {
-                font-size: 3rem; /* ลดขนาดฟอนต์ Lot No. */
-            }
-
-            .shelf-container {
-                width: 100%;
-            }
-
-            .shelf-grid {
-                gap: 5px; /* ลดช่องว่างระหว่าง Cell */
-            }
-
-            .shelf-cell {
-                /* ทำให้ Cell มีขนาดเล็กลงและยืดหยุ่น */
-                min-width: 40px;
-                min-height: 40px;
-                font-size: 0.8rem;
-            }
-
-            .queue-drawer {
-                width: 90%; /* ทำให้ Drawer กว้างขึ้นบนมือถือ */
-            }
+        /* --- START: Simple Desktop-Only 3-Column Layout --- */
+        .main-container {
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+            gap: 40px;
+            width: 100%;
+            height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
         }
-        /* --- END: Responsive Design for Mobile --- */
+        
+        .details-panel {
+            flex: 0 0 280px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding: 24px;
+            background: #f8f9fa;
+            border-radius: 16px;
+            border: 1px solid #dee2e6;
+            min-height: 400px;
+        }
+        
+        .shelf-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            max-width: 600px;
+        }
+        
+        .cell-preview-container {
+            flex: 0 0 280px;
+            padding: 24px;
+            background: #f8f9fa;
+            border-radius: 16px;
+            border: 1px solid #dee2e6;
+            min-height: 400px;
+        }
+        
+        .cell-preview-container h3 {
+            font-size: 1.5em;
+            color: #343a40;
+            margin: 0 0 16px 0;
+        }
+        
+        .cell-preview-content {
+            color: #6c757d;
+        }
+        /* --- END: New 3-Column Layout --- */
+
+        /* --- END: Simple Desktop-Only Full Shelf Layout --- */
 
         /* --- START: สไตล์สำหรับหน้าเลือกงาน (Queue View) --- */
         #queueSelectionView {
@@ -150,6 +166,40 @@
         /* --- END: สไตล์สำหรับหน้าเลือกงาน --- */
 
         .main-content.blurred { filter: blur(2px) grayscale(0.3); }
+        
+        /* --- START: Updated Details Panel Styles for Desktop Layout --- */
+        .details-panel .lot-no-header {
+            font-size: 3.2em;
+            font-weight: 900;
+            color: #212529;
+            margin: 0 0 20px 0;
+            line-height: 1.1;
+        }
+        
+        .details-panel .status-section {
+            margin-bottom: 24px;
+        }
+        
+        .details-panel .status-label {
+            font-size: 1.2em;
+            color: #6c757d;
+            margin-bottom: 10px;
+        }
+        
+        .details-panel .pick-from-section .label {
+            font-size: 1.2em;
+            color: #6c757d;
+            margin-bottom: 10px;
+        }
+        
+        .details-panel .pick-from-section .location-info {
+            font-size: 1.5em;
+            font-weight: 600;
+            color: #343a40;
+            line-height: 1.4;
+        }
+        /* --- END: Updated Details Panel Styles --- */
+        
         .details-panel { display: flex; flex-direction: column; gap: 16px; min-width: 270px; }
         .details-panel .label { font-size: 21px; color: #6c757d; }
         .details-panel .value { font-size: 26px; font-weight: 600; color: #343a40; }
@@ -174,20 +224,50 @@
         .shelf-grid { 
             background-color: #f8f9fa; 
             border: 1px solid #dee2e6;
-            box-sizing: border-box; /* เพิ่มเพื่อให้การคำนวณขนาดใน JS ง่ายขึ้น */
+            box-sizing: border-box;
+            width: 100%;
+            height: 100%;
         }
 
         .shelf-frame { 
-            border: 15px solid #adb5bd; 
-            border-radius: 15px; 
+            border: 8px solid #adb5bd; 
+            border-radius: 8px; 
             display: inline-block; 
             padding: 0;
-            /* ขนาดของ Frame จะถูกกำหนดโดย JS ให้พอดีกับ Grid ภายใน */
+            width: 450px;
+            height: 320px;
+            margin: 0 auto;
+            /* ปรับขนาดให้เหมาะสมกับ 3-column layout */
         }
 
         /* --- END: Shelf Panel & Grid Styles --- */
 
-        .shelf-cell { background-color: #fff; border: 1.8px solid #e9ecef; border-radius: 4px; transition: background .18s; }
+        .shelf-cell { 
+            background-color: #fff; 
+            border: 1px solid #e9ecef; 
+            border-radius: 4px; 
+            transition: background .18s;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 3px;
+        }
+        
+        .stacked-lot {
+            background-color: #95a5a6; /* เปลี่ยนจาก #6c757d เป็นสีเทาสว่างขึ้น */
+            border: none;
+            border-radius: 3px;
+            margin-bottom: 2px;
+            display: block;
+            font-size: 0; /* ซ่อนข้อความ */
+            height: auto;
+            min-height: 8px;
+        }
+        
+        .stacked-lot.target-lot {
+            background-color: #4dabf7; /* เปลี่ยนจาก #0d6efd เป็นสีฟ้าสว่างขึ้น */
+            border: none;
+        }
         .shelf-cell-empty { display: none; } /* ซ่อนช่องว่างที่ไม่ใช้ */
         
         /* Dynamic cell sizes for flexible shelf configuration */
@@ -204,6 +284,21 @@
         }
         .back-to-queue-btn { background: none; border: none; color: #0d6efd; cursor: pointer; font-size: 16px; padding: 8px; margin-top: 20px; text-align: center; width: 100%; }
         .back-to-queue-btn:hover { text-decoration: underline; }
+        
+        .back-to-queue-fixed-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .back-to-queue-fixed-btn:hover {
+            background: #5a6268;
+        }
         .shelf-container.error-state { background-color: #fff1f2; }
         .shelf-cell.highlight-error { animation: blink-error 1.2s infinite ease-in-out; }
         
@@ -250,15 +345,12 @@
         
      
 
-        .shelf-container.full-shelf-mode {
+        
+
+        .shelf-container {
             justify-content: center;
             align-items: center;
-        }
-        .shelf-container.full-shelf-mode .shelf-panel h2 {
-            font-size: 2.5em;
-        }
-
-        @media (max-width: 1300px) {
+        }        @media (max-width: 1300px) {
             body { font-size: 14px; }
             .shelf-container { gap: 30px; }
             .details-panel { gap: 12px; min-width: 230px; }
@@ -267,15 +359,6 @@
             .details-panel .lot-no { font-size: 48px; } /* <-- ปรับขนาดฟอนต์ Lot No. ที่นี่ */
             .status-badge { font-size: 1.25em; padding: 6px 20px; }
             .shelf-panel h2 { font-size: 1.6em; margin-bottom: 15px; }
-
-            .queue-drawer { width: 350px; padding: 24px; }
-            .queue-header { font-size: 1.8em; }
-            .queue-item { padding: 14px 0 10px 0; }
-            .queue-item button { font-size: 14px; padding: 5px 18px; }
-
-            .shelf-container.full-shelf-mode .shelf-panel h2 {
-                font-size: 2.2em;
-            }
         }
 
         /* --- START: Optimized for Raspberry Pi 13.3" 1920x1080 --- */
@@ -389,12 +472,12 @@
   width: 80%;
   margin: 0 auto 2px auto;
   border-radius: 4px;
-  background: #adb5bd; /* สีเทาเริ่มต้น */
+  background: #d8e1e1; /* สีเทาสว่างให้สอดคล้องกับสไตล์หลัก */
   transition: height 0.2s, background 0.2s;
   display: block;
   box-shadow: 0 2px 6px rgba(0,0,0,0.07);
 }
 .shelf-cell .stacked-lot.target-lot {
-  background: #0d6efd; /* สีฟ้าสำหรับ lot ที่เลือก */
+  background: #4dabf7; /* สีฟ้าสว่างให้สอดคล้องกับสไตล์หลัก */
 }
 /* --- END: Stacked Lot Styles --- */

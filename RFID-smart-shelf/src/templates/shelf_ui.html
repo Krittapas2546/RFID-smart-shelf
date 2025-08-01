@@ -101,19 +101,38 @@
         <input type="text" id="barcode-scanner-input" style="position: absolute; left: -9999px; opacity: 0;" placeholder="Barcode Scanner Input">
         <!-- 🔼 END OF ADDED INPUT 🔼 -->
         
-        <div class="shelf-container" id="shelfContainer">
+        <div class="main-container">
+            <!-- Details Panel (ซ้าย) -->
             <div class="details-panel" id="detailsPanel">
-                <!-- JavaScript จะสร้างรายละเอียดงานที่นี่ -->
+                <div class="lot-no-header" id="lotNoHeader">-</div>
+                
+                <div class="status-section">
+                    <div class="status-label">Status</div>
+                    <div class="status-badge" id="statusBadge">-</div>
+                </div>
+                
+                <div class="pick-from-section">
+                    <div class="label">Pick From</div>
+                    <div class="location-info">
+                        <div>Level: <span id="levelInfo">-</span></div>
+                        <div>Block: <span id="blockInfo">-</span></div>
+                    </div>
+                </div>
+                
+                <button class="back-to-queue-fixed-btn" onclick="goBackToQueue()">Back to Queue</button>
             </div>
-            <div class="shelf-panel" id="shelfPanel">
-                <div style="display: flex; align-items: flex-start; gap: 32px;">
-                  <div id="cellPreviewLegend" style="min-width: 240px; max-width: 300px;">
-                    <!-- Cell Preview will be rendered here by JS -->
-                  </div>
-                  <div style="flex: 1;">
-                    <h2>Shelf</h2>
-                    <div class="shelf-frame"><div class="shelf-grid" id="shelfGrid"></div></div>
-                  </div>
+            
+            <!-- Shelf Panel (กลาง) -->
+            <div class="shelf-panel">
+                <h2>Shelf</h2>
+                <div class="shelf-frame"><div class="shelf-grid" id="shelfGrid"></div></div>
+            </div>
+            
+            <!-- Cell Preview Panel (ขวา) -->
+            <div class="cell-preview-container" id="cellPreviewContainer">
+                <h3>Cell Preview</h3>
+                <div class="cell-preview-content" id="cellPreviewContent">
+                    <p>Select a cell to view details</p>
                 </div>
             </div>
         </div>
@@ -122,72 +141,186 @@
     <!-- 3. เรียกใช้ไฟล์ JavaScript ภายนอก (ควรวางไว้ท้าย body) -->
     <script src="/static/js/ui_logic.js"></script>
     <style>
-      .cell-preview-box {
-        height: 240px; width: 120px; border: 2px solid #222; border-radius: 8px;
-        margin: auto; background: #fafbfc; display: flex; flex-direction: column; overflow: hidden;
-        position: relative;
+      /* Simple horizontal 3-column layout - desktop only */
+      .main-container {
+        display: flex;
+        align-items: flex-start;
+        justify-content: flex-start;
+        gap: 40px;
+        width: 100%;
+        height: 100vh;
+        padding: 20px;
+        box-sizing: border-box;
       }
-      .cell-preview-title {
-        text-align: center; font-weight: bold; margin-bottom: 8px; font-size: 1.1em;
+      
+      .details-panel {
+        flex: 0 0 280px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        padding: 24px;
+        background: #f8f9fa;
+        border-radius: 16px;
+        border: 1px solid #dee2e6;
+        min-height: 400px;
       }
-      .cell-preview-lot {
-        display: flex; align-items: center; justify-content: center; font-size: 1.08em; border-bottom: 1px solid #bbb;
-        color: #222; background: #fff; font-weight: 500;
+      
+      .details-panel .lot-no-header {
+        font-size: 3.2em;
+        font-weight: 900;
+        color: #212529;
+        margin: 0 0 20px 0;
+        line-height: 1.1;
       }
-      .cell-preview-lot.target {
-        background: repeating-linear-gradient(135deg, #e6f2ff, #e6f2ff 8px, #cce6ff 12px, #e6f2ff 16px);
-        border-bottom: 2px solid #3498db; border-left: 4px solid #3498db; font-weight: bold;
+      
+      .details-panel .status-section {
+        margin-bottom: 24px;
       }
-      .cell-preview-lot .count {
-        font-size: 0.95em; color: #888; margin-left: 6px;
+      
+      .details-panel .status-label {
+        font-size: 1.2em;
+        color: #6c757d;
+        margin-bottom: 10px;
       }
-      .cell-preview-empty {
-        background: #e0e0e0; color: #888; display: flex; align-items: center; justify-content: center; font-size: 1.05em; border-bottom: 1px solid #bbb;
+      
+      .details-panel .pick-from-section .label {
+        font-size: 1.2em;
+        color: #6c757d;
+        margin-bottom: 10px;
       }
-      .cell-preview-scale { display: flex; justify-content: space-between; font-size: 0.95em; margin-top: 8px; }
-      .cell-preview-arrow { position: absolute; left: -32px; top: 0; bottom: 0; display: flex; flex-direction: column; justify-content: space-between; align-items: center; height: 100%; }
-      .cell-preview-arrow .arrow-label { font-size: 1.1em; color: #222; }
-      .cell-preview-arrow .arrow-v { width: 2px; height: 100px; background: #222; margin: 0 0 0 0; }
+      
+      .details-panel .pick-from-section .location-info {
+        font-size: 1.5em;
+        font-weight: 600;
+        color: #343a40;
+        line-height: 1.4;
+      }
+      
+      .cell-preview-container {
+        flex: 0 0 300px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      
+      .cell-preview-container h3 {
+        font-size: 1.3em;
+        font-weight: bold;
+        margin: 0 0 15px 0;
+        text-align: center;
+        color: #343a40;
+      }
+      
+      .block-preview {
+        border: 3px solid #343a40;
+        border-radius: 12px;
+        background: #f8f9fa;
+        padding: 20px;
+        width: 250px;
+        height: 350px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        gap: 8px;
+        overflow: hidden;
+      }
+      
+      .lot-item {
+        border-radius: 8px;
+        border: 2px solid #6c757d;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.95em;
+        transition: all 0.2s;
+        min-height: 40px;
+        padding: 8px 12px;
+        text-align: center;
+        word-wrap: break-word;
+        overflow: hidden;
+      }
+      
+      .lot-item.target-lot {
+        background: repeating-linear-gradient(
+          135deg,
+          #e6f2ff,
+          #e6f2ff 10px,
+          #cce6ff 15px,
+          #e6f2ff 20px
+        );
+        border: 3px solid #0d6efd;
+        font-weight: bold;
+        color: #0d6efd;
+      }
+      
+      .lot-item.empty-slot {
+        height: 50px;
+        background: #e9ecef;
+        color: #6c757d;
+        font-style: italic;
+        border: 2px dashed #adb5bd;
+      }
+      
+      .shelf-panel {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        min-width: 400px;
+      }
+      
+      .shelf-panel h2 {
+        margin: 0 0 30px 0;
+        font-size: 2.2em;
+        color: #343a40;
+        font-weight: 700;
+      }
+      
+      /* Remove all responsive/mobile styles - desktop only */
     </style>
     <script>
-      // Render cell preview for selected job
+      // Render cell preview for selected job - IMPROVED DESIGN with better text handling
       function renderCellPreview({level, block, lots, targetLotNo}) {
-        const maxTray = 24;
-        let totalTray = 0;
-        let html = '';
+        const container = document.getElementById('cellPreviewContainer');
+        if (!container) return;
+        
         // lots: array of {lot_no, tray_count}
         if (!Array.isArray(lots)) lots = [];
-        // Sum tray_count
-        totalTray = lots.reduce((sum, l) => sum + (parseInt(l.tray_count)||0), 0);
-        // Build stacked lots (bottom-up)
-        let stackHtml = '';
-        let emptyTop = maxTray - totalTray;
-        if (emptyTop > 0) {
-          stackHtml += `<div class='cell-preview-empty' style='height:${(emptyTop/maxTray)*100}%;'>(empty)</div>`;
+        
+        let html = '';
+        html += `<h3>Level ${level} Block ${block}</h3>`;
+        html += `<div class="block-preview">`;
+        
+        if (lots.length > 0) {
+          // สร้างรายการ lot แนวตั้ง (จากล่างขึ้นบน)
+          for (let i = lots.length - 1; i >= 0; i--) {
+            const lot = lots[i];
+            const trayCount = parseInt(lot.tray_count) || 0;
+            const isTarget = lot.lot_no === targetLotNo;
+            
+            // คำนวณความสูงตาม tray_count (แต่ละ tray = 20px สำหรับ desktop)
+            const height = Math.max(trayCount * 20, 45); // ความสูงขั้นต่ำ 45px
+            
+            // ตัดชื่อ lot ถ้ายาวเกินไป (สำหรับ desktop ใช้ 15 ตัวอักษร)
+            const displayName = lot.lot_no.length > 15 ? 
+              lot.lot_no.substring(0, 15) + '...' : 
+              lot.lot_no;
+            
+            html += `<div class="lot-item${isTarget ? ' target-lot' : ''}" style="height: ${height}px;" title="${lot.lot_no}">`;
+            html += `<span class="lot-name">${displayName}</span>`;
+            html += `</div>`;
+          }
+        } else {
+          html += `<div class="lot-item empty-slot">`;
+          html += `<span class="lot-name">(empty)</span>`;
+          html += `</div>`;
         }
-        // Render each lot (bottom-up)
-        for (let i = lots.length-1; i >= 0; i--) {
-          const lot = lots[i];
-          const h = ((parseInt(lot.tray_count)||0)/maxTray)*100;
-          const isTarget = lot.lot_no === targetLotNo;
-          stackHtml += `<div class='cell-preview-lot${isTarget ? ' target' : ''}' style='height:${h}%;'>${lot.lot_no} <span class='count'>${lot.tray_count}</span></div>`;
-        }
-        if (totalTray === 0) {
-          stackHtml = `<div class='cell-preview-empty' style='height:100%'>(empty)</div>`;
-        }
-        html += `<div class='cell-preview-title'>Level ${level} Block ${block}</div>`;
-        html += `<div style='position:relative;'>`;
-        html += `<div class='cell-preview-box'>${stackHtml}</div>`;
-        // Arrow and scale
-        html += `<div class='cell-preview-arrow' style='left:-38px;top:0;bottom:0;'><span class='arrow-label'>24</span><div class='arrow-v'></div><span class='arrow-label'>6</span></div>`;
+        
         html += `</div>`;
-        html += `<div class='cell-preview-scale'><span>24</span><span>12</span><span>8</span><span>2</span></div>`;
-        // Legend
-        html += `<div style='display:flex;flex-direction:column;gap:10px;margin-top:18px;'>`;
-        html += `<div style='display:flex;align-items:center;gap:10px;'><div style='width:28px;height:18px;background:#e6f2ff;border-radius:3px;border:1.5px solid #3498db;'></div> <span style='font-size:1em;'>Lot เป้าหมาย (ฟ้า)</span></div>`;
-        html += `<div style='display:flex;align-items:center;gap:10px;'><div style='width:28px;height:18px;background:#fff;border-radius:3px;border:1.5px solid #bbb;'></div> <span style='font-size:1em;'>Lot อื่นในช่อง (ขาว)</span></div>`;
-        html += `</div>`;
-        document.getElementById('cellPreviewLegend').innerHTML = html;
+        container.innerHTML = html;
       }
       // Example usage: (replace with real data after job select)
       // renderCellPreview({level:1, block:3, lots:[{lot_no:'test_1',tray_count:6},{lot_no:'test_2',tray_count:6},{lot_no:'test_3',tray_count:6}], targetLotNo:'test_2'});
