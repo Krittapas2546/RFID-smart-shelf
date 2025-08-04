@@ -161,6 +161,34 @@ async def create_job_via_api(job: JobRequest):
          return {"status": "error", "message": f"Job for lot {job.lot_no} already exists in the queue."}
     # --- END: ปิดการตรวจสอบ ---
 
+    # --- NEW: Validate lot exists in specified position (เฉพาะงานหยิบ) ---
+    if job.place_flg == "0":  # งานหยิบ (pick)
+        level = int(job.level)
+        block = int(job.block)
+        
+        # ตรวจสอบว่า position ถูกต้องหรือไม่
+        if not validate_position(level, block):
+            print(f"API: Rejected job for invalid position L{level}B{block}")
+            return {
+                "status": "error", 
+                "message": f"Invalid position L{level}B{block} does not exist in shelf configuration"
+            }
+        
+        # ตรวจสอบว่า lot_no มีอยู่ในช่องนั้นหรือไม่
+        lots_in_cell = get_lots_in_position(level, block)
+        lot_exists = any(lot["lot_no"] == job.lot_no for lot in lots_in_cell)
+        
+        if not lot_exists:
+            print(f"API: Rejected pick job for Lot {job.lot_no} - not found in L{level}B{block}")
+            print(f"API: Lots in cell ({level}, {block}): {[lot['lot_no'] for lot in lots_in_cell]}")
+            return {
+                "status": "error", 
+                "message": f"Lot {job.lot_no} not found in position L{level}B{block}. Cannot create pick job for non-existent lot."
+            }
+        
+        print(f"API: Validation passed - Lot {job.lot_no} exists in L{level}B{block}")
+    # --- END: Validation ---
+
     print(f"API: Received new job for Lot {job.lot_no}")
     new_job = job.dict()
     # Ensure tray_count is int

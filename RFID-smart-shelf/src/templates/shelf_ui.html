@@ -102,26 +102,6 @@
         <!-- 🔼 END OF ADDED INPUT 🔼 -->
         
         <div class="main-container">
-            <!-- Details Panel (ซ้าย) -->
-            <div class="details-panel" id="detailsPanel">
-                <div class="lot-no-header" id="lotNoHeader">-</div>
-                
-                <div class="status-section">
-                    <div class="status-label">Status</div>
-                    <div class="status-badge" id="statusBadge">-</div>
-                </div>
-                
-                <div class="pick-from-section">
-                    <div class="label">Pick From</div>
-                    <div class="location-info">
-                        <div>Level: <span id="levelInfo">-</span></div>
-                        <div>Block: <span id="blockInfo">-</span></div>
-                    </div>
-                </div>
-                
-                <button class="back-to-queue-fixed-btn" onclick="goBackToQueue()">Back to Queue</button>
-            </div>
-            
             <!-- Shelf Panel (กลาง) -->
             <div class="shelf-panel">
                 <h2>Shelf</h2>
@@ -151,6 +131,17 @@
         height: 100vh;
         padding: 20px;
         box-sizing: border-box;
+      }
+      
+      .main-container.full-shelf-mode .details-panel,
+      .main-container.full-shelf-mode .cell-preview-container {
+        display: none;
+      }
+
+      .main-container.full-shelf-mode .shelf-panel {
+        flex: 1 1 100%; /* Take full width */
+        max-width: 100%;
+        justify-content: center; /* Center the shelf grid vertically */
       }
       
       .details-panel {
@@ -281,87 +272,7 @@
       
       /* Remove all responsive/mobile styles - desktop only */
     </style>
-    <script>
-      // Render cell preview for selected job - IMPROVED DESIGN with better text handling
-      function renderCellPreview({level, block, lots, targetLotNo}) {
-        const container = document.getElementById('cellPreviewContainer');
-        if (!container) return;
-        
-        // lots: array of {lot_no, tray_count}
-        if (!Array.isArray(lots)) lots = [];
-        
-        let html = '';
-        html += `<h3>Level ${level} Block ${block}</h3>`;
-        html += `<div class="block-preview">`;
-        
-        if (lots.length > 0) {
-          // สร้างรายการ lot แนวตั้ง (จากล่างขึ้นบน)
-          for (let i = lots.length - 1; i >= 0; i--) {
-            const lot = lots[i];
-            const trayCount = parseInt(lot.tray_count) || 0;
-            const isTarget = lot.lot_no === targetLotNo;
-            
-            // คำนวณความสูงตาม tray_count (แต่ละ tray = 20px สำหรับ desktop)
-            const height = Math.max(trayCount * 20, 45); // ความสูงขั้นต่ำ 45px
-            
-            // ตัดชื่อ lot ถ้ายาวเกินไป (สำหรับ desktop ใช้ 15 ตัวอักษร)
-            const displayName = lot.lot_no.length > 15 ? 
-              lot.lot_no.substring(0, 15) + '...' : 
-              lot.lot_no;
-            
-            html += `<div class="lot-item${isTarget ? ' target-lot' : ''}" style="height: ${height}px;" title="${lot.lot_no}">`;
-            html += `<span class="lot-name">${displayName}</span>`;
-            html += `</div>`;
-          }
-        } else {
-          html += `<div class="lot-item empty-slot">`;
-          html += `<span class="lot-name">(empty)</span>`;
-          html += `</div>`;
-        }
-        
-        html += `</div>`;
-        container.innerHTML = html;
-      }
-      // Example usage: (replace with real data after job select)
-      // renderCellPreview({level:1, block:3, lots:[{lot_no:'test_1',tray_count:6},{lot_no:'test_2',tray_count:6},{lot_no:'test_3',tray_count:6}], targetLotNo:'test_2'});
-    </script>
-    <script>
-      // ปรับ renderQueueSelectionView: ลูกศรอยู่หน้า Lot, ไม่มี label Pick/Place, ดูสะอาด
-      window.renderQueueSelectionView = function(queue) {
-        const queueListContainer = document.getElementById('queueListContainer');
-        queueListContainer.innerHTML = '';
-        queue.forEach(job => {
-          const li = document.createElement('li');
-          li.className = 'queue-list-item';
-          // เลือก icon ตาม action
-          let arrowHtml = '';
-          if (job.place_flg === '0') {
-            arrowHtml = `<span class="arrow up"></span>`;
-          } else {
-            arrowHtml = `<span class="arrow down"></span>`;
-          }
-          li.innerHTML = `
-            <div class="info">
-              <div class="lot">${arrowHtml}Lot: ${job.lot_no}</div>
-              <div class="action">Action: ${job.place_flg === '1' ? 'Place' : 'Pick'} at L:${job.level}, B:${job.block}</div>
-            </div>
-            <button class="select-btn" onclick="selectJob('${job.jobId}')">Select</button>
-          `;
-          queueListContainer.appendChild(li);
-        });
-
-        // Logic focus เดิม
-        const lotInput = document.getElementById('lot-no-input');
-        if (lotInput) {
-          lotInput.focus();
-          lotInput.onkeyup = function(event) {
-            if (event.key === 'Enter') {
-              handleLotSearch();
-            }
-          };
-        }
-      };
-    </script>
+    
 
 
 </html></body></body>

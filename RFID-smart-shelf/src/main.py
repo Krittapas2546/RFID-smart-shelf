@@ -47,7 +47,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Error while trying to kill process on port 8000: {e}")
 
-
     def get_local_ip():
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:

@@ -46,7 +46,7 @@
             pointer-events: auto;
         }
         
-        /* --- START: Simple Desktop-Only 3-Column Layout --- */
+        /* --- START: Simple Desktop-Only 2-Column Layout --- */
         .main-container {
             display: flex;
             align-items: flex-start;
@@ -57,17 +57,10 @@
             padding: 20px;
             box-sizing: border-box;
         }
-        
-        .details-panel {
-            flex: 0 0 280px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            padding: 24px;
-            background: #f8f9fa;
-            border-radius: 16px;
-            border: 1px solid #dee2e6;
-            min-height: 400px;
+
+        /* โหมดเต็มขนาดเมื่อไม่มี active job - ซ่อน cell preview */
+        .main-container.full-shelf-mode .cell-preview-container {
+            display: none;
         }
         
         .shelf-panel {
@@ -76,7 +69,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            max-width: 600px;
+            max-width: 800px; /* เพิ่มจาก 600px เป็น 800px เพื่อรองรับ shelf-frame ที่กว้างขึ้น */
         }
         
         .cell-preview-container {
@@ -167,47 +160,6 @@
 
         .main-content.blurred { filter: blur(2px) grayscale(0.3); }
         
-        /* --- START: Updated Details Panel Styles for Desktop Layout --- */
-        .details-panel .lot-no-header {
-            font-size: 3.2em;
-            font-weight: 900;
-            color: #212529;
-            margin: 0 0 20px 0;
-            line-height: 1.1;
-        }
-        
-        .details-panel .status-section {
-            margin-bottom: 24px;
-        }
-        
-        .details-panel .status-label {
-            font-size: 1.2em;
-            color: #6c757d;
-            margin-bottom: 10px;
-        }
-        
-        .details-panel .pick-from-section .label {
-            font-size: 1.2em;
-            color: #6c757d;
-            margin-bottom: 10px;
-        }
-        
-        .details-panel .pick-from-section .location-info {
-            font-size: 1.5em;
-            font-weight: 600;
-            color: #343a40;
-            line-height: 1.4;
-        }
-        /* --- END: Updated Details Panel Styles --- */
-        
-        .details-panel { display: flex; flex-direction: column; gap: 16px; min-width: 270px; }
-        .details-panel .label { font-size: 21px; color: #6c757d; }
-        .details-panel .value { font-size: 26px; font-weight: 600; color: #343a40; }
-        .details-panel .lot-no { font-size: 62px; font-weight: 800; }
-        .status-badge { background-color: #6c757d; color: white; padding: 8px 28px; border-radius: 24px; font-weight: 700; font-size: 1.45em; display: inline-block; }
-        .status-badge.Waiting { background-color: #0d6efd; }
-        .status-badge.Error { background-color: #dc3545; }
-        
         /* --- START: Shelf Panel & Grid Styles --- */
         /* 
           หมายเหตุ: ขนาด, padding, และ gap ของ grid และ frame
@@ -234,10 +186,10 @@
             border-radius: 8px; 
             display: inline-block; 
             padding: 0;
-            width: 450px;
+            width: 750px; /* เพิ่มความกว้างจาก 450px เป็น 750px เพื่อรองรับ 8 blocks */
             height: 320px;
             margin: 0 auto;
-            /* ปรับขนาดให้เหมาะสมกับ 3-column layout */
+            /* ปรับขนาดให้เหมาะสมกับ shelf configuration ที่มี blocks เยอะขึ้น */
         }
 
         /* --- END: Shelf Panel & Grid Styles --- */
@@ -353,22 +305,12 @@
         }        @media (max-width: 1300px) {
             body { font-size: 14px; }
             .shelf-container { gap: 30px; }
-            .details-panel { gap: 12px; min-width: 230px; }
-            .details-panel .label { font-size: 18px; }
-            .details-panel .value { font-size: 20px; }
-            .details-panel .lot-no { font-size: 48px; } /* <-- ปรับขนาดฟอนต์ Lot No. ที่นี่ */
-            .status-badge { font-size: 1.25em; padding: 6px 20px; }
             .shelf-panel h2 { font-size: 1.6em; margin-bottom: 15px; }
         }
 
         /* --- START: Optimized for Raspberry Pi 13.3" 1920x1080 --- */
         @media (min-width: 1400px) and (max-width: 1920px) {
             .shelf-container { gap: 80px; padding: 40px; }
-            .details-panel { min-width: 300px; gap: 20px; }
-            .details-panel .label { font-size: 24px; }
-            .details-panel .value { font-size: 30px; }
-            .details-panel .lot-no { font-size: 70px; }
-            .status-badge { font-size: 1.6em; padding: 10px 32px; }
             .shelf-panel h2 { font-size: 2.4em; margin-bottom: 25px; }
         }
         /* --- END: Optimized for Raspberry Pi 13.3" --- */
@@ -481,3 +423,77 @@
   background: #4dabf7; /* สีฟ้าสว่างให้สอดคล้องกับสไตล์หลัก */
 }
 /* --- END: Stacked Lot Styles --- */
+
+/* --- START: Cell Preview Styles --- */
+.lot-item {
+    background: #f8f9fa;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    padding: 8px 10px; /* ลด padding จาก 12px เป็น 8px 10px */
+    margin-bottom: 6px; /* ลดจาก 8px เป็น 6px */
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.3s ease;
+    min-height: 36px; /* เพิ่ม min-height เพื่อให้สม่ำเสมอ */
+}
+
+.lot-item.target-lot {
+    background: #e3f2fd;
+    border-color: #2196f3;
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);
+}
+
+.lot-item.new-lot {
+    background: #f3e5f5;
+    border-color: #9c27b0;
+    border-style: dashed;
+    animation: pulse-new 2s infinite;
+}
+
+.lot-item.empty-slot {
+    background: #fafafa;
+    border-style: dashed;
+    color: #9e9e9e;
+    font-style: italic;
+}
+
+.lot-name {
+    font-weight: 600;
+    font-size: 12px; /* ลดขนาดจาก 14px เป็น 12px */
+    word-break: break-all; /* ให้ขึ้นบรรทัดใหม่ถ้าตัวอักษรยาวเกินไป */
+    line-height: 1.2;
+}
+
+.lot-header {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+    margin: 12px 0 8px 0;
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 4px;
+}
+
+.new-badge {
+    background: #9c27b0;
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 8px;
+}
+
+.preview-action {
+    color: #666;
+    font-style: italic;
+    margin: 8px 0;
+    font-size: 14px;
+}
+
+@keyframes pulse-new {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+/* --- END: Cell Preview Styles --- */
