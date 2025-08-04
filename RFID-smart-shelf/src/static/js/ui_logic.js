@@ -20,12 +20,8 @@ function renderCellPreview({ level, block, lots, targetLotNo, isPlaceJob = false
     html += `<h3>Level ${level} Block ${block}</h3>`;
     
     // แสดงข้อความแตกต่างกันตาม action
-    if (isPlaceJob) {
-        html += `<p class="preview-action">Preview after placing:</p>`;
-    }
+ 
     
-    // เพิ่มหัวข้อ Lot No.
-    html += `<h4 class="lot-header">Lot No.</h4>`;
     html += `<div class="block-preview">`;
 
     if (previewLots.length > 0) {
@@ -284,6 +280,24 @@ const ACTIVE_JOB_KEY = 'activeJob';
             // เคลียร์ grid เก่าทิ้งเสมอ เพื่อให้สามารถสร้างใหม่ได้ตาม config ปัจจุบัน
             shelfGrid.innerHTML = '';
             
+            // ตรวจสอบว่าอยู่ในโหมดไหน
+            const mainContainer = document.querySelector('.main-container');
+            const isFullShelfMode = mainContainer && mainContainer.classList.contains('full-shelf-mode');
+            
+            // กำหนดขนาด shelf-frame ตามโหมด
+            let shelfFrameWidth, shelfFrameHeight, cellHeight;
+            if (isFullShelfMode) {
+                // โหมดเต็มหน้าจอ (ไม่มี active job)
+                shelfFrameWidth = 550;
+                shelfFrameHeight = 475;
+                cellHeight = 90;
+            } else {
+                // โหมดมี active job (แสดง cell preview) - ปรับขนาดให้เท่ากับ cell preview
+                shelfFrameWidth = 450; // ลดขนาดให้เท่ากับ cell preview container
+                shelfFrameHeight = 400; // ลดขนาดให้เท่ากับ cell preview container
+                cellHeight = 90; // กลับมาใช้ขนาดปกติเพื่อให้พอดีกับ frame ที่เล็กลง
+            }
+            
             // สร้าง Grid container หลัก
             shelfGrid.style.display = 'flex';
             shelfGrid.style.flexDirection = 'column';
@@ -294,14 +308,10 @@ const ACTIVE_JOB_KEY = 'activeJob';
             shelfGrid.style.width = '100%';
             shelfGrid.style.height = '100%';
             
-            // กำหนดขนาด cell ให้เหมาะสมกับ shelf configuration ที่มีจำนวน blocks แตกต่างกัน
-            let cellHeight = 90; // เพิ่มความสูงเล็กน้อยเพื่อให้ดูสมส่วน
-            
-            // คำนวณขนาดให้เหมาะสมกับ shelf-frame 550px
-            const shelfFrameWidth = 550; // ความกว้างของ shelf-frame
+            // คำนวณขนาดให้เหมาะสมกับ shelf-frame ตามโหมด
             const shelfFrameBorder = 16; // border รวม (8px × 2) 
             const shelfPadding = 20; // padding รวม (10px × 2)
-            const availableWidth = shelfFrameWidth - shelfFrameBorder - shelfPadding; // 550 - 16 - 20 = 514px
+            const availableWidth = shelfFrameWidth - shelfFrameBorder - shelfPadding;
             const gapSize = 4; // gap ระหว่าง cells
             
             // สร้างแต่ละ Level เป็น flexbox แยกกัน
@@ -345,8 +355,8 @@ const ACTIVE_JOB_KEY = 'activeJob';
             }
             
             console.log(`📐 Created flexible shelf grid: ${TOTAL_LEVELS} levels with configuration:`, SHELF_CONFIG);
-            console.log(`📏 Shelf frame: ${shelfFrameWidth}×475px | Available width: ${availableWidth}px | Cell height: ${cellHeight}px | Gap: ${gapSize}px`);
-            console.log(`📏 All cells use flex: 1 to fill entire width evenly per level`);
+            console.log(`📏 Shelf frame: ${shelfFrameWidth}×${shelfFrameHeight}px | Available width: ${availableWidth}px | Cell height: ${cellHeight}px | Gap: ${gapSize}px`);
+            console.log(`📏 Mode: ${isFullShelfMode ? 'Full-shelf' : 'With cell preview'}`);
         }
 
         function getActiveJob() {
@@ -528,6 +538,9 @@ const ACTIVE_JOB_KEY = 'activeJob';
         cellPreviewContainer.style.display = 'none';
         mainContainer.classList.add('full-shelf-mode');
     }
+
+    // สร้าง shelf grid ใหม่เพื่อให้ขนาดเปลี่ยนตามโหมด
+    createShelfGridStructure();
 
     // Log clearly which lot is currently selected as active job, and lots in that cell
     if (activeJob) {
