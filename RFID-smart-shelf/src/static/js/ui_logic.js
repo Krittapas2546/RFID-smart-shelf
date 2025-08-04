@@ -280,23 +280,12 @@ const ACTIVE_JOB_KEY = 'activeJob';
             // เคลียร์ grid เก่าทิ้งเสมอ เพื่อให้สามารถสร้างใหม่ได้ตาม config ปัจจุบัน
             shelfGrid.innerHTML = '';
             
-            // ตรวจสอบว่าอยู่ในโหมดไหน
-            const mainContainer = document.querySelector('.main-container');
-            const isFullShelfMode = mainContainer && mainContainer.classList.contains('full-shelf-mode');
-            
-            // กำหนดขนาด shelf-frame ตามโหมด
+            // กำหนดขนาด shelf-frame แบบเดียวกันทั้งสองโหมด
             let shelfFrameWidth, shelfFrameHeight, cellHeight;
-            if (isFullShelfMode) {
-                // โหมดเต็มหน้าจอ (ไม่มี active job)
-                shelfFrameWidth = 550;
-                shelfFrameHeight = 475;
-                cellHeight = 90;
-            } else {
-                // โหมดมี active job (แสดง cell preview) - ปรับขนาดให้เท่ากับ cell preview
-                shelfFrameWidth = 450; // ลดขนาดให้เท่ากับ cell preview container
-                shelfFrameHeight = 400; // ลดขนาดให้เท่ากับ cell preview container
-                cellHeight = 90; // กลับมาใช้ขนาดปกติเพื่อให้พอดีกับ frame ที่เล็กลง
-            }
+            // ใช้ขนาดเดียวกันทั้งโหมด full-shelf และ active job
+            shelfFrameWidth = 500;
+            shelfFrameHeight = 475;
+            cellHeight = 90;
             
             // สร้าง Grid container หลัก
             shelfGrid.style.display = 'flex';
@@ -356,7 +345,6 @@ const ACTIVE_JOB_KEY = 'activeJob';
             
             console.log(`📐 Created flexible shelf grid: ${TOTAL_LEVELS} levels with configuration:`, SHELF_CONFIG);
             console.log(`📏 Shelf frame: ${shelfFrameWidth}×${shelfFrameHeight}px | Available width: ${availableWidth}px | Cell height: ${cellHeight}px | Gap: ${gapSize}px`);
-            console.log(`📏 Mode: ${isFullShelfMode ? 'Full-shelf' : 'With cell preview'}`);
         }
 
         function getActiveJob() {
@@ -539,7 +527,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
         mainContainer.classList.add('full-shelf-mode');
     }
 
-    // สร้าง shelf grid ใหม่เพื่อให้ขนาดเปลี่ยนตามโหมด
+    // สร้าง shelf grid ใหม่
     createShelfGridStructure();
 
     // Log clearly which lot is currently selected as active job, and lots in that cell
@@ -1076,17 +1064,10 @@ const ACTIVE_JOB_KEY = 'activeJob';
             };
         }
 
-        // ฟังก์ชันสำหรับอัปเดตขนาด cell ตาม viewport และ full-shelf mode
+        // ฟังก์ชันสำหรับอัปเดตขนาด cell 
         function updateCellSizes() {
-            const mainContainer = document.querySelector('.main-container');
-            const isFullShelfMode = mainContainer && mainContainer.classList.contains('full-shelf-mode');
-            let cellHeight = 60; // default height
-            
-            if (window.innerWidth <= 1300) {
-                cellHeight = isFullShelfMode ? 100 : 50;
-            } else {
-                cellHeight = isFullShelfMode ? 130 : 60;
-            }
+            // ใช้ขนาดเดียวกันทั้งสองโหมด
+            let cellHeight = 90;
             
             // อัปเดต level containers
             const levelContainers = document.querySelectorAll('.shelf-level');
