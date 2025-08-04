@@ -271,7 +271,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
             // สร้าง Grid container หลัก
             shelfGrid.style.display = 'flex';
             shelfGrid.style.flexDirection = 'column';
-            shelfGrid.style.gap = '12px'; // gap ระหว่างชั้น (กลับเป็นขนาดเดิม)
+            shelfGrid.style.gap = '14px'; // ลด gap ระหว่างชั้นเพื่อให้พอดีกับความสูง 475px
             shelfGrid.style.padding = '10px'; // ลด padding จาก 12px เป็น 10px
             shelfGrid.style.background = '#f8f9fa';
             shelfGrid.style.border = '1px solid #dee2e6';
@@ -279,14 +279,14 @@ const ACTIVE_JOB_KEY = 'activeJob';
             shelfGrid.style.height = '100%';
             
             // กำหนดขนาด cell ให้เหมาะสมกับ shelf configuration ที่มีจำนวน blocks แตกต่างกัน
-            let cellHeight = 60;
+            let cellHeight = 90; // เพิ่มความสูงเล็กน้อยเพื่อให้ดูสมส่วน
             
-            // คำนวณ minWidth ให้เหมาะสมกับจำนวน blocks สูงสุด
-            const maxBlocks = Math.max(...Object.values(SHELF_CONFIG));
-            const gapSize = 3; // ลด gap ระหว่าง cells เพิ่มเติมจาก 4px เป็น 3px
-            // shelf-frame width = 750px, padding = 10px * 2 = 20px, gap = gapSize * (maxBlocks-1)
-            const availableWidth = 750 - 20 - (gapSize * (maxBlocks - 1)); // หักพื้นที่ padding และ gap
-            const minCellWidth = Math.max(15, Math.floor(availableWidth / maxBlocks)); // ขั้นต่ำ 15px
+            // คำนวณขนาดให้เหมาะสมกับ shelf-frame 550px
+            const shelfFrameWidth = 550; // ความกว้างของ shelf-frame
+            const shelfFrameBorder = 16; // border รวม (8px × 2) 
+            const shelfPadding = 20; // padding รวม (10px × 2)
+            const availableWidth = shelfFrameWidth - shelfFrameBorder - shelfPadding; // 550 - 16 - 20 = 514px
+            const gapSize = 4; // gap ระหว่าง cells
             
             // สร้างแต่ละ Level เป็น flexbox แยกกัน
             for (let level = 1; level <= TOTAL_LEVELS; level++) {
@@ -296,27 +296,23 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 const levelContainer = document.createElement('div');
                 levelContainer.className = 'shelf-level';
                 levelContainer.style.display = 'flex';
-                levelContainer.style.gap = `${gapSize}px`; // ใช้ gap ที่คำนวณแล้ว
+                levelContainer.style.gap = `${gapSize}px`;
                 levelContainer.style.height = `${cellHeight}px`;
                 levelContainer.style.width = '100%';
+                levelContainer.style.justifyContent = 'stretch'; // กระจายพื้นที่เต็มความกว้าง
                 
                 // สร้าง cells สำหรับ level นี้
                 for (let block = 1; block <= blocksInThisLevel; block++) {
                     const cell = document.createElement('div');
                     cell.id = `cell-${level}-${block}`;
                     cell.className = 'shelf-cell';
-                    cell.style.flex = '1';
+                    cell.style.flex = '1'; // ให้ทุก cell มีขนาดเท่ากันและเต็มพื้นที่
                     cell.style.height = '100%';
-                    
-                    // Case พิเศษสำหรับ Level 4 (8 blocks)
-                    if (blocksInThisLevel === 8) {
-                        cell.style.minWidth = '80px'; // กำหนดขนาดพิเศษสำหรับ 8 blocks
-                        cell.style.maxWidth = '90px'; // จำกัดการขยาย
-                    } else {
-                        cell.style.minWidth = `${minCellWidth}px`; // ใช้ขนาดปกติ
-                    }
-                    
                     cell.style.cursor = 'pointer';
+                    cell.style.borderRadius = '4px';
+                    cell.style.boxShadow = '0 1px 2px rgba(0,0,0,0.1)';
+                    
+                    // ไม่ใส่ minWidth หรือ maxWidth เพื่อให้ flex ทำงานเต็มที่
                     
                     // เพิ่ม click event สำหรับแสดง cell preview
                     cell.addEventListener('click', () => {
@@ -333,8 +329,8 @@ const ACTIVE_JOB_KEY = 'activeJob';
             }
             
             console.log(`📐 Created flexible shelf grid: ${TOTAL_LEVELS} levels with configuration:`, SHELF_CONFIG);
-            console.log(`📏 Calculation: Max blocks: ${maxBlocks}, Available width: ${availableWidth}px, Cell width: ${minCellWidth}px (for non-8-block levels), Gap: ${gapSize}px`);
-            console.log(`📏 Special case: 8-block levels use 80px-90px fixed width`);
+            console.log(`📏 Shelf frame: ${shelfFrameWidth}×475px | Available width: ${availableWidth}px | Cell height: ${cellHeight}px | Gap: ${gapSize}px`);
+            console.log(`📏 All cells use flex: 1 to fill entire width evenly per level`);
         }
 
         function getActiveJob() {

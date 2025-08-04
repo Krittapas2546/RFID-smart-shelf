@@ -186,10 +186,10 @@
             border-radius: 8px; 
             display: inline-block; 
             padding: 0;
-            width: 750px; /* เพิ่มความกว้างจาก 450px เป็น 750px เพื่อรองรับ 8 blocks */
-            height: 320px;
+            width: 550px; /* ปรับจาก 750px เป็น 550px ตามที่ต้องการ */
+            height: 475px; /* ปรับจาก 320px เป็น 475px ตามที่ต้องการ */
             margin: 0 auto;
-            /* ปรับขนาดให้เหมาะสมกับ shelf configuration ที่มี blocks เยอะขึ้น */
+            /* ขนาดที่ปรับแล้วเพื่อให้พอดีกับ shelf configuration และไม่ทับกัน */
         }
 
         /* --- END: Shelf Panel & Grid Styles --- */
