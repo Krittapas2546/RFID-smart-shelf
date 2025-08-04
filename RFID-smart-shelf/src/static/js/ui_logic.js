@@ -403,7 +403,13 @@ function renderCellPreview({ level, block, lots, targetLotNo, isPlaceJob = false
     } else {
         html += `<span style="color: #495057; font-weight: bold;">📦 ${totalLots} Lot${totalLots > 1 ? 's' : ''} | ${totalTrays} Tray${totalTrays > 1 ? 's' : ''}</span>`;
     }
+<<<<<<< HEAD
     html += `</div>`;
+=======
+    
+    // เพิ่มหัวข้อ Lot No.
+    html += `<h4 class="lot-header">Lot No.</h4>`;
+>>>>>>> parent of d06007d (Update ui_logic.js)
     html += `<div class="block-preview">`;
 
     if (previewLots.length > 0) {
@@ -747,7 +753,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
         }
 
         // 🔽 FIX goBackToQueue FUNCTION 🔽
-        async function goBackToQueue() {
+        function goBackToQueue() {
             const activeJob = getActiveJob();
             if (activeJob) {
                 console.log(`📋 Returning job to queue: ${activeJob.lot_no} (ID: ${activeJob.jobId})`);
@@ -763,7 +769,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
             }
             
             localStorage.removeItem(ACTIVE_JOB_KEY);
-            await renderAll();
+            renderAll();
         }
         // 🔼 END OF FIX 🔼
 
@@ -959,7 +965,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 <div class="lot">${arrowHtml}Lot: ${job.lot_no}</div>
                 <div class="action">Action: ${job.place_flg === '1' ? 'Place' : 'Pick'} at L:${job.level}, B:${job.block}</div>
             </div>
-            <button class="select-btn" onclick="selectJobAsync('${job.jobId}')">Select</button>
+            <button class="select-btn" onclick="selectJob('${job.jobId}')">Select</button>
         `;
         queueListContainer.appendChild(li);
     });
@@ -984,7 +990,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
         */
         // --- END: ลบฟังก์ชันที่ไม่จำเป็นออก ---
 
-        async function selectJob(jobId) {
+        function selectJob(jobId) {
             const queue = getQueue();
             const selectedJob = queue.find(job => job.jobId === jobId);
             
@@ -997,19 +1003,12 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 
                 // ตั้งเป็น active job
                 setActiveJob(selectedJob);
-                await renderAll();
+                renderAll();
                 
                 console.log(`✅ Job ${selectedJob.lot_no} activated. Remaining queue size: ${updatedQueue.length}`);
             } else {
                 console.error('❌ Job not found:', jobId);
             }
-        }
-
-        // Wrapper function for HTML onclick
-        function selectJobAsync(jobId) {
-            selectJob(jobId).catch(error => {
-                console.error('❌ Error selecting job:', error);
-            });
         }
 
         // --- START: คืนค่าฟังก์ชันให้เป็นแบบง่าย ---
@@ -1287,7 +1286,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
         }
         // 🔼 END OF BARCODE SCANNING FUNCTIONALITY 🔼
 
-        async function renderAll() {
+        function renderAll() {
             const queue = getQueue();
             const activeJob = getActiveJob();
 
@@ -1298,7 +1297,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 controlLEDByQueue();
             } else if (activeJob) {
                 // เรียกควบคุมไฟที่นี่ (ไม่ต้องส่ง wrongLocation)
-                await controlLEDByActiveJob();
+                controlLEDByActiveJob();
                 queueSelectionView.style.display = 'none';
                 mainView.style.display = 'flex';
                 renderActiveJob();
@@ -1508,64 +1507,49 @@ const ACTIVE_JOB_KEY = 'activeJob';
          * ฟังก์ชันควบคุม LED ตามสถานะ active job (logic อยู่ฝั่ง frontend)
          * สามารถปรับ mapping สี/สถานะได้ที่นี่
          */
-        async function controlLEDByActiveJob(wrongLocation = null) {
+        function controlLEDByActiveJob(wrongLocation = null) {
             const activeJob = getActiveJob();
             if (!activeJob) return;
 
             const level = Number(activeJob.level);
             const block = Number(activeJob.block);
-            
-            // ตรวจสอบว่า level และ block มีค่าที่ถูกต้อง
-            if (!level || !block || level < 1 || block < 1) {
-                console.warn('⚠️ Invalid level or block for LED control:', { level, block });
-                return;
-            }
-            
             // ช่องเป้าหมาย: ฟ้า (place) หรือ ฟ้า (pick)
             let color = { r: 0, g: 0, b: 255 }; // default: ฟ้า (place)
             if (activeJob.place_flg === '0') {
-                color = { r: 0, g: 0, b: 255 }; // ฟ้า (pick) - แก้ไขจาก 22 เป็น 255
+                color = { r: 0, g: 0, b: 22 }; // ฟ้า (pick)
             }
 
-            try {
-                // ดับไฟทั้งหมดก่อน (และรอให้เสร็จ)
-                await fetch('/api/led/clear', { method: 'POST' });
+            // ดับไฟทั้งหมดก่อน (เพื่อป้องกัน ghost LED)
+            fetch('/api/led/clear', { method: 'POST' });
 
-                // ถ้าอยู่ใน error และ errorType เป็น WRONG_LOCATION ให้โชว์ไฟแดงที่ตำแหน่งผิด
-                if (activeJob.error && activeJob.errorType === 'WRONG_LOCATION' && activeJob.errorMessage) {
-                    // parse wrong location from errorMessage
-                    const match = activeJob.errorMessage.match(/L(\d+)-B(\d+)/);
-                    if (match) {
-                        const wrongLevel = Number(match[1]);
-                        const wrongBlock = Number(match[2]);
-                        
-                        // ตรวจสอบความถูกต้องของ wrong location
-                        if (wrongLevel >= 1 && wrongBlock >= 1) {
-                            // ช่องเป้าหมาย (ฟ้า)
-                            await fetch('/api/led', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ level, block, ...color })
-                            });
-                            // ช่องผิด (แดง)
-                            await fetch('/api/led', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ level: wrongLevel, block: wrongBlock, r: 255, g: 0, b: 0 })
-                            });
-                            return;
-                        }
-                    }
+            // ถ้าอยู่ใน error และ errorType เป็น WRONG_LOCATION ให้โชว์ไฟแดงที่ตำแหน่งผิด
+            if (activeJob.error && activeJob.errorType === 'WRONG_LOCATION' && activeJob.errorMessage) {
+                // parse wrong location from errorMessage
+                const match = activeJob.errorMessage.match(/L(\d+)-B(\d+)/);
+                if (match) {
+                    const wrongLevel = Number(match[1]);
+                    const wrongBlock = Number(match[2]);
+                    // ช่องเป้าหมาย (ฟ้า/เหลือง)
+                    fetch('/api/led', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ level, block, ...color })
+                    });
+                    // ช่องผิด (แดง)
+                    fetch('/api/led', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ level: wrongLevel, block: wrongBlock, r: 255, g: 0, b: 0 })
+                    });
+                    return;
                 }
-                // ถ้าไม่ error หรือ error อื่น ให้โชว์เฉพาะช่องเป้าหมาย
-                await fetch('/api/led', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ level, block, ...color })
-                });
-            } catch (error) {
-                console.error('❌ Error controlling LED:', error);
             }
+            // ถ้าไม่ error หรือ error อื่น ให้โชว์เฉพาะช่องเป้าหมาย
+            fetch('/api/led', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ level, block, ...color })
+            });
         }
 
 // ฟังก์ชันเริ่มต้นระบบเมื่อ DOM โหลดเสร็จ
