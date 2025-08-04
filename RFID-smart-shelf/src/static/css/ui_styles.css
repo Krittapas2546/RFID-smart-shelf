@@ -30,15 +30,15 @@
             transition: background-color 0.3s, flex-direction 0.3s;
         }
 
-        .queue-drawer { position: fixed; top: 0; left: 0; width: 410px; max-width: 100vw; height: 100vh; background: #fff; box-shadow: 4px 0 24px rgba(0,0,0,0.13); z-index: 100; padding: 32px; transition: transform 0.33s cubic-bezier(.55,0,.32,1); transform: translateX(-100%); display: flex; flex-direction: column; }
+        .queue-drawer { position: fixed; top: 0; left: 0; width: 350px; max-width: 100vw; height: 100vh; background: #fff; box-shadow: 4px 0 24px rgba(0,0,0,0.13); z-index: 100; padding: 20px; transition: transform 0.33s cubic-bezier(.55,0,.32,1); transform: translateX(-100%); display: flex; flex-direction: column; }
         .queue-drawer.open { transform: translateX(0); }
-        .queue-header { font-size: 2em; font-weight: 700; margin-bottom: 16px; margin-top: 0; }
+        .queue-header { font-size: 1.5em; font-weight: 700; margin-bottom: 12px; margin-top: 0; }
         .queue-list { flex: 1; overflow-y: auto; margin: 0; padding: 0; list-style: none; }
-        .queue-item { display: flex; justify-content: space-between; align-items: center; padding: 18px 0 12px 0; border-bottom: 1px solid #eee; gap: 8px; }
-        .queue-item-details { display: flex; flex-direction: column; line-height: 1.3; }
-        .queue-lot-no { font-weight: 600; font-size: 1.1em; }
-        .queue-emp-id { font-size: 14px; color: #6c757d; }
-        .queue-item button { font-size: 15px; padding: 6px 22px; cursor: pointer; background-color: #198754; color: white; border: none; border-radius: 6px; font-weight: 600; }
+        .queue-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0 8px 0; border-bottom: 1px solid #eee; gap: 6px; }
+        .queue-item-details { display: flex; flex-direction: column; line-height: 1.2; }
+        .queue-lot-no { font-weight: 600; font-size: 1em; }
+        .queue-emp-id { font-size: 12px; color: #6c757d; }
+        .queue-item button { font-size: 13px; padding: 5px 18px; cursor: pointer; background-color: #198754; color: white; border: none; border-radius: 5px; font-weight: 600; }
         .queue-placeholder { color: #6c757d; font-style: italic; margin-top: 20px; }
         .drawer-backdrop { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.07); z-index: 50; display: none; }
         .drawer-backdrop.open {
@@ -46,12 +46,32 @@
             pointer-events: auto;
         }
         
-        /* --- START: Simple Desktop-Only 2-Column Layout --- */
+        /* --- START: Configurable 2-Column Layout with CSS Variables --- */
+        :root {
+            /* Default proportions: 65% shelf, 35% preview */
+            --shelf-width: 65%;
+            --preview-width: 35%;
+            --column-gap: 30px;
+            /* Dynamic sizing variables - ตั้งค่า default เป็น 550×475px */
+            --shelf-frame-width: 550px; /* เปลี่ยนจาก 650px เป็น 550px */
+            --shelf-frame-height: 475px; /* เปลี่ยนจาก 280px เป็น 475px */
+            --cell-preview-min-height: 350px;
+            --cell-preview-max-height: 450px;
+            --cell-preview-width: auto; /* เพิ่มตัวแปรสำหรับความกว้าง */
+        }
+
+        /* Layout Options - คุณสามารถเปลี่ยนโดยการเพิ่ม class เหล่านี้ใน .main-container */
+        .layout-equal { --shelf-width: 50%; --preview-width: 50%; } /* 50-50 */
+        .layout-shelf-focus { --shelf-width: 75%; --preview-width: 25%; } /* 75-25 */
+        .layout-preview-focus { --shelf-width: 55%; --preview-width: 45%; } /* 55-45 */
+        .layout-compact { --shelf-width: 70%; --preview-width: 30%; --column-gap: 20px; } /* 70-30 with smaller gap */
+        .layout-wide { --shelf-width: 60%; --preview-width: 40%; --column-gap: 40px; } /* 60-40 with larger gap */
+
         .main-container {
             display: flex;
             align-items: flex-start;
             justify-content: flex-start;
-            gap: 40px;
+            gap: var(--column-gap);
             width: 100%;
             height: 100vh;
             padding: 20px;
@@ -64,27 +84,40 @@
         }
         
         .shelf-panel {
-            flex: 1;
+            flex: 0 0 var(--shelf-width);
+            width: var(--shelf-width);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            max-width: 800px; /* เพิ่มจาก 600px เป็น 800px เพื่อรองรับ shelf-frame ที่กว้างขึ้น */
+            max-width: none;
+            min-width: 400px; /* ลดจาก 300px */
+            transition: flex 0.3s ease, width 0.3s ease;
         }
         
         .cell-preview-container {
-            flex: 0 0 280px;
-            padding: 24px;
+            flex: 0 0 auto; /* เปลี่ยนจาก var(--preview-width) เป็น auto เพื่อให้ปรับขนาดตามเนื้อหา */
+            width: 350px; /* ค่า default เป็น 350px */
+            padding: 15px; /* ลดจาก 20px */
             background: #f8f9fa;
-            border-radius: 16px;
+            border-radius: 12px; /* ลดจาก 16px */
             border: 1px solid #dee2e6;
-            min-height: 400px;
+            height: 500px; /* ค่า default เป็น 500px */
+            max-height: 500px; /* กำหนดความสูงสูงสุด */
+            min-height: 500px; /* กำหนดความสูงขั้นต่ำ */
+            max-width: 350px; /* กำหนดความกว้างสูงสุด */
+            min-width: 350px; /* กำหนดความกว้างขั้นต่ำ */
+            transition: none; /* ปิด transition เพื่อให้แสดงขนาดคงที่ */
+            overflow: hidden; /* ซ่อน overflow เพื่อควบคุมการแสดงผล */
+            align-self: flex-start; /* เพิ่ม - ให้ปรับขนาดตามเนื้อหา ไม่ยืดเต็มความสูง */
+            display: flex;
+            flex-direction: column;
         }
         
         .cell-preview-container h3 {
-            font-size: 1.5em;
+            font-size: 1.2em; /* ลดจาก 1.5em */
             color: #343a40;
-            margin: 0 0 16px 0;
+            margin: 0 0 12px 0; /* ลดจาก 16px */
         }
         
         .cell-preview-content {
@@ -97,17 +130,19 @@
         /* --- START: สไตล์สำหรับหน้าเลือกงาน (Queue View) --- */
         #queueSelectionView {
             width: 100%;
-            max-width: 800px;
-            margin: 40px auto;
-            padding: 20px;
+            max-width: 900px; /* ลดจาก 800px */
+            margin: 20px auto; /* ลดจาก 40px */
+            padding: 15px; /* ลดจาก 20px */
             box-sizing: border-box;
+            height: calc(100vh - 40px); /* ให้พอดีกับหน้าจอ */
+            overflow-y: auto;
         }
         .queue-view-title {
-            font-size: 2.5rem;
+            font-size: 1.8rem; /* ลดจาก 2.5rem */
             font-weight: 700;
             color: #343a40;
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 20px; /* ลดจาก 30px */
         }
         #queueListContainer {
             list-style: none;
@@ -115,42 +150,43 @@
             margin: 0;
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 10px; /* ลดจาก 15px */
         }
         .queue-list-item {
             background-color: #fff;
             border: 1px solid #dee2e6;
-            border-radius: 12px;
-            padding: 20px;
+            border-radius: 8px; /* ลดจาก 12px */
+            padding: 15px; /* ลดจาก 20px */
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.06);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.06); /* ลดเงา */
             transition: transform 0.2s, box-shadow 0.2s;
+            min-height: 60px; /* กำหนดความสูงขั้นต่ำ */
         }
         .queue-list-item:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+            transform: translateY(-2px); /* ลดจาก -3px */
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
         .queue-list-item .info .lot {
-            font-size: 1.2rem;
+            font-size: 1rem; /* ลดจาก 1.2rem */
             font-weight: 600;
             color: #212529;
         }
         .queue-list-item .info .action {
-            font-size: 0.9rem;
+            font-size: 0.85rem; /* ลดจาก 0.9rem */
             color: #6c757d;
-            margin-top: 4px;
+            margin-top: 3px; /* ลดจาก 4px */
         }
         .queue-list-item .select-btn {
             background-color: #28a745;
             color: white;
             border: none;
-            padding: 10px 24px;
-            border-radius: 8px;
+            padding: 8px 20px; /* ลดจาก 10px 24px */
+            border-radius: 6px; /* ลดจาก 8px */
             cursor: pointer;
             font-weight: 600;
-            font-size: 1rem;
+            font-size: 0.9rem; /* ลดจาก 1rem */
             transition: background-color 0.2s;
         }
         .queue-list-item .select-btn:hover {
@@ -179,56 +215,97 @@
             box-sizing: border-box;
             width: 100%;
             height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 5px; /* เพิ่ม padding เท่ากับ JavaScript */
+            gap: 5px; /* เพิ่ม gap เท่ากับ JavaScript */
         }
 
         .shelf-frame { 
-            border: 8px solid #adb5bd; 
+            border: 4px solid #adb5bd; 
             border-radius: 8px; 
             display: inline-block; 
             padding: 0;
-            width: 750px; /* เพิ่มความกว้างจาก 450px เป็น 750px เพื่อรองรับ 8 blocks */
-            height: 320px;
+            width: var(--shelf-frame-width, 550px); /* ใช้ CSS variable - default 550px */
+            height: var(--shelf-frame-height, 475px); /* ใช้ CSS variable - default 475px */
             margin: 0 auto;
-            /* ปรับขนาดให้เหมาะสมกับ shelf configuration ที่มี blocks เยอะขึ้น */
+            transition: width 0.3s ease, height 0.3s ease; /* เพิ่ม transition */
+            /* ขนาด default: 550×475px */
         }
 
         /* --- END: Shelf Panel & Grid Styles --- */
+
+        /* เพิ่ม styles สำหรับ shelf-level container */
+        .shelf-level {
+            display: flex !important;
+            width: 100% !important;
+            gap: 5px !important;
+            justify-content: stretch !important;
+            align-items: stretch !important;
+        }
 
         .shelf-cell { 
             background-color: #fff; 
             border: 1px solid #e9ecef; 
             border-radius: 4px; 
-            transition: background .18s;
+            transition: all 0.2s ease;
             display: flex;
             flex-direction: column;
             justify-content: flex-end;
-            padding: 3px;
+            padding: 3px; /* เพิ่มจาก 2px */
+            box-sizing: border-box;
+            position: relative;
+            overflow: hidden;
+            /* ให้ cell ใช้พื้นที่เต็มที่ */
+            flex: 1 1 0; /* flex-grow: 1, flex-shrink: 1, flex-basis: 0 */
+            min-width: 0; /* ให้สามารถย่อขนาดได้ */
+            min-height: 40px; /* เพิ่มจาก 32px */
+            max-height: none; /* ไม่จำกัดความสูงสูงสุด เพื่อให้ยืดตาม container */
+        }
+        
+        .shelf-cell:hover {
+            border-color: #adb5bd;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        /* Cell States */
+        .shelf-cell.has-item {
+            background-color: #f8f9fa;
+            border-color: #6c757d;
+        }
+        
+        .shelf-cell.selected-task {
+            background-color: #e3f2fd;
+            border: 2px solid #2196f3;
+            box-shadow: 0 0 8px rgba(33, 150, 243, 0.3);
+        }
+        
+        .shelf-cell.wrong-location {
+            background-color: #ffebee;
+            border: 2px solid #f44336;
+            box-shadow: 0 0 8px rgba(244, 67, 54, 0.3);
         }
         
         .stacked-lot {
-            background-color: #95a5a6; /* เปลี่ยนจาก #6c757d เป็นสีเทาสว่างขึ้น */
+            background-color: #95a5a6;
             border: none;
-            border-radius: 3px;
-            margin-bottom: 2px;
+            border-radius: 2px;
+            margin-bottom: 0px; /* เปลี่ยนจาก 1px เป็น 0px เพื่อให้ lots ติดกัน */
             display: block;
             font-size: 0; /* ซ่อนข้อความ */
             height: auto;
-            min-height: 8px;
+            min-height: 3px; /* ลดจาก 6px เป็น 3px */
+            width: 100%;
+            box-sizing: border-box;
+            flex-shrink: 0; /* เพิ่ม - ป้องกันไม่ให้ขนาดเปลี่ยน */
         }
         
         .stacked-lot.target-lot {
-            background-color: #4dabf7; /* เปลี่ยนจาก #0d6efd เป็นสีฟ้าสว่างขึ้น */
+            background-color: #4dabf7;
             border: none;
         }
-        .shelf-cell-empty { display: none; } /* ซ่อนช่องว่างที่ไม่ใช้ */
         
-        /* Dynamic cell sizes for flexible shelf configuration */
-        .shelf-cell.size-small { width: 50px; height: 50px; }
-        .shelf-cell.size-medium { width: 60px; height: 60px; }
-        .shelf-cell.size-large { width: 100px; height: 100px; }
-        .shelf-cell.size-xlarge { width: 130px; height: 130px; }
-        .shelf-cell.has-item { background-color: #adb5bd; border-color: #6c757d; }
-        .shelf-cell.selected-task { background-color: #0d6efd !important; border-color: #0d6efd !important; } 
+        .shelf-cell-empty { display: none; } /* ซ่อนช่องว่างที่ไม่ใช้ */ 
         .shelf-cell.wrong-location {
             /* ลบ background-color และ box-shadow เก่าออก */
             border-color: #b02a37 !important;
@@ -299,6 +376,104 @@
 
         
 
+        /* --- START: Responsive Column Sizing --- */
+        
+        /* สำหรับหน้าจอ 1024x600 (เช่น Raspberry Pi หรือ Tablet) */
+        @media (max-width: 1024px) and (max-height: 700px) {
+            #queueSelectionView {
+                margin: 10px auto;
+                padding: 10px;
+                max-width: 95%;
+                height: calc(100vh - 20px);
+            }
+            
+            .queue-view-title {
+                font-size: 1.5rem;
+                margin-bottom: 15px;
+            }
+            
+            .queue-list-item {
+                padding: 12px;
+                min-height: 50px;
+            }
+            
+            .queue-list-item .info .lot {
+                font-size: 0.9rem;
+            }
+            
+            .queue-list-item .info .action {
+                font-size: 0.8rem;
+            }
+            
+            .queue-list-item .select-btn {
+                padding: 6px 16px;
+                font-size: 0.85rem;
+            }
+            
+            .barcode-scanner-container {
+                margin-bottom: 10px;
+                padding: 8px;
+            }
+            
+            #lot-no-input {
+                padding: 6px;
+                font-size: 14px;
+            }
+        }
+
+        @media (max-width: 1200px) {
+            :root {
+                --shelf-width: 60%;
+                --preview-width: 40%;
+                --column-gap: 30px;
+            }
+        }
+
+        @media (max-width: 900px) {
+            :root {
+                --shelf-width: 55%;
+                --preview-width: 45%;
+                --column-gap: 20px;
+            }
+            
+            .main-container {
+                padding: 15px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+                gap: 20px;
+            }
+            
+            .shelf-panel,
+            .cell-preview-container {
+                flex-basis: auto;
+                max-width: 100%;
+                width: 100%;
+            }
+        }
+
+        @media (min-width: 1400px) {
+            :root {
+                --shelf-width: 75%;
+                --preview-width: 25%;
+                --column-gap: 50px;
+            }
+        }
+
+        @media (min-width: 1600px) {
+            :root {
+                --column-gap: 60px;
+            }
+            
+            .main-container {
+                padding: 30px;
+            }
+        }
+        /* --- END: Responsive Column Sizing --- */
+
         .shelf-container {
             justify-content: center;
             align-items: center;
@@ -316,16 +491,22 @@
         /* --- END: Optimized for Raspberry Pi 13.3" --- */
 
         .barcode-scanner-container {
-            margin-bottom: 20px;
+            margin-bottom: 15px; /* ลดจาก 20px */
             display: flex;
-            gap: 10px;
+            gap: 8px; /* ลดจาก 10px */
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
         }
 
         #lot-no-input {
             flex-grow: 1;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            padding: 8px; /* ลดจาก 10px */
+            border: 2px solid #007bff;
+            border-radius: 6px; /* ลดจาก 4px */
+            font-size: 16px; /* เพิ่มขนาดตัวอักษร */
+            font-weight: 500;
         }
 
         /* Animation สำหรับตอนหาไม่เจอ */
@@ -425,24 +606,57 @@
 /* --- END: Stacked Lot Styles --- */
 
 /* --- START: Cell Preview Styles --- */
+.cell-preview-container h3 {
+    font-size: 1.4em;
+    color: #343a40;
+    margin: 0 0 16px 0;
+    text-align: center;
+}
+
+.block-preview {
+    border: 2px solid #343a40; /* ลดจาก 3px */
+    border-radius: 8px; /* ลดจาก 12px */
+    background: #fff;
+    padding: 10px; /* กลับเป็นขนาดเดิม */
+    width: 320px; /* กลับเป็นขนาดเดิมให้เข้ากับ container 350px */
+    height: 420px; /* กลับเป็นขนาดเดิมให้เข้ากับ container 500px */
+    min-height: 420px; /* กำหนดความสูงขั้นต่ำ */
+    max-height: 420px; /* กำหนดความสูงสูงสุด */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start; /* จัดแนวบน เพื่อแสดงภาพรวมได้ดีขึ้น */
+    gap: 2px; /* กลับเป็นขนาดเดิม */
+    overflow-y: auto; /* เพิ่ม scroll ถ้าเนื้อหายาวเกินไป */
+    box-sizing: border-box;
+    margin: 0 auto; /* จัดกึ่งกลาง */
+    
+    /* เพิ่ม visual cues สำหรับ scrollable area */
+    border-style: solid;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+}
+
 .lot-item {
     background: #f8f9fa;
-    border: 2px solid #dee2e6;
-    border-radius: 8px;
-    padding: 8px 10px; /* ลด padding จาก 12px เป็น 8px 10px */
-    margin-bottom: 6px; /* ลดจาก 8px เป็น 6px */
+    border: 1px solid #dee2e6; /* ลดจาก 2px */
+    border-radius: 6px; /* ลดจาก 8px */
+    padding: 8px 12px; /* เพิ่มจาก 6px 8px สำหรับพื้นที่มากขึ้น */
+    margin-bottom: 3px; /* เพิ่มจาก 2px */
     position: relative;
     display: flex;
     align-items: center;
     justify-content: space-between;
     transition: all 0.3s ease;
-    min-height: 36px; /* เพิ่ม min-height เพื่อให้สม่ำเสมอ */
+    min-height: 24px; /* เพิ่มจาก 20px */
+    word-wrap: break-word;
+    font-size: 13px; /* เพิ่มจาก 12px */
+    font-weight: 500; /* เพิ่มความหนาตัวอักษร */
 }
 
 .lot-item.target-lot {
     background: #e3f2fd;
     border-color: #2196f3;
     box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);
+    font-weight: bold;
 }
 
 .lot-item.new-lot {
@@ -451,6 +665,84 @@
     border-style: dashed;
     animation: pulse-new 2s infinite;
 }
+
+.lot-item.empty-slot {
+    background: #f8f9fa;
+    border: 2px dashed #dee2e6;
+    color: #6c757d;
+    font-style: italic;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 80px; /* เพิ่มความสูงขั้นต่ำสำหรับ empty slot */
+}
+
+/* เพิ่ม styles สำหรับ cell summary */
+.cell-summary {
+    background: #e9ecef;
+    padding: 10px 15px; /* เพิ่มจาก 8px 12px */
+    border-radius: 8px; /* เพิ่มจาก 6px */
+    margin-bottom: 12px; /* เพิ่มจาก 10px */
+    text-align: center;
+    border: 1px solid #dee2e6;
+}
+
+.cell-summary span {
+    color: #495057;
+    font-weight: bold;
+    font-size: 15px; /* เพิ่มจาก 14px */
+}
+
+/* ปรับปรุง lot-item ใน block preview ให้มีการแสดงผลที่ดีขึ้น */
+.block-preview .lot-item {
+    margin-bottom: 4px; /* เพิ่ม gap ระหว่าง items */
+    border: 1px solid #ced4da;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.block-preview .lot-item:hover {
+    background: #f8f9fa;
+    border-color: #adb5bd;
+    transform: translateX(2px);
+}
+
+.lot-name {
+    font-weight: 600; /* เพิ่มจาก 500 */
+    font-size: 14px; /* เพิ่มจาก 13px */
+    color: #495057;
+    flex-grow: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.3; /* เพิ่มจาก 1.2 */
+}
+
+.preview-action {
+    color: #666;
+    font-style: italic;
+    margin: 8px 0 12px 0;
+    font-size: 13px;
+    text-align: center;
+}
+
+.new-badge {
+    background: #9c27b0;
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 8px;
+    flex-shrink: 0;
+}
+
+@keyframes pulse-new {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+/* --- END: Cell Preview Styles --- */
 
 .lot-item.empty-slot {
     background: #fafafa;

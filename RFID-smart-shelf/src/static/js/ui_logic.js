@@ -1,3 +1,376 @@
+// --- Column Layout Controller: ปรับขนาด 2 columns แบบ real-time ---
+/**
+ * เปลี่ยนสัดส่วนของ columns
+ * @param {number} shelfPercent - เปอร์เซ็นต์ของ shelf (0-100)
+ * @param {number} previewPercent - เปอร์เซ็นต์ของ preview (0-100) 
+ * @param {number} gap - ระยะห่างระหว่าง columns (px)
+ */
+function setColumnLayout(shelfPercent = 70, previewPercent = 30, gap = 40) {
+    // ตรวจสอบให้รวมกันเป็น 100%
+    const total = shelfPercent + previewPercent;
+    if (total !== 100) {
+        console.warn(`⚠️ Column percentages should total 100%, got ${total}%. Auto-adjusting...`);
+        const ratio = 100 / total;
+        shelfPercent = Math.round(shelfPercent * ratio);
+        previewPercent = 100 - shelfPercent;
+    }
+    
+    // ตั้งค่า CSS variables
+    const root = document.documentElement;
+    root.style.setProperty('--shelf-width', `${shelfPercent}%`);
+    root.style.setProperty('--preview-width', `${previewPercent}%`);
+    root.style.setProperty('--column-gap', `${gap}px`);
+    
+    console.log(`📐 Column layout updated: Shelf ${shelfPercent}%, Preview ${previewPercent}%, Gap ${gap}px`);
+    
+    // Force reflow เพื่อให้การเปลี่ยนแปลงมีผลทันที
+    const shelfPanel = document.querySelector('.shelf-panel');
+    const previewContainer = document.querySelector('.cell-preview-container');
+    if (shelfPanel && previewContainer) {
+        shelfPanel.style.flexBasis = `${shelfPercent}%`;
+        previewContainer.style.flexBasis = `${previewPercent}%`;
+        
+        // ตรวจสอบการเปลี่ยนแปลง
+        console.log(`✅ Applied styles - Shelf: ${shelfPanel.style.flexBasis}, Preview: ${previewContainer.style.flexBasis}`);
+    }
+    
+    // บันทึกการตั้งค่าใน localStorage
+    localStorage.setItem('columnLayout', JSON.stringify({
+        shelf: shelfPercent,
+        preview: previewPercent,
+        gap: gap
+    }));
+}
+
+/**
+ * โหลดการตั้งค่า column layout จาก localStorage
+ */
+function loadColumnLayout() {
+    const saved = localStorage.getItem('columnLayout');
+    if (saved) {
+        try {
+            const layout = JSON.parse(saved);
+            setColumnLayout(layout.shelf, layout.preview, layout.gap);
+            
+            // อัปเดต slider ให้สอดคล้อง
+            setTimeout(() => {
+                const slider = document.getElementById('shelfSlider');
+                const sliderValue = document.getElementById('sliderValue');
+                if (slider && sliderValue) {
+                    slider.value = layout.shelf;
+                    sliderValue.textContent = `${layout.shelf}%`;
+                }
+            }, 100); // รอให้ DOM โหลดเสร็จ
+            
+            console.log(`🔄 Restored column layout:`, layout);
+        } catch (error) {
+            console.warn('⚠️ Invalid saved column layout, using defaults');
+            setColumnLayout(); // ใช้ค่าเริ่มต้น
+        }
+    }
+}
+
+/**
+ * ใช้ layout preset ที่กำหนดไว้
+ */
+function applyLayoutPreset(presetName) {
+    const presets = {
+        'default': { shelf: 65, preview: 35, gap: 30 }, // 65-35
+        'equal': { shelf: 50, preview: 50, gap: 30 },   // 50-50
+        'shelf-focus': { shelf: 75, preview: 25, gap: 30 }, // 75-25
+        'preview-focus': { shelf: 55, preview: 45, gap: 30 }, // 55-45
+        'compact': { shelf: 70, preview: 30, gap: 20 },  // 70-30 แคบ
+        'wide': { shelf: 60, preview: 40, gap: 40 }      // 60-40 กว้าง
+    };
+    
+    const preset = presets[presetName];
+    if (preset) {
+        setColumnLayout(preset.shelf, preset.preview, preset.gap);
+        
+        // อัปเดต slider ให้สอดคล้อง
+        const slider = document.getElementById('shelfSlider');
+        const sliderValue = document.getElementById('sliderValue');
+        if (slider && sliderValue) {
+            slider.value = preset.shelf;
+            sliderValue.textContent = `${preset.shelf}%`;
+        }
+        
+        console.log(`🎨 Applied preset "${presetName}":`, preset);
+    } else {
+        console.error(`❌ Unknown preset: ${presetName}. Available: ${Object.keys(presets).join(', ')}`);
+    }
+}
+
+/**
+ * ปิด/เปิดการแสดงผลของปุ่มควบคุม layout
+ */
+function toggleLayoutControls() {
+    const controls = document.getElementById('layoutControls');
+    if (controls) {
+        const isVisible = controls.style.display !== 'none';
+        controls.style.display = isVisible ? 'none' : 'block';
+    }
+}
+
+/**
+ * อัปเดตขนาด layout จาก slider
+ */
+function updateLayoutFromSlider() {
+    const slider = document.getElementById('shelfSlider');
+    const sliderValue = document.getElementById('sliderValue');
+    
+    if (slider && sliderValue) {
+        const shelfPercent = parseInt(slider.value);
+        const previewPercent = 100 - shelfPercent;
+        
+        setColumnLayout(shelfPercent, previewPercent, 40);
+        sliderValue.textContent = `${shelfPercent}%`;
+    }
+}
+
+/**
+ * ตั้งค่าขนาด Shelf Frame แบบกำหนดเอง
+ */
+function setShelfSize(width, height) {
+    const root = document.documentElement;
+    root.style.setProperty('--shelf-frame-width', `${width}px`);
+    root.style.setProperty('--shelf-frame-height', `${height}px`);
+    
+    // อัปเดต shelf-frame จริง ๆ
+    const shelfFrame = document.querySelector('.shelf-frame');
+    if (shelfFrame) {
+        shelfFrame.style.width = `${width}px`;
+        shelfFrame.style.height = `${height}px`;
+    }
+    
+    console.log(`📐 Shelf size updated: ${width}×${height}px`);
+    
+    // บันทึกการตั้งค่า
+    localStorage.setItem('shelfSize', JSON.stringify({ width, height }));
+    
+    // รีเฟรช shelf grid เพื่อปรับขนาด cell ให้เหมาะสม
+    setTimeout(() => {
+        if (shelfGrid && typeof createShelfGridStructure === 'function') {
+            createShelfGridStructure();
+            if (typeof renderShelfGrid === 'function') {
+                renderShelfGrid();
+            }
+            console.log(`🔄 Shelf grid refreshed for new size: ${width}×${height}px`);
+        }
+    }, 100); // รอให้ CSS มีผลก่อน
+}
+
+/**
+ * คำนวณขนาด cell ที่เหมาะสมตามขนาด shelf
+ */
+function calculateOptimalCellSize(shelfWidth, shelfHeight) {
+    // ค่าพื้นฐาน
+    const containerPadding = 10;
+    const levelGaps = (TOTAL_LEVELS - 1) * 5;
+    const cellGap = 4;
+    
+    // คำนวณขนาดที่ใช้ได้จริง
+    const usableHeight = shelfHeight - containerPadding - levelGaps;
+    const cellHeight = Math.max(Math.floor(usableHeight / TOTAL_LEVELS), 30); // ขั้นต่ำ 30px
+    
+    // กำหนดขนาดตามความสูงของ shelf
+    let optimizedHeight;
+    if (shelfHeight <= 250) {
+        optimizedHeight = Math.max(cellHeight, 35); // shelf เล็ก
+    } else if (shelfHeight <= 350) {
+        optimizedHeight = Math.max(cellHeight, 45); // shelf กลาง
+    } else if (shelfHeight <= 450) {
+        optimizedHeight = Math.max(cellHeight, 60); // shelf ใหญ่
+    } else {
+        optimizedHeight = Math.max(cellHeight, 75); // shelf ใหญ่มาก (550×475)
+    }
+    
+    return {
+        cellHeight: optimizedHeight,
+        gap: cellGap,
+        totalHeight: (optimizedHeight * TOTAL_LEVELS) + levelGaps + containerPadding
+    };
+}
+
+/**
+ * ตั้งค่าขนาด Shelf พร้อมปรับ cell size อัตโนมัติ
+ */
+function setOptimizedShelfSize(width, height) {
+    console.log(`🎯 Setting optimized shelf size: ${width}×${height}px`);
+    
+    // ใช้ฟังก์ชันเดิมแต่เพิ่มการแสดงข้อมูล
+    setShelfSize(width, height);
+    
+    // แสดงข้อมูลการปรับขนาด
+    setTimeout(() => {
+        if (typeof calculateOptimalCellSize === 'function') {
+            const sizeConfig = calculateOptimalCellSize(width, height);
+            console.log(`📊 Optimized for ${width}×${height}px:`, sizeConfig);
+            
+            // แสดง notification ที่ถูกต้อง - ตรวจสอบขนาด cell preview จริง
+            if (typeof showNotification === 'function') {
+                const cellPreview = document.querySelector('.cell-preview-container');
+                let previewSize = '350×500px'; // default
+                if (cellPreview) {
+                    const computedStyle = window.getComputedStyle(cellPreview);
+                    const actualWidth = Math.round(parseFloat(computedStyle.width));
+                    const actualHeight = Math.round(parseFloat(computedStyle.height));
+                    previewSize = `${actualWidth}×${actualHeight}px`;
+                }
+                showNotification(`Shelf: ${width}×${height}px | Cell: ${sizeConfig.cellHeight}px | Preview: ${previewSize}`, 'info');
+            }
+        }
+    }, 150);
+}
+
+function setCustomShelfSize() {
+    const widthInput = document.getElementById('customWidth');
+    const heightInput = document.getElementById('customHeight');
+    
+    if (widthInput && heightInput) {
+        const width = parseInt(widthInput.value);
+        const height = parseInt(heightInput.value);
+        
+        if (width > 0 && height > 0) {
+            setShelfSize(width, height);
+            // เคลียร์ input
+            widthInput.value = '';
+            heightInput.value = '';
+        } else {
+            alert('กรุณาใส่ค่าขนาดที่ถูกต้อง');
+        }
+    }
+}
+
+/**
+ * ตั้งค่าขนาด Cell Preview Container แบบครบถ้วน (ความกว้าง × ความสูง)
+ */
+function setCellPreviewSize(minHeight, maxHeight, width = null) {
+    console.log(`📱 Setting Cell Preview size: ${width ? width + '×' : ''}${minHeight}-${maxHeight}px`);
+    
+    const root = document.documentElement;
+    root.style.setProperty('--cell-preview-min-height', `${minHeight}px`);
+    root.style.setProperty('--cell-preview-max-height', `${maxHeight}px`);
+    
+    if (width) {
+        root.style.setProperty('--cell-preview-width', `${width}px`);
+    }
+    
+    // อัปเดต cell preview จริง ๆ - บังคับตั้งค่า
+    const cellPreview = document.querySelector('.cell-preview-container');
+    if (cellPreview) {
+        cellPreview.style.height = `${maxHeight}px`; // บังคับตั้งค่าความสูง
+        cellPreview.style.minHeight = `${minHeight}px`;
+        cellPreview.style.maxHeight = `${maxHeight}px`;
+        if (width) {
+            cellPreview.style.width = `${width}px`; // บังคับตั้งค่าความกว้าง
+            cellPreview.style.minWidth = `${width}px`;
+            cellPreview.style.maxWidth = `${width}px`;
+        }
+        console.log(`📱 Cell Preview DOM updated: ${cellPreview.style.width} × ${cellPreview.style.height}`);
+    }
+    
+    const blockPreview = document.querySelector('.block-preview');
+    if (blockPreview) {
+        // ลดขนาด block preview ตามสัดส่วน
+        const blockWidth = width ? Math.max(width - 30, 280) : 320;
+        const blockMinHeight = Math.max(minHeight - 80, 200); // เหลือพื้นที่สำหรับ header
+        const blockMaxHeight = Math.max(maxHeight - 80, 250);
+        
+        blockPreview.style.width = `${blockWidth}px`; // บังคับตั้งค่า block preview width
+        blockPreview.style.height = `${blockMaxHeight}px`; // บังคับตั้งค่า block preview height
+        blockPreview.style.minHeight = `${blockMinHeight}px`;
+        blockPreview.style.maxHeight = `${blockMaxHeight}px`;
+        
+        console.log(`🔲 Block Preview updated: ${blockWidth}×${blockMaxHeight}px`);
+    }
+    
+    console.log(`✅ Cell Preview size updated: ${width ? width + '×' : ''}${minHeight}-${maxHeight}px`);
+    
+    // บันทึกการตั้งค่า
+    localStorage.setItem('cellPreviewSize', JSON.stringify({ 
+        minHeight, 
+        maxHeight,
+        width: width || null
+    }));
+}
+
+/**
+ * ตั้งค่าขนาด Cell Preview จากการป้อนค่าเอง
+ */
+function setCustomCellPreviewSize() {
+    const widthInput = document.getElementById('customPreviewWidth');
+    const heightInput = document.getElementById('customPreviewHeight');
+    
+    if (widthInput && heightInput) {
+        const width = parseInt(widthInput.value);
+        const height = parseInt(heightInput.value);
+        
+        if (width > 0 && height > 0) {
+            setCellPreviewSize(height - 50, height, width); // min/max height และ width
+            // เคลียร์ input
+            widthInput.value = '';
+            heightInput.value = '';
+        } else {
+            alert('กรุณาใส่ค่าขนาดที่ถูกต้อง');
+        }
+    }
+}
+
+/**
+ * โหลดการตั้งค่าขนาดที่บันทึกไว้
+ */
+function loadSavedSizes() {
+    // โหลดขนาด shelf (ถ้าไม่มีจะใช้ค่าที่ตั้งไว้แล้วใน DOMContentLoaded)
+    const savedShelfSize = localStorage.getItem('shelfSize');
+    if (savedShelfSize) {
+        try {
+            const size = JSON.parse(savedShelfSize);
+            setOptimizedShelfSize(size.width, size.height);
+            console.log('🏢 Loaded saved shelf size:', size);
+        } catch (error) {
+            console.warn('⚠️ Invalid saved shelf size, keeping default 550×475');
+        }
+    } else {
+        console.log('🏢 Using default shelf size: 550×475px (already applied)');
+    }
+    
+    // โหลดขนาด cell preview (ถ้าไม่มีจะใช้ค่าที่ตั้งไว้แล้วใน DOMContentLoaded)
+    const savedPreviewSize = localStorage.getItem('cellPreviewSize');
+    if (savedPreviewSize) {
+        try {
+            const size = JSON.parse(savedPreviewSize);
+            setCellPreviewSize(size.minHeight, size.maxHeight, size.width);
+            console.log('📱 Loaded saved cell preview size:', size);
+        } catch (error) {
+            console.warn('⚠️ Invalid saved cell preview size, keeping default 350×500');
+        }
+    } else {
+        console.log('📱 Using default cell preview size: 350×500px (already applied)');
+    }
+}
+
+/**
+ * ฟังก์ชันทดสอบแบบง่าย - ใช้ในคอนโซล
+ */
+function testLayout(shelf = 50, preview = 50) {
+    console.log(`🧪 Testing layout: ${shelf}%-${preview}%`);
+    setColumnLayout(shelf, preview, 40);
+}
+
+// เพิ่มฟังก์ชันลงใน window object เพื่อให้เรียกจากคอนโซลได้
+window.testLayout = testLayout;
+window.setColumnLayout = setColumnLayout;
+window.applyLayoutPreset = applyLayoutPreset;
+window.toggleLayoutControls = toggleLayoutControls;
+window.updateLayoutFromSlider = updateLayoutFromSlider;
+window.setShelfSize = setShelfSize;
+window.setOptimizedShelfSize = setOptimizedShelfSize;
+window.setCustomShelfSize = setCustomShelfSize;
+window.setCellPreviewSize = setCellPreviewSize;
+window.setCustomCellPreviewSize = setCustomCellPreviewSize;
+window.loadSavedSizes = loadSavedSizes;
+
 // --- Cell Preview: แสดงรายละเอียดช่องที่เลือก (IMPROVED DESIGN) ---
 function renderCellPreview({ level, block, lots, targetLotNo, isPlaceJob = false, newLotTrayCount = 0 }) {
     const container = document.getElementById('cellPreviewContainer');
@@ -17,28 +390,41 @@ function renderCellPreview({ level, block, lots, targetLotNo, isPlaceJob = false
     }
 
     let html = '';
-    html += `<h3>Level ${level} Block ${block}</h3>`;
     
-    // แสดงข้อความแตกต่างกันตาม action
-    if (isPlaceJob) {
-        html += `<p class="preview-action">Preview after placing:</p>`;
+    // คำนวณข้อมูลสรุป
+    const totalLots = previewLots.length;
+    const totalTrays = previewLots.reduce((sum, lot) => sum + (parseInt(lot.tray_count) || 0), 0);
+    const isEmpty = totalLots === 0;
+    
+    html += `<h3>Level ${level} Block ${block}</h3>`;
+    html += `<div class="cell-summary" style="background: #e9ecef; padding: 8px; border-radius: 6px; margin-bottom: 10px; text-align: center;">`;
+    if (isEmpty) {
+        html += `<span style="color: #6c757d; font-weight: bold;">📦 Empty Cell</span>`;
+    } else {
+        html += `<span style="color: #495057; font-weight: bold;">📦 ${totalLots} Lot${totalLots > 1 ? 's' : ''} | ${totalTrays} Tray${totalTrays > 1 ? 's' : ''}</span>`;
     }
-
+    html += `</div>`;
     html += `<div class="block-preview">`;
 
     if (previewLots.length > 0) {
-        // สร้างรายการ lot แนวตั้ง (จากล่างขึ้นบน)
+        // สร้างรายการ lot แนวตั้ง (จากล่างขึ้นบน) - ใช้ระบบเดียวกับ shelf grid
         for (let i = previewLots.length - 1; i >= 0; i--) {
             const lot = previewLots[i];
             const trayCount = parseInt(lot.tray_count) || 0;
             const isTarget = lot.lot_no === targetLotNo;
             const isNewLot = isPlaceJob && i === previewLots.length - 1 && isTarget;
 
-            // คำนวณความสูงตามสัดส่วน tray_count เทียบกับความจุสูงสุด (24)
-            const maxCapacity = 24;
-            const maxContainerHeight = 300; // ความสูงที่ใช้ได้ของ container (350px - padding)
-            const heightRatio = trayCount / maxCapacity;
-            const height = Math.max(heightRatio * maxContainerHeight, 30); // ความสูงขั้นต่ำ 30px
+            // ใช้ระบบการคำนวณขนาดเดียวกันกับ shelf grid
+            let calculatedHeight;
+            if (trayCount <= 4) {
+                calculatedHeight = 20; // น้อย = 20px (ขยายจาก 4px ใน grid)
+            } else if (trayCount <= 8) {
+                calculatedHeight = 40; // ปานกลาง = 40px (ขยายจาก 8px ใน grid)
+            } else if (trayCount <= 16) {
+                calculatedHeight = 80; // เยอะ = 80px (ขยายจาก 16px ใน grid)
+            } else {
+                calculatedHeight = 120; // เยอะมาก = 120px (ขยายจาก 24px ใน grid)
+            }
 
             // ตัดชื่อ lot ถ้ายาวเกินไป (สำหรับ desktop ใช้ 15 ตัวอักษร)
             const displayName = lot.lot_no.length > 15 ?
@@ -49,7 +435,7 @@ function renderCellPreview({ level, block, lots, targetLotNo, isPlaceJob = false
             if (isTarget) itemClass += ' target-lot';
             if (isNewLot) itemClass += ' new-lot';
 
-            html += `<div class="${itemClass}" style="height: ${height}px;" title="${lot.lot_no}">`;
+            html += `<div class="${itemClass}" style="height: ${calculatedHeight}px;" title="${lot.lot_no} (${trayCount} tray)">`;
             html += `<span class="lot-name">${displayName}</span>`;
             if (isNewLot) {
                 html += `<span class="new-badge"> NEW</span>`;
@@ -57,8 +443,8 @@ function renderCellPreview({ level, block, lots, targetLotNo, isPlaceJob = false
             html += `</div>`;
         }
     } else {
-        html += `<div class="lot-item empty-slot">`;
-        html += `<span class="lot-name">(empty)</span>`;
+        html += `<div class="lot-item empty-slot" style="height: 80px; display: flex; align-items: center; justify-content: center; background: #f8f9fa; border: 2px dashed #dee2e6;">`;
+        html += `<span class="lot-name" style="color: #6c757d; font-style: italic;">(empty cell)</span>`;
         html += `</div>`;
     }
 
@@ -269,22 +655,30 @@ const ACTIVE_JOB_KEY = 'activeJob';
             // สร้าง Grid container หลัก
             shelfGrid.style.display = 'flex';
             shelfGrid.style.flexDirection = 'column';
-            shelfGrid.style.gap = '12px'; // gap ระหว่างชั้น (กลับเป็นขนาดเดิม)
-            shelfGrid.style.padding = '10px'; // ลด padding จาก 12px เป็น 10px
+            shelfGrid.style.gap = '5px'; // เพิ่ม gap ระหว่างชั้น
+            shelfGrid.style.padding = '5px';
             shelfGrid.style.background = '#f8f9fa';
             shelfGrid.style.border = '1px solid #dee2e6';
             shelfGrid.style.width = '100%';
             shelfGrid.style.height = '100%';
             
-            // กำหนดขนาด cell ให้เหมาะสมกับ shelf configuration ที่มีจำนวน blocks แตกต่างกัน
-            let cellHeight = 60;
+            // คำนวณขนาด cell แบบ dynamic ตามขนาด shelf
+            const shelfFrame = document.querySelector('.shelf-frame');
+            let currentWidth = 550, currentHeight = 475; // ค่า default ใหม่
             
-            // คำนวณ minWidth ให้เหมาะสมกับจำนวน blocks สูงสุด
-            const maxBlocks = Math.max(...Object.values(SHELF_CONFIG));
-            const gapSize = 3; // ลด gap ระหว่าง cells เพิ่มเติมจาก 4px เป็น 3px
-            // shelf-frame width = 750px, padding = 10px * 2 = 20px, gap = gapSize * (maxBlocks-1)
-            const availableWidth = 750 - 20 - (gapSize * (maxBlocks - 1)); // หักพื้นที่ padding และ gap
-            const minCellWidth = Math.max(15, Math.floor(availableWidth / maxBlocks)); // ขั้นต่ำ 15px
+            if (shelfFrame) {
+                const computedStyle = window.getComputedStyle(shelfFrame);
+                currentWidth = parseFloat(computedStyle.width) || currentWidth;
+                currentHeight = parseFloat(computedStyle.height) || currentHeight;
+            }
+            
+            // ใช้ฟังก์ชันคำนวณขนาดที่เหมาะสม
+            const sizeConfig = calculateOptimalCellSize(currentWidth, currentHeight);
+            const cellHeight = sizeConfig.cellHeight;
+            const gapSize = sizeConfig.gap;
+            
+            console.log(`📐 Dynamic sizing for ${currentWidth}×${currentHeight}px → Cell height ${cellHeight}px`);
+            console.log(`📊 Size config:`, sizeConfig);
             
             // สร้างแต่ละ Level เป็น flexbox แยกกัน
             for (let level = 1; level <= TOTAL_LEVELS; level++) {
@@ -294,26 +688,23 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 const levelContainer = document.createElement('div');
                 levelContainer.className = 'shelf-level';
                 levelContainer.style.display = 'flex';
-                levelContainer.style.gap = `${gapSize}px`; // ใช้ gap ที่คำนวณแล้ว
+                levelContainer.style.gap = `${gapSize}px`;
                 levelContainer.style.height = `${cellHeight}px`;
                 levelContainer.style.width = '100%';
+                levelContainer.style.justifyContent = 'stretch'; // ให้ช่องยืดเต็มความกว้าง
+                levelContainer.style.alignItems = 'stretch'; // ให้ช่องยืดเต็มความสูง
                 
                 // สร้าง cells สำหรับ level นี้
                 for (let block = 1; block <= blocksInThisLevel; block++) {
                     const cell = document.createElement('div');
                     cell.id = `cell-${level}-${block}`;
                     cell.className = 'shelf-cell';
-                    cell.style.flex = '1';
+                    
+                    // ให้ทุก cell มีขนาดเท่ากัน โดยใช้ flex-grow
+                    cell.style.flex = '1 1 0'; // flex-grow: 1, flex-shrink: 1, flex-basis: 0
                     cell.style.height = '100%';
-                    
-                    // Case พิเศษสำหรับ Level 4 (8 blocks)
-                    if (blocksInThisLevel === 8) {
-                        cell.style.minWidth = '80px'; // กำหนดขนาดพิเศษสำหรับ 8 blocks
-                        cell.style.maxWidth = '90px'; // จำกัดการขยาย
-                    } else {
-                        cell.style.minWidth = `${minCellWidth}px`; // ใช้ขนาดปกติ
-                    }
-                    
+                    cell.style.minWidth = '0'; // ให้ cell สามารถเล็กได้ตามต้องการ
+                    cell.style.maxWidth = 'none'; // ไม่จำกัดขนาดสูงสุด
                     cell.style.cursor = 'pointer';
                     
                     // เพิ่ม click event สำหรับแสดง cell preview
@@ -330,9 +721,8 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 shelfGrid.appendChild(levelContainer);
             }
             
-            console.log(`📐 Created flexible shelf grid: ${TOTAL_LEVELS} levels with configuration:`, SHELF_CONFIG);
-            console.log(`📏 Calculation: Max blocks: ${maxBlocks}, Available width: ${availableWidth}px, Cell width: ${minCellWidth}px (for non-8-block levels), Gap: ${gapSize}px`);
-            console.log(`📏 Special case: 8-block levels use 80px-90px fixed width`);
+            console.log(`📐 Created balanced shelf grid: ${TOTAL_LEVELS} levels with dynamic cell height ${cellHeight}px`);
+            console.log(`📏 Cell configuration: Height ${cellHeight}px, Gap ${gapSize}px, Flex: 1 1 0`);
         }
 
         function getActiveJob() {
@@ -447,11 +837,12 @@ const ACTIVE_JOB_KEY = 'activeJob';
             totalTray = Math.max(totalTray, 1);
             
             // ปรับการคำนวณขนาดให้เหมาะสมกับ cell ที่เล็กลง
-            const maxCellHeight = 66; // ความสูงสูงสุดของ cell (70px - padding 4px)
+            const maxCellHeight = 44; // ความสูงสูงสุดของ cell (50px - padding 6px)
+            const maxCapacity = 24; // ความจุสูงสุด
             
-            // Render lots in REVERSE order (last to first) เพื่อให้แสดงผลถูกต้อง
-            // เนื่องจาก flex-end จะแสดงจากล่างขึ้นบน การใส่จากท้ายไปหน้าจะทำให้ลำดับถูกต้อง
-            for (let idx = safeLots.length - 1; idx >= 0; idx--) {
+            // Render lots in CORRECT order (first to last) เพื่อให้แสดงผลถูกต้อง
+            // index 0 = bottom (วางก่อน), last index = top (วางทีหลัง)
+            for (let idx = 0; idx < safeLots.length; idx++) {
                 const lot = safeLots[idx];
                 const lotDiv = document.createElement('div');
                 let isTarget = false;
@@ -460,14 +851,27 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 }
                 lotDiv.className = 'stacked-lot' + (isTarget ? ' target-lot' : '');
                 
-                // คำนวณความสูงตาม tray_count (แต่ละ tray = 2px สำหรับขนาด compact)
-                const trayHeight = Math.max((parseInt(lot.tray_count) || 1) * 2, 4); // ขั้นต่ำ 4px
-                lotDiv.style.height = trayHeight + 'px';
+                // คำนวณความสูงตาม tray_count ให้สมดุลกับขนาด cell
+                const trayCount = parseInt(lot.tray_count) || 1;
                 
-                // เก็บข้อมูลใน title สำหรับ tooltip เท่านั้น
+                // วิธีคำนวณแบบใหม่: ให้ขนาดชัดเจนขึ้น
+                let calculatedHeight;
+                if (trayCount <= 4) {
+                    calculatedHeight = 4; // น้อย = 4px
+                } else if (trayCount <= 8) {
+                    calculatedHeight = 8; // ปานกลาง = 8px
+                } else if (trayCount <= 16) {
+                    calculatedHeight = 16; // เยอะ = 16px
+                } else {
+                    calculatedHeight = Math.min(24, maxCellHeight - 4); // เยอะมาก = 24px หรือเต็ม cell
+                }
+                
+                lotDiv.style.height = calculatedHeight + 'px';
+                
+                // เก็บข้อมูลใน title สำหรับ tooltip
                 lotDiv.title = `Lot: ${lot.lot_no}, Tray: ${lot.tray_count}`;
                 
-                // ไม่ใส่ข้อความ (แสดงเป็นกล่องสีเทาเท่านั้น)
+                // ไม่ใส่ข้อความ (แสดงเป็นกล่องสีเท่านั้น)
                 
                 cell.appendChild(lotDiv);
             }
@@ -910,11 +1314,49 @@ const ACTIVE_JOB_KEY = 'activeJob';
 
         // --- Initial Load ---
         document.addEventListener('DOMContentLoaded', async () => {
+            // เคลียร์การตั้งค่าทั้งหมดเพื่อใช้ค่า default ใหม่
+            localStorage.removeItem('shelfSize'); // บังคับให้ใช้ default 550×475
+            localStorage.removeItem('cellPreviewSize'); // บังคับให้ใช้ default 350×500
+            localStorage.removeItem('columnLayout'); // เคลียร์ layout เก่า
+            
             await loadShelfConfig();
+            loadColumnLayout(); // โหลดการตั้งค่าขนาด columns
+            
+            // ตั้งค่า default หลักเสมอ ก่อนโหลดค่าที่บันทึกไว้
+            console.log('🚀 Applying default sizes: Shelf 550×475px, Cell Preview 350×500px');
+            setOptimizedShelfSize(550, 475); // ตั้งค่า default shelf ก่อน
+            setCellPreviewSize(500, 500, 350); // ตั้งค่า default cell preview ก่อน
+            
+            loadSavedSizes(); // โหลดการตั้งค่าที่บันทึกไว้ (ถ้ามี) มาทับ default
             initializeShelfState();
             setupWebSocket();
             renderAll();
+            
+            // เพิ่มคีย์บอร์ดช็อตคัทสำหรับ layout
+            setupLayoutKeyboardShortcuts();
         });
+        
+        /**
+         * ตั้งค่าคีย์บอร์ดช็อตคัทสำหรับเปลี่ยน layout
+         */
+        function setupLayoutKeyboardShortcuts() {
+            document.addEventListener('keydown', (event) => {
+                // ใช้ Ctrl + ตัวเลข เพื่อเปลี่ยน layout
+                if (event.ctrlKey && !event.altKey && !event.shiftKey) {
+                    switch (event.key) {
+                        case '1': applyLayoutPreset('default'); event.preventDefault(); break;     // Ctrl+1: 70-30
+                        case '2': applyLayoutPreset('equal'); event.preventDefault(); break;       // Ctrl+2: 50-50
+                        case '3': applyLayoutPreset('shelf-focus'); event.preventDefault(); break; // Ctrl+3: 80-20
+                        case '4': applyLayoutPreset('preview-focus'); event.preventDefault(); break; // Ctrl+4: 60-40
+                        case '5': applyLayoutPreset('compact'); event.preventDefault(); break;     // Ctrl+5: แคบ
+                        case '6': applyLayoutPreset('wide'); event.preventDefault(); break;        // Ctrl+6: กว้าง
+                        case '0': toggleLayoutControls(); event.preventDefault(); break;           // Ctrl+0: แสดง/ซ่อนปุ่มควบคุม
+                    }
+                }
+            });
+            
+            console.log('⌨️ Layout keyboard shortcuts enabled: Ctrl+1-6 for presets, Ctrl+0 to toggle controls');
+        }
         
         // ลบ Event Listener ของ 'storage' เก่าออก เพราะเราจะใช้ WebSocket แทน
         window.removeEventListener('storage', renderAll);
@@ -1125,3 +1567,24 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 console.error('❌ Error controlling LED:', error);
             }
         }
+
+// ฟังก์ชันเริ่มต้นระบบเมื่อ DOM โหลดเสร็จ
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Initializing RFID Smart Shelf System...');
+    
+    // โหลดการตั้งค่าต่างๆ
+    loadColumnLayout();
+    loadSavedSizes();
+    
+    // รอให้ DOM ปรับตัวแล้วค่อยสร้าง grid
+    setTimeout(() => {
+        if (typeof loadShelfConfig === 'function') {
+            loadShelfConfig();
+        }
+    }, 200);
+    
+    console.log('✅ RFID Smart Shelf System initialized');
+});
+
+// เพิ่มฟังก์ชันใหม่เข้าใน window object
+window.calculateOptimalCellSize = calculateOptimalCellSize;

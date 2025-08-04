@@ -101,6 +101,69 @@
         <input type="text" id="barcode-scanner-input" style="position: absolute; left: -9999px; opacity: 0;" placeholder="Barcode Scanner Input">
         <!-- 🔼 END OF ADDED INPUT 🔼 -->
         
+        <!-- Toggle Button -->
+        <button onclick="toggleLayoutControls()" style="position: fixed; top: 10px; right: 10px; z-index: 1001; padding: 8px 12px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">📐 Layout</button>
+        
+        <!-- Column Layout Controls -->
+        <div class="layout-controls" style="position: fixed; top: 50px; right: 10px; z-index: 1000; background: rgba(255,255,255,0.98); padding: 15px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border: 1px solid #ddd; display: block; min-width: 220px;" id="layoutControls">
+            <div style="font-weight: bold; margin-bottom: 12px; font-size: 14px; color: #333;">📐 Layout Controls</div>
+            
+            <!-- Column Width Controls -->
+            <div style="border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 10px;">
+                <div style="font-size: 12px; color: #666; margin-bottom: 8px;">Column Proportions:</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 12px;">
+                    <button onclick="applyLayoutPreset('default')" style="padding: 6px 8px; font-size: 11px; border: 1px solid #007bff; background: #f8f9fa; border-radius: 4px; cursor: pointer; transition: all 0.2s;">65-35</button>
+                    <button onclick="applyLayoutPreset('equal')" style="padding: 6px 8px; font-size: 11px; border: 1px solid #007bff; background: #f8f9fa; border-radius: 4px; cursor: pointer; transition: all 0.2s;">50-50</button>
+                    <button onclick="applyLayoutPreset('shelf-focus')" style="padding: 6px 8px; font-size: 11px; border: 1px solid #007bff; background: #f8f9fa; border-radius: 4px; cursor: pointer; transition: all 0.2s;">75-25</button>
+                    <button onclick="applyLayoutPreset('preview-focus')" style="padding: 6px 8px; font-size: 11px; border: 1px solid #007bff; background: #f8f9fa; border-radius: 4px; cursor: pointer; transition: all 0.2s;">55-45</button>
+                </div>
+                <div style="font-size: 11px; color: #666; margin-bottom: 6px;">Shelf width: <span id="sliderValue" style="font-weight: bold; color: #007bff;">65%</span></div>
+                <input type="range" id="shelfSlider" min="30" max="90" value="65" style="width: 100%; accent-color: #007bff;" oninput="updateLayoutFromSlider()">
+            </div>
+
+            <!-- Shelf Size Controls -->
+            <div style="border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 10px;">
+                <div style="font-size: 12px; color: #666; margin-bottom: 8px;">Shelf Size (W×H):</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 8px;">
+                    <button onclick="setOptimizedShelfSize(550, 230)" style="padding: 4px 6px; font-size: 10px; border: 1px solid #28a745; background: #f8f9fa; border-radius: 3px; cursor: pointer;">550×230</button>
+                    <button onclick="setOptimizedShelfSize(550, 475)" style="padding: 4px 6px; font-size: 10px; border: 1px solid #28a745; background: #e8f5e8; border-radius: 3px; cursor: pointer; font-weight: bold;">550×475</button>
+                    <button onclick="setOptimizedShelfSize(600, 250)" style="padding: 4px 6px; font-size: 10px; border: 1px solid #28a745; background: #f8f9fa; border-radius: 3px; cursor: pointer;">600×250</button>
+                    <button onclick="setOptimizedShelfSize(650, 280)" style="padding: 4px 6px; font-size: 10px; border: 1px solid #28a745; background: #f8f9fa; border-radius: 3px; cursor: pointer;">650×280</button>
+                    <button onclick="setOptimizedShelfSize(700, 300)" style="padding: 4px 6px; font-size: 10px; border: 1px solid #28a745; background: #f8f9fa; border-radius: 3px; cursor: pointer;">700×300</button>
+                </div>
+                <div style="display: flex; gap: 4px; align-items: center;">
+                    <input type="number" id="customWidth" placeholder="W" style="width: 60px; padding: 2px; font-size: 10px; border: 1px solid #ccc; border-radius: 2px;">
+                    <span style="font-size: 10px;">×</span>
+                    <input type="number" id="customHeight" placeholder="H" style="width: 60px; padding: 2px; font-size: 10px; border: 1px solid #ccc; border-radius: 2px;">
+                    <button onclick="setCustomShelfSize()" style="padding: 2px 6px; font-size: 10px; border: 1px solid #17a2b8; background: #f8f9fa; border-radius: 2px; cursor: pointer;">Set</button>
+                </div>
+            </div>
+
+            <!-- Cell Preview Size Controls -->
+            <div style="border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 10px;">
+                <div style="font-size: 12px; color: #666; margin-bottom: 8px;">Cell Preview Size:</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 8px;">
+                    <button onclick="setCellPreviewSize(300, 350, 250)" style="padding: 4px 6px; font-size: 10px; border: 1px solid #ffc107; background: #f8f9fa; border-radius: 3px; cursor: pointer;">250×350</button>
+                    <button onclick="setCellPreviewSize(350, 400, 280)" style="padding: 4px 6px; font-size: 10px; border: 1px solid #ffc107; background: #f8f9fa; border-radius: 3px; cursor: pointer;">280×400</button>
+                    <button onclick="setCellPreviewSize(400, 450, 320)" style="padding: 4px 6px; font-size: 10px; border: 1px solid #ffc107; background: #f8f9fa; border-radius: 3px; cursor: pointer;">320×450</button>
+                    <button onclick="setCellPreviewSize(450, 500, 350)" style="padding: 4px 6px; font-size: 10px; border: 1px solid #ffc107; background: #fff3cd; border-radius: 3px; cursor: pointer; font-weight: bold;">350×500</button>
+                    <button onclick="setCellPreviewSize(550, 600, 420)" style="padding: 4px 6px; font-size: 10px; border: 1px solid #ffc107; background: #f8f9fa; border-radius: 3px; cursor: pointer;">420×600</button>
+                </div>
+                
+                <!-- Custom Cell Preview Size Input -->
+                <div style="display: flex; gap: 4px; margin-top: 6px;">
+                    <input type="number" id="customPreviewWidth" placeholder="W" style="width: 40px; padding: 2px 4px; font-size: 10px; border: 1px solid #ddd; border-radius: 3px;">
+                    <span style="font-size: 10px; align-self: center;">×</span>
+                    <input type="number" id="customPreviewHeight" placeholder="H" style="width: 40px; padding: 2px 4px; font-size: 10px; border: 1px solid #ddd; border-radius: 3px;">
+                    <button onclick="setCustomCellPreviewSize()" style="padding: 2px 6px; font-size: 10px; border: 1px solid #007bff; background: #e3f2fd; border-radius: 3px; cursor: pointer;">Set</button>
+                </div>
+            </div>
+            
+            <div style="font-size: 10px; color: #888; margin-top: 8px; border-top: 1px solid #eee; padding-top: 6px;">
+                Shortcuts: Ctrl+1-6, Ctrl+0
+            </div>
+        </div>
+        
         <div class="main-container">
             <!-- Shelf Panel (กลาง) -->
             <div class="shelf-panel">
@@ -120,160 +183,19 @@
 
     <!-- 3. เรียกใช้ไฟล์ JavaScript ภายนอก (ควรวางไว้ท้าย body) -->
     <script src="/static/js/ui_logic.js"></script>
-    <style>
-      /* Simple horizontal 3-column layout - desktop only */
-      .main-container {
-        display: flex;
-        align-items: flex-start;
-        justify-content: flex-start;
-        gap: 40px;
-        width: 100%;
-        height: 100vh;
-        padding: 20px;
-        box-sizing: border-box;
-      }
-      
-      .main-container.full-shelf-mode .details-panel,
-      .main-container.full-shelf-mode .cell-preview-container {
-        display: none;
-      }
-
-      .main-container.full-shelf-mode .shelf-panel {
-        flex: 1 1 100%; /* Take full width */
-        max-width: 100%;
-        justify-content: center; /* Center the shelf grid vertically */
-      }
-      
-      .details-panel {
-        flex: 0 0 280px;
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-        padding: 24px;
-        background: #f8f9fa;
-        border-radius: 16px;
-        border: 1px solid #dee2e6;
-        min-height: 400px;
-      }
-      
-      .details-panel .lot-no-header {
-        font-size: 3.2em;
-        font-weight: 900;
-        color: #212529;
-        margin: 0 0 20px 0;
-        line-height: 1.1;
-      }
-      
-      .details-panel .status-section {
-        margin-bottom: 24px;
-      }
-      
-      .details-panel .status-label {
-        font-size: 1.2em;
-        color: #6c757d;
-        margin-bottom: 10px;
-      }
-      
-      .details-panel .pick-from-section .label {
-        font-size: 1.2em;
-        color: #6c757d;
-        margin-bottom: 10px;
-      }
-      
-      .details-panel .pick-from-section .location-info {
-        font-size: 1.5em;
-        font-weight: 600;
-        color: #343a40;
-        line-height: 1.4;
-      }
-      
-      .cell-preview-container {
-        flex: 0 0 300px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-      }
-      
-      .cell-preview-container h3 {
-        font-size: 1.3em;
-        font-weight: bold;
-        margin: 0 0 15px 0;
-        text-align: center;
-        color: #343a40;
-      }
-      
-      .block-preview {
-        border: 3px solid #343a40;
-        border-radius: 12px;
-        background: #f8f9fa;
-        padding: 20px;
-        width: 250px;
-        height: 350px;
-        display: flex;
-        flex-direction: column;
-        justify-content: flex-end;
-        gap: 8px;
-        overflow: hidden;
-      }
-      
-      .lot-item {
-        border-radius: 8px;
-        border: 2px solid #6c757d;
-        background: #fff;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 600;
-        font-size: 0.95em;
-        transition: all 0.2s;
-        min-height: 40px;
-        padding: 8px 12px;
-        text-align: center;
-        word-wrap: break-word;
-        overflow: hidden;
-      }
-      
-      .lot-item.target-lot {
-        background: repeating-linear-gradient(
-          135deg,
-          #e6f2ff,
-          #e6f2ff 10px,
-          #cce6ff 15px,
-          #e6f2ff 20px
-        );
-        border: 3px solid #0d6efd;
-        font-weight: bold;
-        color: #0d6efd;
-      }
-      
-      .lot-item.empty-slot {
-        height: 50px;
-        background: #e9ecef;
-        color: #6c757d;
-        font-style: italic;
-        border: 2px dashed #adb5bd;
-      }
-      
-      .shelf-panel {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: flex-start;
-        min-width: 400px;
-      }
-      
-      .shelf-panel h2 {
-        margin: 0 0 30px 0;
-        font-size: 2.2em;
-        color: #343a40;
-        font-weight: 700;
-      }
-      
-      /* Remove all responsive/mobile styles - desktop only */
-    </style>
     
+    <script>
+        // โหลดการตั้งค่าขนาดที่บันทึกไว้เมื่อเริ่มต้น
+        document.addEventListener('DOMContentLoaded', function() {
+            // โหลดขนาดที่บันทึกไว้
+            loadSavedSizes();
+            
+            // โหลด column layout ที่บันทึกไว้
+            loadColumnLayout();
+            
+            console.log('🚀 Layout controls and saved sizes loaded');
+        });
+    </script>
 
-
-</html></body></body>
+</body>
 </html>
