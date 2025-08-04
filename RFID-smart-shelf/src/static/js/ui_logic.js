@@ -36,11 +36,11 @@ function renderCellPreview({ level, block, lots, targetLotNo, isPlaceJob = false
             const isTarget = lot.lot_no === targetLotNo;
             const isNewLot = isPlaceJob && i === previewLots.length - 1 && isTarget;
 
-            // คำนวณความสูงตามสัดส่วน tray_count เทียบกับความจุสูงสุด (24)
-            const maxCapacity = 24;
+            // คำนวณความสูงตามสัดส่วน tray_count เทียบกับความจุจริงของ cell
+            const maxCapacity = getCellCapacity(level, block); // ใช้ความจุจริงของ cell แทนค่าคงที่ 24
             const maxContainerHeight = 300; // ความสูงที่ใช้ได้ของ container (350px - padding)
             const heightRatio = trayCount / maxCapacity;
-            const height = Math.max(heightRatio * maxContainerHeight, 30); // ความสูงขั้นต่ำ 30px
+            const height = Math.max(heightRatio * maxContainerHeight, 8); // ลดความสูงขั้นต่ำเป็น 8px เพื่อให้แสดงสัดส่วนที่ถูกต้อง
 
             // ตัดชื่อ lot ถ้ายาวเกินไป (สำหรับ desktop ใช้ 15 ตัวอักษร)
             const displayName = lot.lot_no.length > 15 ?
@@ -51,7 +51,7 @@ function renderCellPreview({ level, block, lots, targetLotNo, isPlaceJob = false
             if (isTarget) itemClass += ' target-lot';
             if (isNewLot) itemClass += ' new-lot';
 
-            html += `<div class="${itemClass}" style="height: ${height}px;" title="${lot.lot_no}">`;
+            html += `<div class="${itemClass}" style="height: ${height}px;" title="${lot.lot_no} - ${trayCount} trays">`;
             html += `<span class="lot-name">${displayName}</span>`;
             if (isNewLot) {
                 html += `<span class="new-badge"> NEW</span>`;
@@ -84,6 +84,22 @@ function getLotsInCell(level, block) {
         }
     }
     return [];
+}
+
+// Utility: Get cell capacity (actual max trays for a specific cell)
+function getCellCapacity(level, block) {
+    // ค่าความจุเริ่มต้นสำหรับแต่ละ cell (สามารถปรับแก้ได้ตามความต้องการ)
+    const cellCapacities = {
+        '1-1': 22, // Level 1 Block 1 = 22 trays
+        '1-2': 24, // Level 1 Block 2 = 24 trays  
+        '1-3': 24, // Level 1 Block 3 = 24 trays
+        '1-4': 24, // Level 1 Block 4 = 24 trays
+        '1-5': 24, // Level 1 Block 5 = 24 trays
+        // เพิ่มข้อมูลความจุของ cell อื่นๆ ตามความต้องการ
+    };
+    
+    const cellKey = `${level}-${block}`;
+    return cellCapacities[cellKey] || 24; // ถ้าไม่มีข้อมูล ใช้ 24 เป็นค่าเริ่มต้น
 }
 
 // Example usage: log lots in Level 1, Block 2
@@ -458,12 +474,16 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 }
                 lotDiv.className = 'stacked-lot' + (isTarget ? ' target-lot' : '');
                 
-                // คำนวณความสูงตาม tray_count (แต่ละ tray = 2px สำหรับขนาด compact)
-                const trayHeight = Math.max((parseInt(lot.tray_count) || 1) * 2, 4); // ขั้นต่ำ 4px
-                lotDiv.style.height = trayHeight + 'px';
+                // คำนวณความสูงตาม tray_count แบบสัดส่วนที่ชัดเจน
+                const trayCount = parseInt(lot.tray_count) || 1;
+                const maxCapacity = 24;
+                const maxCellHeight = 85; // ใช้ความสูงสูงสุดที่เหมาะสมกับ cell height 90px
+                const heightRatio = trayCount / maxCapacity;
+                const trayHeight = Math.max(heightRatio * maxCellHeight, 2); // ขั้นต่ำ 2px เพื่อให้เห็น
+                lotDiv.style.height = Math.round(trayHeight) + 'px';
                 
                 // เก็บข้อมูลใน title สำหรับ tooltip เท่านั้น
-                lotDiv.title = `Lot: ${lot.lot_no}, Tray: ${lot.tray_count}`;
+                lotDiv.title = `Lot: ${lot.lot_no}, Tray: ${trayCount}, Height: ${Math.round(trayHeight)}px`;
                 
                 // ไม่ใส่ข้อความ (แสดงเป็นกล่องสีเทาเท่านั้น)
                 
@@ -517,13 +537,14 @@ const ACTIVE_JOB_KEY = 'activeJob';
 
         // แสดง Cell Preview สำหรับ active job
         const isPlaceJob = activeJob.place_flg === '1';
+        const actualTrayCount = parseInt(activeJob.tray_count) || 1; // ใช้ค่าจริงจาก activeJob
         renderCellPreview({
             level: activeJob.level,
             block: activeJob.block,
             lots: lotsInCell,
             targetLotNo: activeJob.lot_no,
             isPlaceJob: isPlaceJob,
-            newLotTrayCount: isPlaceJob ? 12 : 0 // ใช้ 12 เป็นค่าเริ่มต้น สำหรับ Place job
+            newLotTrayCount: isPlaceJob ? actualTrayCount : 0 // ใช้ค่าจริงแทนค่าคงที่ 12
         });
     } else {
         // ถ้าไม่มี active job ให้แสดงข้อความเริ่มต้น (ตอนนี้ถูกซ่อนอยู่ แต่เผื่อกลับมาใช้)
@@ -585,15 +606,25 @@ const ACTIVE_JOB_KEY = 'activeJob';
             if (selectedJob) {
                 console.log(`📋 Selecting job: ${selectedJob.lot_no} (ID: ${jobId})`);
                 
+                // เพิ่ม UUID และ timestamp สำหรับการติดตาม
+                const jobWithMeta = {
+                    ...selectedJob,
+                    selectedAt: new Date().toISOString(),
+                    uuid: crypto.randomUUID ? crypto.randomUUID() : 'uuid-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9)
+                };
+                
+                console.log(`🔍 Job metadata added - UUID: ${jobWithMeta.uuid}, Selected at: ${jobWithMeta.selectedAt}`);
+                
                 // ลบ job ที่เลือกออกจาก queue
                 const updatedQueue = queue.filter(job => job.jobId !== jobId);
                 localStorage.setItem(QUEUE_KEY, JSON.stringify(updatedQueue));
                 
-                // ตั้งเป็น active job
-                setActiveJob(selectedJob);
+                // ตั้งเป็น active job พร้อม metadata
+                setActiveJob(jobWithMeta);
                 renderAll();
                 
                 console.log(`✅ Job ${selectedJob.lot_no} activated. Remaining queue size: ${updatedQueue.length}`);
+                console.log(`📌 Active job stored with UUID: ${jobWithMeta.uuid}`);
             } else {
                 console.error('❌ Job not found:', jobId);
             }
@@ -796,7 +827,13 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 setActiveJob(activeJob);
             }
 
-            console.log('🚀 Completing job:', activeJob.jobId);
+            console.log('🚀 Completing job:', activeJob.jobId, 'Lot:', activeJob.lot_no);
+            console.log(`📝 Job metadata:`, {
+                uuid: activeJob.uuid || 'N/A',
+                selectedAt: activeJob.selectedAt || 'N/A',
+                level: activeJob.level,
+                block: activeJob.block
+            });
 
             // Clear loggedCells so next render logs new state
             if (window.__rfid_loggedCells) window.__rfid_loggedCells.clear();
@@ -809,11 +846,13 @@ const ACTIVE_JOB_KEY = 'activeJob';
                         jobId: activeJob.jobId,
                         lot_no: activeJob.lot_no,
                         level: activeJob.level,
-                        block: activeJob.block
+                        block: activeJob.block,
+                        uuid: activeJob.uuid || null,
+                        completedAt: new Date().toISOString()
                     }
                 };
                 websocketConnection.send(JSON.stringify(message));
-                console.log('📤 Complete job message sent via WebSocket');
+                console.log('📤 Complete job message sent via WebSocket:', message.payload);
             } else {
                 console.warn('⚠️ WebSocket not available, using HTTP fallback');
                 
@@ -949,6 +988,22 @@ const ACTIVE_JOB_KEY = 'activeJob';
                             if (currentActiveJob && currentActiveJob.jobId !== data.payload.completedJobId) {
                                 console.warn(`⚠️ Job ID mismatch! Current active: ${currentActiveJob.jobId}, Completed: ${data.payload.completedJobId}`);
                                 console.warn(`⚠️ Current active lot: ${currentActiveJob.lot_no}, Completed lot: ${data.payload.lot_no}`);
+                                console.warn(`🔍 UUID check - Active UUID: ${currentActiveJob.uuid || 'N/A'}, Completed UUID: ${data.payload.uuid || 'N/A'}`);
+                                
+                                // ตรวจสอบ UUID ถ้ามี
+                                if (currentActiveJob.uuid && data.payload.uuid && currentActiveJob.uuid !== data.payload.uuid) {
+                                    console.error(`❌ UUID mismatch detected! This is a different job completion.`);
+                                }
+                                
+                                // ถ้าไม่ตรงกัน อาจเป็นการ complete job อื่นที่ไม่ใช่ active job
+                                // แค่อัปเดต queue และ shelf state โดยไม่ลบ active job
+                                let currentQueue = getQueue();
+                                currentQueue = currentQueue.filter(j => j.jobId !== data.payload.completedJobId);
+                                localStorage.setItem(QUEUE_KEY, JSON.stringify(currentQueue));
+                                localStorage.setItem(GLOBAL_SHELF_STATE_KEY, JSON.stringify(data.payload.shelf_state));
+                                renderAll();
+                                showNotification(`⚠️ Job ${data.payload.lot_no} completed by another process!`, 'warning');
+                                return; // ไม่ลบ active job
                             }
                             
                             let currentQueue = getQueue();
@@ -967,9 +1022,19 @@ const ACTIVE_JOB_KEY = 'activeJob';
                             localStorage.setItem(GLOBAL_SHELF_STATE_KEY, JSON.stringify(data.payload.shelf_state));
                             localStorage.removeItem(ACTIVE_JOB_KEY);
                             renderAll();
-                            showNotification(`Job completed for Lot ${data.payload.lot_no || 'Unknown'}!`, 'success');
+                            showNotification(`✅ Job completed for Lot ${data.payload.lot_no || 'Unknown'}!`, 'success');
 
                             fetch('/api/led/clear', { method: 'POST' });
+                            break;
+                        case "job_warning":
+                            console.log('⚠️ Received job warning:', data.payload);
+                            showNotification(`⚠️ ${data.payload.message}`, 'warning');
+                            
+                            // ถ้า warning เป็น JOB_ALREADY_COMPLETED ให้ลบ active job และ render ใหม่
+                            if (data.payload.warning === 'JOB_ALREADY_COMPLETED') {
+                                localStorage.removeItem(ACTIVE_JOB_KEY);
+                                renderAll();
+                            }
                             break;
                         case "job_error":
                             localStorage.setItem(ACTIVE_JOB_KEY, JSON.stringify(data.payload)); // ใช้ Key ที่ถูกต้อง
