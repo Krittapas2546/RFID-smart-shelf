@@ -741,7 +741,7 @@ GET /api/shelf/config
 
 ### 7.4. LED Control APIs
 
-#### 7.4.1. Single LED Control
+#### 7.4.1. Single LED Control (Level/Block)
 ```http
 POST /api/led
 Content-Type: application/json
@@ -755,7 +755,37 @@ Content-Type: application/json
 }
 ```
 
-#### 7.4.2. Batch LED Control
+#### 7.4.2. LED Control by Position String
+```http
+POST /api/led/position
+Content-Type: application/json
+
+{
+    "position": "L1B3",
+    "r": 255,
+    "g": 0,
+    "b": 0
+}
+```
+
+**Response:**
+```json
+{
+    "ok": true,
+    "position": "L1B3",
+    "level": 1,
+    "block": 3,
+    "color": {"r": 255, "g": 0, "b": 0},
+    "index": 2
+}
+```
+
+**Supported Position Formats:**
+- `L1B1` - Level 1, Block 1
+- `L2B5` - Level 2, Block 5
+- `L4B8` - Level 4, Block 8
+
+#### 7.4.3. Batch LED Control (Level/Block)
 ```http
 POST /api/led/batch
 Content-Type: application/json
@@ -769,10 +799,66 @@ Content-Type: application/json
 }
 ```
 
-#### 7.4.3. Clear All LEDs
+#### 7.4.4. Batch LED Control by Positions
+```http
+POST /api/led/positions
+Content-Type: application/json
+
+{
+    "positions": [
+        {"position": "L1B1", "r": 0, "g": 0, "b": 255},
+        {"position": "L1B3", "r": 0, "g": 0, "b": 255},
+        {"position": "L2B2", "r": 255, "g": 0, "b": 0}
+    ]
+}
+```
+
+**Response:**
+```json
+{
+    "ok": true,
+    "count": 3,
+    "positions": ["L1B1", "L1B3", "L2B2"],
+    "colors": [
+        {"position": "L1B1", "r": 0, "g": 0, "b": 255},
+        {"position": "L1B3", "r": 0, "g": 0, "b": 255},
+        {"position": "L2B2", "r": 255, "g": 0, "b": 0}
+    ]
+}
+```
+
+#### 7.4.5. Clear All LEDs
 ```http
 POST /api/led/clear
 ```
+
+**Response:**
+```json
+{
+    "ok": true
+}
+```
+
+#### 7.4.6. LED Control Examples
+
+**Turn on blue LED at L1B1:**
+```bash
+curl -X POST http://localhost:8000/api/led/position \
+  -H "Content-Type: application/json" \
+  -d '{"position":"L1B1","r":0,"g":0,"b":255}'
+```
+
+**Turn on multiple LEDs with positions:**
+```bash
+curl -X POST http://localhost:8000/api/led/positions \
+  -H "Content-Type: application/json" \
+  -d '{"positions":[{"position":"L1B1","r":255,"g":0,"b":0},{"position":"L2B3","r":0,"g":255,"b":0}]}'
+```
+
+**Error Handling:**
+- Invalid position format: Returns 400 with format guidance
+- Position not in shelf config: Returns 400 with validation error
+- Invalid RGB values: Returns 400 with value range error
 
 ### 7.5. System Utilities
 
@@ -1338,39 +1424,67 @@ def test_get_shelf_state():
 ### 11.2. API Testing Tools
 
 #### 11.2.1. Built-in Simulator
-Access `/simulator` endpoint for interactive API testing:
+Access `/simulator` endpoint for interactive API testing with LED controls:
 
 ```html
-<!-- API Test Interface -->
-<div class="test-panel">
-    <h3>Create New Job</h3>
-    <input id="lot-no" placeholder="Lot Number">
-    <select id="level">
-        <option value="1">Level 1</option>
-        <option value="2">Level 2</option>
+<!-- LED Control Interface -->
+<div class="led-control-panel">
+    <h3>🔵 LED Control by Position</h3>
+    <input id="led-position" placeholder="L1B1">
+    <select id="led-color">
+        <option value="255,0,0">Red</option>
+        <option value="0,255,0">Green</option>
+        <option value="0,0,255">Blue</option>
     </select>
-    <button onclick="createTestJob()">Create Job</button>
+    <button onclick="controlLEDByPosition()">Control LED</button>
 </div>
 ```
 
-#### 11.2.2. cURL Commands
+#### 11.2.2. Python Test Script
+Run automated LED API tests:
+
 ```bash
+# Run LED API test script
+python test_led_api.py
+```
+
+**Features:**
+- Tests all LED control endpoints
+- Validates error handling
+- Demonstrates workflow scenarios
+- Checks shelf configuration
+
+#### 11.2.3. cURL Commands
+```bash
+# Single LED control by position
+curl -X POST http://localhost:8000/api/led/position \
+  -H "Content-Type: application/json" \
+  -d '{"position":"L1B1","r":255,"g":0,"b":0}'
+
+# Multiple LEDs control
+curl -X POST http://localhost:8000/api/led/positions \
+  -H "Content-Type: application/json" \
+  -d '{"positions":[{"position":"L1B1","r":255,"g":0,"b":0},{"position":"L2B3","r":0,"g":255,"b":0}]}'
+
 # Create job
 curl -X POST http://localhost:8000/command \
   -H "Content-Type: application/json" \
   -d '{"lot_no":"TEST123","level":"1","block":"2","place_flg":"1","tray_count":"10"}'
 
-# Get jobs
-curl http://localhost:8000/command
-
 # System reset
 curl -X POST http://localhost:8000/api/system/reset
 
-# LED test
-curl -X POST http://localhost:8000/api/led \
-  -H "Content-Type: application/json" \
-  -d '{"level":1,"block":1,"r":255,"g":0,"b":0}'
+# Clear all LEDs
+curl -X POST http://localhost:8000/api/led/clear
 ```
+
+#### 11.2.4. Test Files
+
+| File | Purpose | Usage |
+|------|---------|-------|
+| `test_led_api.py` | Automated LED API testing | `python test_led_api.py` |
+| `led_test_commands.sh` | cURL command examples | Copy/paste commands |
+| `/simulator` | Interactive web interface | Open in browser |
 
 ### 11.3. Debugging Tools
 

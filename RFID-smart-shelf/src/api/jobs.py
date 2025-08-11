@@ -8,7 +8,7 @@ import pathlib
 from core.led_controller import set_led
 
 # --- Import จากไฟล์ที่เราสร้างขึ้น ---
-from core.models import JobRequest, ErrorRequest
+from core.models import JobRequest, ErrorRequest, LEDPositionRequest, LEDPositionsRequest
 from core.database import (
     DB, get_job_by_id, get_lots_in_position, add_lot_to_position, remove_lot_from_position, update_lot_quantity, validate_position, get_shelf_info, SHELF_CONFIG
 )
@@ -73,6 +73,128 @@ async def control_led_batch(request: Request):
         return {"ok": True, "count": len(leds)}
     except Exception as e:
         return JSONResponse(status_code=400, content={"error": "Invalid JSON or batch", "detail": str(e)})
+
+# รองรับสั่งไฟด้วยรูปแบบ position string เช่น "L1B1"
+@router.post("/api/led/position", tags=["LED Control"])
+async def control_led_by_position(request: LEDPositionRequest):
+    """ควบคุม LED โดยส่ง position string เช่น L1B1, L2B3"""
+    try:
+        position = request.position.upper().strip()
+        r = request.r
+        g = request.g
+        b = request.b
+        
+        # Parse position string (L1B1, L2B3, etc.)
+        import re
+        match = re.match(r'^L(\d+)B(\d+)$', position)
+        if not match:
+            return JSONResponse(status_code=400, content={
+                "error": "Invalid position format", 
+                "message": "Position must be in format L{level}B{block} (e.g., L1B1, L2B3)"
+            })
+        
+        level = int(match.group(1))
+        block = int(match.group(2))
+        
+        # Validate position exists in shelf config
+        if not validate_position(level, block):
+            return JSONResponse(status_code=400, content={
+                "error": "Invalid position", 
+                "message": f"Position {position} does not exist in shelf configuration"
+            })
+        
+        # Control LED
+        result = set_led(level, block, r, g, b)
+        result.update({
+            "position": position,
+            "level": level,
+            "block": block,
+            "color": {"r": r, "g": g, "b": b},
+            "hex_color": f"#{r:02x}{g:02x}{b:02x}"
+        })
+        
+        return result
+        
+    except Exception as e:
+        return JSONResponse(status_code=400, content={
+            "error": "Invalid request", 
+            "detail": str(e)
+        })
+
+# รองรับสั่งไฟหลายตำแหน่งด้วย position strings
+@router.post("/api/led/positions", tags=["LED Control"])
+async def control_led_by_positions(request: LEDPositionsRequest):
+    """ควบคุม LED หลายตำแหน่งโดยส่ง array ของ position objects"""
+    try:
+        led_commands = []
+        invalid_positions = []
+        
+        # Parse each position
+        import re
+        for pos_data in request.positions:
+            position = pos_data.position.upper().strip()
+            r = pos_data.r
+            g = pos_data.g
+            b = pos_data.b
+            
+            # Parse position string
+            match = re.match(r'^L(\d+)B(\d+)$', position)
+            if not match:
+                invalid_positions.append(f"{position}: Invalid format")
+                continue
+                
+            level = int(match.group(1))
+            block = int(match.group(2))
+            
+            # Validate position
+            if not validate_position(level, block):
+                invalid_positions.append(f"{position}: Not in shelf config")
+                continue
+                
+            led_commands.append({
+                "level": level,
+                "block": block, 
+                "r": r,
+                "g": g,
+                "b": b,
+                "position": position,
+                "hex_color": f"#{r:02x}{g:02x}{b:02x}"
+            })
+        
+        if invalid_positions:
+            return JSONResponse(status_code=400, content={
+                "error": "Invalid positions found",
+                "invalid_positions": invalid_positions,
+                "valid_count": len(led_commands)
+            })
+        
+        if not led_commands:
+            return JSONResponse(status_code=400, content={
+                "error": "No valid positions provided"
+            })
+        
+        # Execute LED commands
+        from core.led_controller import set_led_batch
+        set_led_batch(led_commands)
+        
+        return {
+            "ok": True,
+            "count": len(led_commands),
+            "positions": [cmd["position"] for cmd in led_commands],
+            "colors": [
+                {
+                    "position": cmd["position"], 
+                    "rgb": {"r": cmd["r"], "g": cmd["g"], "b": cmd["b"]},
+                    "hex": cmd["hex_color"]
+                } for cmd in led_commands
+            ]
+        }
+        
+    except Exception as e:
+        return JSONResponse(status_code=400, content={
+            "error": "Invalid request",
+            "detail": str(e)
+        })
     
 
 @router.post("/api/led/clear", tags=["System"])
