@@ -389,7 +389,7 @@ flowchart LR
     
     subgraph SERVER["Server (Backend)"]
         C["🚀 <b>FastAPI App</b><br/>main.py"]
-        D["⚡ <b>API Routers</b><br/>api/jobs.py"]
+        D["⚡ <b>API Routers(LMS)</b><br/>api/jobs.py"]
         E["📡 <b>WebSocket Manager</b><br/>api/websockets.py"]
         F["🧠 <b>Core Logic & DB</b><br/>core/database.py"]
         
@@ -893,7 +893,7 @@ GET /health
 sequenceDiagram
     participant Client as Web Client
     participant WSM as WebSocket Manager
-    participant API as API Router
+    participant API as Fast API
     participant DB as Database
     
     Client->>WSM: Connect to /ws
