@@ -143,7 +143,7 @@ flowchart LR
 
 ```mermaid
 sequenceDiagram
-    participant ERP as ERP System
+    participant ERP as LMS System
     participant API as FastAPI Server
     participant WS as WebSocket Manager
     participant UI as Frontend UI
