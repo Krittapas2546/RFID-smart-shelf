@@ -23,16 +23,17 @@ templates = Jinja2Templates(directory=str(pathlib.Path(__file__).parent.parent /
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
-@router.get("/api/shelf/config", tags=["System"])
-def get_shelf_config():
-    config = SHELF_CONFIG
-    total_levels = len(config)
-    max_blocks = max(config.values())
-    return JSONResponse(content={
-        "config": config,
-        "total_levels": total_levels,
-        "max_blocks": max_blocks
-    })
+# ลบ endpoint ที่ซ้ำกัน - ใช้แค่อันด้านล่างที่ tags=["Jobs"]
+# @router.get("/api/shelf/config", tags=["System"])
+# def get_shelf_config():
+#     config = SHELF_CONFIG
+#     total_levels = len(config)
+#     max_blocks = max(config.values())
+#     return JSONResponse(content={
+#         "config": config,
+#         "total_levels": total_levels,
+#         "max_blocks": max_blocks
+#     })
 
 
 # รองรับสั่งทีละดวง (เดิม)
