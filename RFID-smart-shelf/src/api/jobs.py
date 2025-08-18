@@ -8,8 +8,10 @@ import pathlib
 from core.led_controller import set_led
 
 # --- Import จากไฟล์ที่เราสร้างขึ้น ---
-from core.models import JobRequest, ErrorRequest
-from core.database import DB, get_job_by_id, update_shelf_state, get_lot_in_position, validate_position, get_shelf_info, SHELF_CONFIG
+from core.models import JobRequest, ErrorRequest, LEDPositionRequest, LEDPositionsRequest
+from core.database import (
+    DB, get_job_by_id, get_lots_in_position, add_lot_to_position, remove_lot_from_position, update_lot_quantity, validate_position, get_shelf_info, SHELF_CONFIG
+)
 from api.websockets import manager # <-- import manager มาจากที่ใหม่
 
 router = APIRouter() # <-- สร้าง router สำหรับไฟล์นี้
@@ -21,16 +23,17 @@ templates = Jinja2Templates(directory=str(pathlib.Path(__file__).parent.parent /
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
-@router.get("/api/shelf/config", tags=["System"])
-def get_shelf_config():
-    config = SHELF_CONFIG
-    total_levels = len(config)
-    max_blocks = max(config.values())
-    return JSONResponse(content={
-        "config": config,
-        "total_levels": total_levels,
-        "max_blocks": max_blocks
-    })
+# ลบ endpoint ที่ซ้ำกัน - ใช้แค่อันด้านล่างที่ tags=["Jobs"]
+# @router.get("/api/shelf/config", tags=["System"])
+# def get_shelf_config():
+#     config = SHELF_CONFIG
+#     total_levels = len(config)
+#     max_blocks = max(config.values())
+#     return JSONResponse(content={
+#         "config": config,
+#         "total_levels": total_levels,
+#         "max_blocks": max_blocks
+#     })
 
 
 # รองรับสั่งทีละดวง (เดิม)
@@ -71,6 +74,128 @@ async def control_led_batch(request: Request):
         return {"ok": True, "count": len(leds)}
     except Exception as e:
         return JSONResponse(status_code=400, content={"error": "Invalid JSON or batch", "detail": str(e)})
+
+# รองรับสั่งไฟด้วยรูปแบบ position string เช่น "L1B1"
+@router.post("/api/led/position", tags=["LED Control"])
+async def control_led_by_position(request: LEDPositionRequest):
+    """ควบคุม LED โดยส่ง position string เช่น L1B1, L2B3"""
+    try:
+        position = request.position.upper().strip()
+        r = request.r
+        g = request.g
+        b = request.b
+        
+        # Parse position string (L1B1, L2B3, etc.)
+        import re
+        match = re.match(r'^L(\d+)B(\d+)$', position)
+        if not match:
+            return JSONResponse(status_code=400, content={
+                "error": "Invalid position format", 
+                "message": "Position must be in format L{level}B{block} (e.g., L1B1, L2B3)"
+            })
+        
+        level = int(match.group(1))
+        block = int(match.group(2))
+        
+        # Validate position exists in shelf config
+        if not validate_position(level, block):
+            return JSONResponse(status_code=400, content={
+                "error": "Invalid position", 
+                "message": f"Position {position} does not exist in shelf configuration"
+            })
+        
+        # Control LED
+        result = set_led(level, block, r, g, b)
+        result.update({
+            "position": position,
+            "level": level,
+            "block": block,
+            "color": {"r": r, "g": g, "b": b},
+            "hex_color": f"#{r:02x}{g:02x}{b:02x}"
+        })
+        
+        return result
+        
+    except Exception as e:
+        return JSONResponse(status_code=400, content={
+            "error": "Invalid request", 
+            "detail": str(e)
+        })
+
+# รองรับสั่งไฟหลายตำแหน่งด้วย position strings
+@router.post("/api/led/positions", tags=["LED Control"])
+async def control_led_by_positions(request: LEDPositionsRequest):
+    """ควบคุม LED หลายตำแหน่งโดยส่ง array ของ position objects"""
+    try:
+        led_commands = []
+        invalid_positions = []
+        
+        # Parse each position
+        import re
+        for pos_data in request.positions:
+            position = pos_data.position.upper().strip()
+            r = pos_data.r
+            g = pos_data.g
+            b = pos_data.b
+            
+            # Parse position string
+            match = re.match(r'^L(\d+)B(\d+)$', position)
+            if not match:
+                invalid_positions.append(f"{position}: Invalid format")
+                continue
+                
+            level = int(match.group(1))
+            block = int(match.group(2))
+            
+            # Validate position
+            if not validate_position(level, block):
+                invalid_positions.append(f"{position}: Not in shelf config")
+                continue
+                
+            led_commands.append({
+                "level": level,
+                "block": block, 
+                "r": r,
+                "g": g,
+                "b": b,
+                "position": position,
+                "hex_color": f"#{r:02x}{g:02x}{b:02x}"
+            })
+        
+        if invalid_positions:
+            return JSONResponse(status_code=400, content={
+                "error": "Invalid positions found",
+                "invalid_positions": invalid_positions,
+                "valid_count": len(led_commands)
+            })
+        
+        if not led_commands:
+            return JSONResponse(status_code=400, content={
+                "error": "No valid positions provided"
+            })
+        
+        # Execute LED commands
+        from core.led_controller import set_led_batch
+        set_led_batch(led_commands)
+        
+        return {
+            "ok": True,
+            "count": len(led_commands),
+            "positions": [cmd["position"] for cmd in led_commands],
+            "colors": [
+                {
+                    "position": cmd["position"], 
+                    "rgb": {"r": cmd["r"], "g": cmd["g"], "b": cmd["b"]},
+                    "hex": cmd["hex_color"]
+                } for cmd in led_commands
+            ]
+        }
+        
+    except Exception as e:
+        return JSONResponse(status_code=400, content={
+            "error": "Invalid request",
+            "detail": str(e)
+        })
     
 
 @router.post("/api/led/clear", tags=["System"])
@@ -100,7 +225,16 @@ def get_all_jobs():
 
 @router.get("/api/shelf/state", tags=["Jobs"])
 def get_shelf_state():
-    return {"shelf_state": DB["shelf_state"]}
+    # Return lots as list per cell
+    shelf_state = []
+    for cell in DB["shelf_state"]:
+        level, block, lots = cell
+        shelf_state.append({
+            "level": level,
+            "block": block,
+            "lots": lots
+        })
+    return {"shelf_state": shelf_state}
 
 @router.get("/api/shelf/config", tags=["Jobs"])
 def get_shelf_config():
@@ -115,30 +249,27 @@ def get_position_info(level: int, block: int):
             "error": "Invalid position",
             "message": f"Position L{level}B{block} does not exist in shelf configuration"
         }
-    
-    lot_no = get_lot_in_position(level, block)
-    has_item = 1 if lot_no else 0
-    
+    lots = get_lots_in_position(level, block)
     return {
         "level": level,
-        "block": block, 
-        "has_item": has_item,
-        "lot_no": lot_no,
-        "message": f"Position L{level}B{block}: {'Has ' + lot_no if lot_no else 'Empty'}"
+        "block": block,
+        "lots": lots,
+        "message": f"Position L{level}B{block}: {len(lots)} lot(s)"
     }
 
-@router.get("/api/shelf/lots", tags=["Jobs"])  
+@router.get("/api/shelf/lots", tags=["Jobs"])
 def get_all_lots_in_shelf():
-    """ดึงรายการ Lot ทั้งหมดที่อยู่ในชั้นวาง"""
+    """ดึงรายการ Lot ทั้งหมดที่อยู่ในชั้นวาง (ทุก lot ทุก cell)"""
     lots_info = []
-    for level, block, has_item, lot_no in DB["shelf_state"]:
-        if has_item and lot_no:
+    for cell in DB["shelf_state"]:
+        level, block, lots = cell
+        for lot in lots:
             lots_info.append({
                 "level": level,
                 "block": block,
-                "lot_no": lot_no
+                "lot_no": lot["lot_no"],
+                "tray_count": lot["tray_count"]
             })
-    
     return {
         "total_lots": len(lots_info),
         "lots": lots_info
@@ -153,8 +284,39 @@ async def create_job_via_api(job: JobRequest):
          return {"status": "error", "message": f"Job for lot {job.lot_no} already exists in the queue."}
     # --- END: ปิดการตรวจสอบ ---
 
+    # --- NEW: Validate lot exists in specified position (เฉพาะงานหยิบ) ---
+    if job.place_flg == "0":  # งานหยิบ (pick)
+        level = int(job.level)
+        block = int(job.block)
+        
+        # ตรวจสอบว่า position ถูกต้องหรือไม่
+        if not validate_position(level, block):
+            print(f"API: Rejected job for invalid position L{level}B{block}")
+            return {
+                "status": "error", 
+                "message": f"Invalid position L{level}B{block} does not exist in shelf configuration"
+            }
+        
+        # ตรวจสอบว่า lot_no มีอยู่ในช่องนั้นหรือไม่
+        lots_in_cell = get_lots_in_position(level, block)
+        lot_exists = any(lot["lot_no"] == job.lot_no for lot in lots_in_cell)
+        
+        if not lot_exists:
+            print(f"API: Rejected pick job for Lot {job.lot_no} - not found in L{level}B{block}")
+            print(f"API: Lots in cell ({level}, {block}): {[lot['lot_no'] for lot in lots_in_cell]}")
+            return {
+                "status": "error", 
+                "message": f"Lot {job.lot_no} not found in position L{level}B{block}. Cannot create pick job for non-existent lot."
+            }
+        
+        print(f"API: Validation passed - Lot {job.lot_no} exists in L{level}B{block}")
+    # --- END: Validation ---
+
     print(f"API: Received new job for Lot {job.lot_no}")
     new_job = job.dict()
+    # Ensure tray_count is int
+    tray_count = int(new_job.get("tray_count", 1))
+    new_job["tray_count"] = tray_count
     DB["job_counter"] += 1
     new_job["jobId"] = f"job_{DB['job_counter']}"
     DB["jobs"].append(new_job)
@@ -165,29 +327,40 @@ async def create_job_via_api(job: JobRequest):
 async def complete_job(job_id: str):
     print(f"API: Received 'Task Complete' for job {job_id}")
     job = get_job_by_id(job_id)
-    if not job: return {"status": "error", "message": "Job not found"}
-    
-    has_item = 1 if job["place_flg"] == "1" else 0
-    lot_no = job["lot_no"] if has_item == 1 else None  # <-- ถ้าเป็นการวาง ให้เก็บ lot_no, ถ้าเป็นการหยิบ ให้ลบ lot_no
-    
-    # อัปเดต shelf_state พร้อมกับ lot_no
-    update_shelf_state(int(job["level"]), int(job["block"]), has_item, lot_no)
+    if not job:
+        return {"status": "error", "message": "Job not found"}
+    level = int(job["level"])
+    block = int(job["block"])
+    lot_no = job["lot_no"]
+    tray_count = int(job.get("tray_count", 1))
+    if job["place_flg"] == "1":
+        # วางของ: เพิ่ม lot เข้า cell
+        add_lot_to_position(level, block, lot_no, tray_count)
+        action = "placed"
+    else:
+        # หยิบของ: ลบ lot ออกจาก cell (หรือ update tray_count ถ้าหยิบไม่หมด)
+        remove_lot_from_position(level, block, lot_no)
+        action = "picked"
     DB["jobs"] = [j for j in DB["jobs"] if j.get("jobId") != job_id]
-    
+    # Broadcast shelf_state as lots per cell
+    shelf_state = []
+    for cell in DB["shelf_state"]:
+        l, b, lots = cell
+        shelf_state.append({"level": l, "block": b, "lots": lots})
     await manager.broadcast(json.dumps({
-        "type": "job_completed", 
+        "type": "job_completed",
         "payload": {
-            "completedJobId": job_id, 
-            "shelf_state": DB["shelf_state"],
-            "lot_no": job["lot_no"],  # เพิ่มการส่ง lot_no กลับไป
-            "action": "placed" if job["place_flg"] == "1" else "picked"
+            "completedJobId": job_id,
+            "shelf_state": shelf_state,
+            "lot_no": lot_no,
+            "action": action
         }
     }))
     return {
-        "status": "success", 
-        "lot_no": job["lot_no"],
-        "action": "placed" if job["place_flg"] == "1" else "picked",
-        "location": f"L{job['level']}B{job['block']}"
+        "status": "success",
+        "lot_no": lot_no,
+        "action": action,
+        "location": f"L{level}B{block}"
     }
 
 # เพิ่ม endpoint ใหม่สำหรับรับข้อมูลจาก JavaScript
@@ -222,26 +395,30 @@ async def error_job(job_id: str, body: ErrorRequest):
 async def reset_system():
     print("API: Received 'System Reset'")
     DB["jobs"] = []
-    # เปลี่ยนจาก [r, c, 0] เป็น [r, c, 0, None] เพื่อให้สอดคล้องกับโครงสร้างใหม่
-    DB["shelf_state"] = [[r, c, 0, None] for r in range(1, 5) for c in range(1, 7)]
+    # Reset shelf_state to empty stacked lots
+    DB["shelf_state"] = []
+    for level, num_blocks in SHELF_CONFIG.items():
+        for block in range(1, num_blocks + 1):
+            DB["shelf_state"].append([level, block, []])
     DB["job_counter"] = 0
     await manager.broadcast(json.dumps({"type": "system_reset"}))
     return {"status": "success"}
 
 @router.get("/api/shelf/occupied", tags=["Jobs"])
 def get_occupied_positions():
-    """ดึงข้อมูลเฉพาะช่องที่มีของอยู่ในชั้นวาง"""
+    """ดึงข้อมูลเฉพาะช่องที่มีของอยู่ในชั้นวาง (มี lot อย่างน้อย 1)"""
     occupied_positions = []
-    
-    for level, block, has_item, lot_no in DB["shelf_state"]:
-        if has_item:  # ถ้าช่องนี้มีของ
-            occupied_positions.append({
-                "position": f"L{level}B{block}",
-                "level": level,
-                "block": block,
-                "lot_no": lot_no or "Unknown"  # ถ้าไม่มี lot_no ให้แสดง "Unknown"
-            })
-    
+    for cell in DB["shelf_state"]:
+        level, block, lots = cell
+        if lots:
+            for lot in lots:
+                occupied_positions.append({
+                    "position": f"L{level}B{block}",
+                    "level": level,
+                    "block": block,
+                    "lot_no": lot["lot_no"],
+                    "tray_count": lot["tray_count"]
+                })
     return {
         "total_occupied": len(occupied_positions),
         "occupied_positions": occupied_positions
@@ -249,22 +426,23 @@ def get_occupied_positions():
 
 @router.get("/api/shelf/summary", tags=["Jobs"])
 def get_shelf_summary():
-    """ดึงสรุปข้อมูลชั้นวางทั้งหมด"""
+    """ดึงสรุปข้อมูลชั้นวางทั้งหมด (stacked lots)"""
     total_positions = len(DB["shelf_state"])
     occupied_count = 0
     empty_count = 0
     occupied_list = []
-    
-    for level, block, has_item, lot_no in DB["shelf_state"]:
-        if has_item:
+    for cell in DB["shelf_state"]:
+        level, block, lots = cell
+        if lots:
             occupied_count += 1
-            occupied_list.append({
-                "position": f"L{level}B{block}",
-                "lot_no": lot_no or "Unknown"
-            })
+            for lot in lots:
+                occupied_list.append({
+                    "position": f"L{level}B{block}",
+                    "lot_no": lot["lot_no"],
+                    "tray_count": lot["tray_count"]
+                })
         else:
             empty_count += 1
-    
     return {
         "summary": {
             "total_positions": total_positions,

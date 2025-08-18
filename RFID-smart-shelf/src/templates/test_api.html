@@ -27,6 +27,50 @@
     <div class="container">
         <h1>Smart Shelf - Event Simulator</h1>
         
+        <!-- LED Control by Position -->
+        <h2>🔵 LED Control by Position</h2>
+        <div class="form-grid">
+            <div>
+                <label for="led-position">Position (e.g., L1B1):</label>
+                <input type="text" id="led-position" placeholder="L1B1" value="L1B1">
+            </div>
+            <div>
+                <label for="led-color">Color:</label>
+                <select id="led-color">
+                    <option value="255,0,0">Red</option>
+                    <option value="0,255,0">Green</option>
+                    <option value="0,0,255">Blue</option>
+                    <option value="255,255,0">Yellow</option>
+                    <option value="255,0,255">Purple</option>
+                    <option value="0,255,255">Cyan</option>
+                    <option value="255,255,255">White</option>
+                </select>
+            </div>
+        </div>
+        <button onclick="controlLEDByPosition()" class="primary-btn">Control LED by Position</button>
+        
+        <!-- Multiple LED Control -->
+        <h3>🌈 Multiple LEDs Control</h3>
+        <div class="form-grid">
+            <div>
+                <label for="multi-positions">Positions (comma separated):</label>
+                <input type="text" id="multi-positions" placeholder="L1B1,L1B2,L1B3" value="L1B1,L1B2,L1B3">
+            </div>
+            <div>
+                <label for="multi-color">Color for all:</label>
+                <select id="multi-color">
+                    <option value="0,0,255">Blue</option>
+                    <option value="255,0,0">Red</option>
+                    <option value="0,255,0">Green</option>
+                    <option value="255,255,0">Yellow</option>
+                </select>
+            </div>
+        </div>
+        <button onclick="controlMultipleLEDs()" class="success-btn">Control Multiple LEDs</button>
+        
+        <!-- LED Clear -->
+        <button onclick="clearAllLEDs()" class="danger-btn">Clear All LEDs</button>
+        
         <hr>
 
         <!-- 1. Create New Job -->
@@ -128,6 +172,105 @@
             return jobObject;
         }
 
+        <script>
+        // LED Control by Position
+        async function controlLEDByPosition() {
+            const position = document.getElementById('led-position').value.trim().toUpperCase();
+            const colorValue = document.getElementById('led-color').value;
+            const [r, g, b] = colorValue.split(',').map(Number);
+            
+            if (!position) {
+                alert('Please enter a position (e.g., L1B1)');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/led/position', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        position: position,
+                        r: r,
+                        g: g,
+                        b: b
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert(`✅ LED controlled successfully!
+Position: ${result.position}
+Color: RGB(${result.color.r}, ${result.color.g}, ${result.color.b})`);
+                } else {
+                    alert(`❌ Error: ${result.error}
+${result.message || ''}`);
+                }
+            } catch (error) {
+                alert(`❌ Network error: ${error.message}`);
+            }
+        }
+        
+        // Multiple LEDs Control
+        async function controlMultipleLEDs() {
+            const positionsText = document.getElementById('multi-positions').value.trim();
+            const colorValue = document.getElementById('multi-color').value;
+            const [r, g, b] = colorValue.split(',').map(Number);
+            
+            if (!positionsText) {
+                alert('Please enter positions (e.g., L1B1,L1B2,L1B3)');
+                return;
+            }
+            
+            const positions = positionsText.split(',').map(pos => ({
+                position: pos.trim().toUpperCase(),
+                r: r,
+                g: g,
+                b: b
+            }));
+            
+            try {
+                const response = await fetch('/api/led/positions', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({positions: positions})
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert(`✅ ${result.count} LEDs controlled successfully!
+Positions: ${result.positions.join(', ')}`);
+                } else {
+                    alert(`❌ Error: ${result.error}
+${result.message || ''}`);
+                }
+            } catch (error) {
+                alert(`❌ Network error: ${error.message}`);
+            }
+        }
+        
+        // Clear All LEDs
+        async function clearAllLEDs() {
+            try {
+                const response = await fetch('/api/led/clear', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert('✅ All LEDs cleared successfully!');
+                } else {
+                    alert(`❌ Error clearing LEDs: ${result.error}`);
+                }
+            } catch (error) {
+                alert(`❌ Network error: ${error.message}`);
+            }
+        }
+        
+        // Original functions...
         function updateJsonPreview() {
             const jobObject = buildJobObject();
             if (!jobObject) {

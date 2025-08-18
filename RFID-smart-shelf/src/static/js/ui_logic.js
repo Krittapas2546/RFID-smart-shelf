@@ -1,3 +1,105 @@
+// --- Cell Preview: แสดงรายละเอียดช่องที่เลือก (IMPROVED DESIGN) ---
+function renderCellPreview({ level, block, lots, targetLotNo, isPlaceJob = false, newLotTrayCount = 0 }) {
+    const container = document.getElementById('cellPreviewContainer');
+    if (!container) return;
+
+    // lots: array of {lot_no, tray_count}
+    if (!Array.isArray(lots)) lots = [];
+
+    // ถ้าเป็น Place job ให้จำลองการวางของใหม่
+    let previewLots = [...lots];
+    if (isPlaceJob && targetLotNo && newLotTrayCount > 0) {
+        // เพิ่ม lot ใหม่ที่จะวางลงไปด้านบน (LIFO)
+        previewLots.push({
+            lot_no: targetLotNo,
+            tray_count: newLotTrayCount
+        });
+    }
+
+    let html = '';
+    html += `<h3>Level ${level} Block ${block}</h3>`;
+    
+    // แสดงข้อความแตกต่างกันตาม action
+ 
+    
+    html += `<div class="block-preview">`;
+
+    if (previewLots.length > 0) {
+        // สร้างรายการ lot แนวตั้ง (จากล่างขึ้นบน)
+        for (let i = previewLots.length - 1; i >= 0; i--) {
+            const lot = previewLots[i];
+            const trayCount = parseInt(lot.tray_count) || 0;
+            const isTarget = lot.lot_no === targetLotNo;
+            const isNewLot = isPlaceJob && i === previewLots.length - 1 && isTarget;
+
+            // คำนวณความสูงตามสัดส่วน tray_count เทียบกับความจุจริงของ cell
+            const maxCapacity = getCellCapacity(level, block); // ใช้ความจุจริงของ cell แทนค่าคงที่ 24
+            const maxContainerHeight = 300; // ความสูงที่ใช้ได้ของ container (350px - padding)
+            const heightRatio = trayCount / maxCapacity;
+            const height = Math.max(heightRatio * maxContainerHeight, 8); // ลดความสูงขั้นต่ำเป็น 8px เพื่อให้แสดงสัดส่วนที่ถูกต้อง
+
+            // ตัดชื่อ lot ถ้ายาวเกินไป (สำหรับ desktop ใช้ 15 ตัวอักษร)
+            const displayName = lot.lot_no.length > 15 ?
+                lot.lot_no.substring(0, 15) + '...' :
+                lot.lot_no;
+
+            let itemClass = 'lot-item';
+            if (isTarget) itemClass += ' target-lot';
+            if (isNewLot) itemClass += ' new-lot';
+
+            html += `<div class="${itemClass}" style="height: ${height}px;" title="${lot.lot_no} - ${trayCount} trays">`;
+            html += `<span class="lot-name">${displayName}</span>`;
+            if (isNewLot) {
+                html += `<span class="new-badge"> NEW</span>`;
+            }
+            html += `</div>`;
+        }
+    } else {
+        html += `<div class="lot-item empty-slot">`;
+        html += `<span class="lot-name">(empty)</span>`;
+        html += `</div>`;
+    }
+
+    html += `</div>`;
+    container.innerHTML = html;
+}
+// Utility: Get lots in a specific cell (level, block)
+function getLotsInCell(level, block) {
+    const shelfState = JSON.parse(localStorage.getItem(GLOBAL_SHELF_STATE_KEY) || '[]');
+    for (const cellData of shelfState) {
+        let cellLevel, cellBlock, cellLots;
+        if (Array.isArray(cellData)) {
+            cellLevel = cellData[0];
+            cellBlock = cellData[1];
+            cellLots = cellData[2];
+        } else if (cellData && typeof cellData === 'object') {
+            ({ level: cellLevel, block: cellBlock, lots: cellLots } = cellData);
+        }
+        if (String(cellLevel) === String(level) && String(cellBlock) === String(block)) {
+            return Array.isArray(cellLots) ? cellLots : [];
+        }
+    }
+    return [];
+}
+
+// Utility: Get cell capacity (actual max trays for a specific cell)
+function getCellCapacity(level, block) {
+    // ค่าความจุเริ่มต้นสำหรับแต่ละ cell (สามารถปรับแก้ได้ตามความต้องการ)
+    const cellCapacities = {
+        '1-1': 22, // Level 1 Block 1 = 22 trays
+        '1-2': 24, // Level 1 Block 2 = 24 trays  
+        '1-3': 24, // Level 1 Block 3 = 24 trays
+        '1-4': 24, // Level 1 Block 4 = 24 trays
+        '1-5': 24, // Level 1 Block 5 = 24 trays
+        // เพิ่มข้อมูลความจุของ cell อื่นๆ ตามความต้องการ
+    };
+    
+    const cellKey = `${level}-${block}`;
+    return cellCapacities[cellKey] || 24; // ถ้าไม่มีข้อมูล ใช้ 24 เป็นค่าเริ่มต้น
+}
+
+// Example usage: log lots in Level 1, Block 2
+// console.log(getLotsInCell(1, 2));
         /**
          * แสดงไฟฟ้าทุกช่องที่มี job ใน queue (queueSelectionView)
          */
@@ -27,11 +129,9 @@ const ACTIVE_JOB_KEY = 'activeJob';
         const queueSelectionView = document.getElementById('queueSelectionView');
         const activeJobView = document.getElementById('activeJobView');
         const queueListContainer = document.getElementById('queueListContainer');
-        const jobDetailsContainer = document.getElementById('jobDetailsContainer');
-        const detailsPanel = document.getElementById('detailsPanel');
         const mainView = document.getElementById('mainView');
         const shelfGrid = document.getElementById('shelfGrid');
-        const shelfContainer = document.getElementById('shelfContainer');
+        const mainContainer = document.getElementById('mainContainer');
 
         localStorage.removeItem(ACTIVE_JOB_KEY);
 
@@ -180,25 +280,28 @@ const ACTIVE_JOB_KEY = 'activeJob';
             // เคลียร์ grid เก่าทิ้งเสมอ เพื่อให้สามารถสร้างใหม่ได้ตาม config ปัจจุบัน
             shelfGrid.innerHTML = '';
             
+            // กำหนดขนาด shelf-frame แบบเดียวกันทั้งสองโหมด
+            let shelfFrameWidth, shelfFrameHeight, cellHeight;
+            // ใช้ขนาดเดียวกันทั้งโหมด full-shelf และ active job
+            shelfFrameWidth = 500;
+            shelfFrameHeight = 475;
+            cellHeight = 90;
+            
             // สร้าง Grid container หลัก
             shelfGrid.style.display = 'flex';
             shelfGrid.style.flexDirection = 'column';
-            shelfGrid.style.gap = '8px';
-            shelfGrid.style.padding = '12px';
+            shelfGrid.style.gap = '14px'; // ลด gap ระหว่างชั้นเพื่อให้พอดีกับความสูง 475px
+            shelfGrid.style.padding = '10px'; // ลด padding จาก 12px เป็น 10px
             shelfGrid.style.background = '#f8f9fa';
             shelfGrid.style.border = '1px solid #dee2e6';
             shelfGrid.style.width = '100%';
             shelfGrid.style.height = '100%';
             
-            // กำหนดขนาด cell ตาม viewport และ full-shelf mode
-            const isFullShelfMode = document.querySelector('.shelf-container').classList.contains('full-shelf-mode');
-            let cellHeight = 60; // default height
-            
-            if (window.innerWidth <= 1300) {
-                cellHeight = isFullShelfMode ? 100 : 50;
-            } else {
-                cellHeight = isFullShelfMode ? 130 : 60;
-            }
+            // คำนวณขนาดให้เหมาะสมกับ shelf-frame ตามโหมด
+            const shelfFrameBorder = 16; // border รวม (8px × 2) 
+            const shelfPadding = 20; // padding รวม (10px × 2)
+            const availableWidth = shelfFrameWidth - shelfFrameBorder - shelfPadding;
+            const gapSize = 4; // gap ระหว่าง cells
             
             // สร้างแต่ละ Level เป็น flexbox แยกกัน
             for (let level = 1; level <= TOTAL_LEVELS; level++) {
@@ -208,18 +311,31 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 const levelContainer = document.createElement('div');
                 levelContainer.className = 'shelf-level';
                 levelContainer.style.display = 'flex';
-                levelContainer.style.gap = '7px';
+                levelContainer.style.gap = `${gapSize}px`;
                 levelContainer.style.height = `${cellHeight}px`;
                 levelContainer.style.width = '100%';
+                levelContainer.style.justifyContent = 'stretch'; // กระจายพื้นที่เต็มความกว้าง
                 
                 // สร้าง cells สำหรับ level นี้
                 for (let block = 1; block <= blocksInThisLevel; block++) {
                     const cell = document.createElement('div');
                     cell.id = `cell-${level}-${block}`;
                     cell.className = 'shelf-cell';
-                    cell.style.flex = '1'; // ให้แต่ละ cell ขยายเต็มพื้นที่
+                    cell.style.flex = '1'; // ให้ทุก cell มีขนาดเท่ากันและเต็มพื้นที่
                     cell.style.height = '100%';
-                    cell.style.minWidth = '40px'; // ขนาดขั้นต่ำ
+                    cell.style.cursor = 'pointer';
+                    cell.style.borderRadius = '4px';
+                    cell.style.boxShadow = '0 1px 2px rgba(0,0,0,0.1)';
+                    
+                    // ไม่ใส่ minWidth หรือ maxWidth เพื่อให้ flex ทำงานเต็มที่
+                    
+                    // เพิ่ม click event สำหรับแสดง cell preview
+                    cell.addEventListener('click', () => {
+                        const lots = getLotsInCell(level, block);
+                        const activeJob = getActiveJob();
+                        const targetLotNo = activeJob ? activeJob.lot_no : null;
+                        renderCellPreview({ level, block, lots, targetLotNo });
+                    });
                     
                     levelContainer.appendChild(cell);
                 }
@@ -228,6 +344,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
             }
             
             console.log(`📐 Created flexible shelf grid: ${TOTAL_LEVELS} levels with configuration:`, SHELF_CONFIG);
+            console.log(`📏 Shelf frame: ${shelfFrameWidth}×${shelfFrameHeight}px | Available width: ${availableWidth}px | Cell height: ${cellHeight}px | Gap: ${gapSize}px`);
         }
 
         function getActiveJob() {
@@ -253,12 +370,29 @@ const ACTIVE_JOB_KEY = 'activeJob';
 
         // 🔽 FIX goBackToQueue FUNCTION 🔽
         function goBackToQueue() {
-            localStorage.removeItem(ACTIVE_JOB_KEY); // ใช้ Key ที่ถูกต้อง
+            const activeJob = getActiveJob();
+            if (activeJob) {
+                console.log(`📋 Returning job to queue: ${activeJob.lot_no} (ID: ${activeJob.jobId})`);
+                
+                // ใส่ job กลับเข้า queue
+                const queue = getQueue();
+                // ตรวจสอบว่า job ไม่ได้อยู่ใน queue แล้ว
+                if (!queue.some(job => job.jobId === activeJob.jobId)) {
+                    queue.push(activeJob);
+                    localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+                    console.log(`✅ Job ${activeJob.lot_no} returned to queue. Queue size: ${queue.length}`);
+                }
+            }
+            
+            localStorage.removeItem(ACTIVE_JOB_KEY);
             renderAll();
         }
         // 🔼 END OF FIX 🔼
 
+        // --- Global: Track which cells have been logged for lots (persist across renderShelfGrid calls) ---
+        if (!window.__rfid_loggedCells) window.__rfid_loggedCells = new Set();
         function renderShelfGrid() {
+            // Expect shelfState as array of {level, block, lots}
             const shelfState = JSON.parse(localStorage.getItem(GLOBAL_SHELF_STATE_KEY) || '[]');
             const activeJob = getActiveJob();
 
@@ -272,112 +406,191 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 }
             }
 
-            shelfState.forEach(([level, block, hasItem]) => {
-                const cellId = `cell-${level}-${block}`;
-                const cell = document.getElementById(cellId);
-                if (!cell) return;
+            // Clear all cells first
+            for (let level = 1; level <= TOTAL_LEVELS; level++) {
+                const blocksInThisLevel = SHELF_CONFIG[level];
+                for (let block = 1; block <= blocksInThisLevel; block++) {
+                    const cellId = `cell-${level}-${block}`;
+                    const cell = document.getElementById(cellId);
+                    if (!cell) continue;
+                    cell.className = 'shelf-cell';
+                    cell.innerHTML = '';
+                }
+            }
 
-                // Reset class ทุกครั้ง
-                cell.className = 'shelf-cell';
+            // Render stacked lots in each cell (bottom-to-top: index 0 = bottom)
+            const loggedCells = window.__rfid_loggedCells;
+            if (Array.isArray(shelfState)) {
+                shelfState.forEach(cellData => {
+                    let level, block, lots;
+                    if (Array.isArray(cellData)) {
+                        level = cellData[0];
+                        block = cellData[1];
+                        lots = cellData[2];
+                    } else if (cellData && typeof cellData === 'object') {
+                        ({ level, block, lots } = cellData);
+                    } else {
+                        console.warn('⚠️ Invalid cellData in shelfState:', cellData);
+                        return;
+                    }
+                    if (!Array.isArray(lots)) lots = [];
+                    // Debug: log lots in every cell (index 0 = bottom, last = top) แบบละเอียด
+                    if (lots.length > 0) {
+                        // คำนวณเปอร์เซ็นต์การใช้งานของ cell
+                        const totalTrayInCell = lots.reduce((sum, lot) => sum + (parseInt(lot.tray_count) || 1), 0);
+                        const maxCapacity = 24; // ความจุสูงสุดของ cell
+                        const usagePercentage = Math.round((totalTrayInCell / maxCapacity) * 100);
+                        
+                        console.log(`🟫 [Grid] Lots in cell (Level: ${level}, Block: ${block}) [index 0 = bottom, last = top] - Usage: ${usagePercentage}% (${totalTrayInCell}/${maxCapacity}):`);
+                        lots.forEach((lot, idx) => {
+                            const lotTrayCount = parseInt(lot.tray_count) || 1;
+                            const lotPercentage = Math.round((lotTrayCount / maxCapacity) * 100);
+                            console.log(`   [${idx}] LotNo: ${lot.lot_no}, Tray: ${lot.tray_count}, ${lotPercentage}%`);
+                        });
+                        console.log(`   All lots:`, JSON.stringify(lots));
+                    }
+                    const cellId = `cell-${level}-${block}`;
+                    const cell = document.getElementById(cellId);
+                    if (!cell) return;
 
-                if (activeJob) {
-                    const isTarget = (Number(activeJob.level) === level && Number(activeJob.block) === block);
-                    if (isTarget) {
-                        cell.classList.add('selected-task');
+            // --- Visual stacked lots (FIFO bottom-to-top: index 0 = bottom, last = top) ---
+            const safeLots = Array.isArray(lots) ? lots : [];
+            let totalTray = safeLots.reduce((sum, lot) => sum + (parseInt(lot.tray_count) || 1), 0);
+            totalTray = Math.max(totalTray, 1);
+            
+            // ปรับการคำนวณขนาดให้เหมาะสมกับ cell ที่เล็กลง
+            const maxCellHeight = 66; // ความสูงสูงสุดของ cell (70px - padding 4px)
+            
+            // Render lots in REVERSE order (last to first) เพื่อให้แสดงผลถูกต้อง
+            // เนื่องจาก flex-end จะแสดงจากล่างขึ้นบน การใส่จากท้ายไปหน้าจะทำให้ลำดับถูกต้อง
+            for (let idx = safeLots.length - 1; idx >= 0; idx--) {
+                const lot = safeLots[idx];
+                const lotDiv = document.createElement('div');
+                let isTarget = false;
+                if (activeJob && String(activeJob.level) === String(level) && String(activeJob.block) === String(block)) {
+                    isTarget = (String(lot.lot_no) === String(activeJob.lot_no));
+                }
+                lotDiv.className = 'stacked-lot' + (isTarget ? ' target-lot' : '');
+                
+                // คำนวณความสูงตาม tray_count แบบสัดส่วนที่ชัดเจน
+                const trayCount = parseInt(lot.tray_count) || 1;
+                const maxCapacity = 24;
+                const maxCellHeight = 85; // ใช้ความสูงสูงสุดที่เหมาะสมกับ cell height 90px
+                const heightRatio = trayCount / maxCapacity;
+                const trayHeight = Math.max(heightRatio * maxCellHeight, 2); // ขั้นต่ำ 2px เพื่อให้เห็น
+                lotDiv.style.height = Math.round(trayHeight) + 'px';
+                
+                // เก็บข้อมูลใน title สำหรับ tooltip เท่านั้น
+                lotDiv.title = `Lot: ${lot.lot_no}, Tray: ${trayCount}, Height: ${Math.round(trayHeight)}px`;
+                
+                // ไม่ใส่ข้อความ (แสดงเป็นกล่องสีเทาเท่านั้น)
+                
+                cell.appendChild(lotDiv);
+            }
+
+                    // --- State classes for selection/error ---
+                    let isSelected = false;
+                    if (activeJob) {
+                        const isTargetCell = (String(activeJob.level) === String(level) && String(activeJob.block) === String(block));
+                        if (isTargetCell) {
+                            cell.classList.add('selected-task');
+                            isSelected = true;
+                        }
+                        if (wrongLevel === Number(level) && wrongBlock === Number(block)) {
+                            cell.classList.add('wrong-location');
+                            cell.classList.remove('selected-task');
+                            isSelected = false;
+                        }
                     }
-                    if (wrongLevel === level && wrongBlock === block) {
-                        cell.classList.add('wrong-location');
-                        cell.classList.remove('selected-task');
-                    }
-                } else {
-                    if (hasItem) {
+                    if (!isSelected && !(wrongLevel === Number(level) && wrongBlock === Number(block)) && Array.isArray(lots) && lots.length > 0) {
                         cell.classList.add('has-item');
                     }
-                }
-            });
+                });
+            } else {
+                console.error('❌ shelfState is not an array:', shelfState);
+            }
         }
 
         function renderActiveJob() {
-            const activeJob = getActiveJob();
-            const queue = getQueue();
-            
-            if (!detailsPanel) {
-                console.error('❌ detailsPanel element not found');
-                return;
-            }
+    const activeJob = getActiveJob();
+    const queue = getQueue();
+    const cellPreviewContainer = document.getElementById('cellPreviewContainer');
+    const mainContainer = document.querySelector('.main-container');
 
-            detailsPanel.innerHTML = '';
+    if (activeJob) {
+        // ถ้ามี active job, แสดง cell preview
+        cellPreviewContainer.style.display = 'flex';
+        mainContainer.classList.remove('full-shelf-mode');
+    } else {
+        // ถ้าไม่มี active job, ซ่อน cell preview และแสดง shelf ตรงกลาง
+        cellPreviewContainer.style.display = 'none';
+        mainContainer.classList.add('full-shelf-mode');
+    }
 
-            if (activeJob) {
-                const statusText = activeJob.error ? 'Error' : 'Waiting';
-                const statusClass = activeJob.error ? 'Error' : 'Waiting';
-                const actionText = activeJob.place_flg === '1' ? 'Place To' : 'Pick From';
-                
-                detailsPanel.innerHTML = `
-                    <div>
-                        <div class="label">Status</div>
-                        <div class="status-badge ${statusClass}">${statusText}</div>
-                    </div>
-                    <div>
-                        <div class="label">Lot No.</div>
-                        <div class="value lot-no">${activeJob.lot_no}</div>
-                    </div>
-                    <div>
-                        <div class="label">${actionText}</div>
-                        <div class="value">Level: ${activeJob.level}, Block: ${activeJob.block}</div>
-                    </div>
-                    
-                    <!-- 🔽 ใส่ Comment ปิดปุ่มเหล่านี้ 🔽 -->
-                    <!--
-                    <div class="action-buttons" style="margin-top: 20px;">
-                        <button class="complete-btn" onclick="completeCurrentJob()">✅ Complete</button>
-                        <button class="error-btn" onclick="reportJobError('MANUAL_ERROR', 'Manual error reported')">❌ Report Error</button>
-                    </div>
-                    -->
-                `;
-                
-                if (queue.length > 0) {
-                    detailsPanel.innerHTML += `<button class="back-to-queue-btn" onclick="goBackToQueue()">← Back to Queue</button>`;
-                }
-            } else {
-                detailsPanel.innerHTML = `
-                    <div>
-                        <div class="label">Status</div>
-                        <div class="status-badge">Idle</div>
-                    </div>
-                    <div class="value" style="font-size: 1.5rem; color: #6c757d;">No active job.</div>
-                `;
-            }
-            renderShelfGrid();
+    // สร้าง shelf grid ใหม่
+    createShelfGridStructure();
+
+    // Log clearly which lot is currently selected as active job, and lots in that cell
+    if (activeJob) {
+        const lotsInCell = getLotsInCell(activeJob.level, activeJob.block);
+        console.log(`ActiveJobLot: ${activeJob.lot_no} (Level: ${activeJob.level}, Block: ${activeJob.block})`);
+        console.log(`Lots in cell (${activeJob.level}, ${activeJob.block}):`, lotsInCell);
+
+        // แสดง Cell Preview สำหรับ active job
+        const isPlaceJob = activeJob.place_flg === '1';
+        const actualTrayCount = parseInt(activeJob.tray_count) || 1; // ใช้ค่าจริงจาก activeJob
+        renderCellPreview({
+            level: activeJob.level,
+            block: activeJob.block,
+            lots: lotsInCell,
+            targetLotNo: activeJob.lot_no,
+            isPlaceJob: isPlaceJob,
+            newLotTrayCount: isPlaceJob ? actualTrayCount : 0 // ใช้ค่าจริงแทนค่าคงที่ 12
+        });
+    } else {
+        // ถ้าไม่มี active job ให้แสดงข้อความเริ่มต้น (ตอนนี้ถูกซ่อนอยู่ แต่เผื่อกลับมาใช้)
+        const cellPreviewContent = document.getElementById('cellPreviewContent');
+        if (cellPreviewContent) {
+            cellPreviewContent.innerHTML = '<p>No active job. Select a job from the queue.</p>';
         }
+    }
+
+    renderShelfGrid();
+}
 
         function renderQueueSelectionView(queue) {
-            queueListContainer.innerHTML = '';
-            queue.forEach(job => {
-                const li = document.createElement('li');
-                li.className = 'queue-list-item';
-                li.innerHTML = `
-                    <div class="info">
-                        <div class="lot">Lot: ${job.lot_no}</div>
-                        <div class="action">Action: ${job.place_flg === '1' ? 'Place' : 'Pick'} at L:${job.level}, B:${job.block}</div>
-                    </div>
-                    <button class="select-btn" onclick="selectJob('${job.jobId}')">Select</button>
-                `;
-                queueListContainer.appendChild(li);
-            });
-
-            // --- START: ลบ Logic Focus ที่ไม่จำเป็นออก ---
-            const lotInput = document.getElementById('lot-no-input');
-            if (lotInput) {
-                lotInput.focus();
-                lotInput.onkeyup = function(event) {
-                    if (event.key === 'Enter') {
-                        handleLotSearch();
-                    }
-                };
-            }
-            // --- END: แก้ไข Logic Focus ---
+    queueListContainer.innerHTML = '';
+    queue.forEach(job => {
+        const li = document.createElement('li');
+        li.className = 'queue-list-item';
+        // เลือก icon ตาม action
+        let arrowHtml = '';
+        if (job.place_flg === '0') {
+            arrowHtml = `<span class="arrow up"></span>`;
+        } else {
+            arrowHtml = `<span class="arrow down"></span>`;
         }
+        li.innerHTML = `
+            <div class="info">
+                <div class="lot">${arrowHtml}Lot: ${job.lot_no}</div>
+                <div class="action">Action: ${job.place_flg === '1' ? 'Place' : 'Pick'} at L:${job.level}, B:${job.block}</div>
+            </div>
+            <button class="select-btn" onclick="selectJob('${job.jobId}')">Select</button>
+        `;
+        queueListContainer.appendChild(li);
+    });
+
+    // Logic focus เดิม
+    const lotInput = document.getElementById('lot-no-input');
+    if (lotInput) {
+        lotInput.focus();
+        lotInput.onkeyup = function(event) {
+            if (event.key === 'Enter') {
+                handleLotSearch();
+            }
+        };
+    }
+}
 
         // --- START: ลบฟังก์ชันที่ไม่จำเป็นออก ---
         /*
@@ -392,8 +605,27 @@ const ACTIVE_JOB_KEY = 'activeJob';
             const selectedJob = queue.find(job => job.jobId === jobId);
             
             if (selectedJob) {
-                setActiveJob(selectedJob);
+                console.log(`📋 Selecting job: ${selectedJob.lot_no} (ID: ${jobId})`);
+                
+                // เพิ่ม UUID และ timestamp สำหรับการติดตาม
+                const jobWithMeta = {
+                    ...selectedJob,
+                    selectedAt: new Date().toISOString(),
+                    uuid: crypto.randomUUID ? crypto.randomUUID() : 'uuid-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9)
+                };
+                
+                console.log(`🔍 Job metadata added - UUID: ${jobWithMeta.uuid}, Selected at: ${jobWithMeta.selectedAt}`);
+                
+                // ลบ job ที่เลือกออกจาก queue
+                const updatedQueue = queue.filter(job => job.jobId !== jobId);
+                localStorage.setItem(QUEUE_KEY, JSON.stringify(updatedQueue));
+                
+                // ตั้งเป็น active job พร้อม metadata
+                setActiveJob(jobWithMeta);
                 renderAll();
+                
+                console.log(`✅ Job ${selectedJob.lot_no} activated. Remaining queue size: ${updatedQueue.length}`);
+                console.log(`📌 Active job stored with UUID: ${jobWithMeta.uuid}`);
             } else {
                 console.error('❌ Job not found:', jobId);
             }
@@ -596,8 +828,17 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 setActiveJob(activeJob);
             }
 
-            console.log('🚀 Completing job:', activeJob.jobId);
-            
+            console.log('🚀 Completing job:', activeJob.jobId, 'Lot:', activeJob.lot_no);
+            console.log(`📝 Job metadata:`, {
+                uuid: activeJob.uuid || 'N/A',
+                selectedAt: activeJob.selectedAt || 'N/A',
+                level: activeJob.level,
+                block: activeJob.block
+            });
+
+            // Clear loggedCells so next render logs new state
+            if (window.__rfid_loggedCells) window.__rfid_loggedCells.clear();
+
             // ส่งข้อมูลผ่าน WebSocket
             if (websocketConnection && websocketConnection.readyState === WebSocket.OPEN) {
                 const message = {
@@ -606,11 +847,13 @@ const ACTIVE_JOB_KEY = 'activeJob';
                         jobId: activeJob.jobId,
                         lot_no: activeJob.lot_no,
                         level: activeJob.level,
-                        block: activeJob.block
+                        block: activeJob.block,
+                        uuid: activeJob.uuid || null,
+                        completedAt: new Date().toISOString()
                     }
                 };
                 websocketConnection.send(JSON.stringify(message));
-                console.log('📤 Complete job message sent via WebSocket');
+                console.log('📤 Complete job message sent via WebSocket:', message.payload);
             } else {
                 console.warn('⚠️ WebSocket not available, using HTTP fallback');
                 
@@ -670,11 +913,6 @@ const ACTIVE_JOB_KEY = 'activeJob';
             }
         }
         // 🔼 END OF BARCODE SCANNING FUNCTIONALITY 🔼
-
-        function goBackToQueue() {
-            localStorage.removeItem(ACTIVE_JOB_KEY); // ใช้ Key ที่ถูกต้อง
-            renderAll();
-        }
 
         function renderAll() {
             const queue = getQueue();
@@ -744,15 +982,60 @@ const ACTIVE_JOB_KEY = 'activeJob';
                             }
                             break;
                         case "job_completed":
+                            console.log('📦 Received job_completed message:', data.payload);
+                            
+                            // ตรวจสอบว่า job ที่เสร็จสิ้นตรงกับ active job ปัจจุบันหรือไม่
+                            const currentActiveJob = getActiveJob();
+                            if (currentActiveJob && currentActiveJob.jobId !== data.payload.completedJobId) {
+                                console.warn(`⚠️ Job ID mismatch! Current active: ${currentActiveJob.jobId}, Completed: ${data.payload.completedJobId}`);
+                                console.warn(`⚠️ Current active lot: ${currentActiveJob.lot_no}, Completed lot: ${data.payload.lot_no}`);
+                                console.warn(`🔍 UUID check - Active UUID: ${currentActiveJob.uuid || 'N/A'}, Completed UUID: ${data.payload.uuid || 'N/A'}`);
+                                
+                                // ตรวจสอบ UUID ถ้ามี
+                                if (currentActiveJob.uuid && data.payload.uuid && currentActiveJob.uuid !== data.payload.uuid) {
+                                    console.error(`❌ UUID mismatch detected! This is a different job completion.`);
+                                }
+                                
+                                // ถ้าไม่ตรงกัน อาจเป็นการ complete job อื่นที่ไม่ใช่ active job
+                                // แค่อัปเดต queue และ shelf state โดยไม่ลบ active job
+                                let currentQueue = getQueue();
+                                currentQueue = currentQueue.filter(j => j.jobId !== data.payload.completedJobId);
+                                localStorage.setItem(QUEUE_KEY, JSON.stringify(currentQueue));
+                                localStorage.setItem(GLOBAL_SHELF_STATE_KEY, JSON.stringify(data.payload.shelf_state));
+                                renderAll();
+                                showNotification(`⚠️ Job ${data.payload.lot_no} completed by another process!`, 'warning');
+                                return; // ไม่ลบ active job
+                            }
+                            
                             let currentQueue = getQueue();
+                            console.log(`📋 Queue before removal (size: ${currentQueue.length}):`, currentQueue.map(j => `${j.lot_no}(${j.jobId})`));
+                            
                             currentQueue = currentQueue.filter(j => j.jobId !== data.payload.completedJobId);
+                            console.log(`📋 Queue after removal (size: ${currentQueue.length}):`, currentQueue.map(j => `${j.lot_no}(${j.jobId})`));
+                            
                             localStorage.setItem(QUEUE_KEY, JSON.stringify(currentQueue));
+                            
+                            // ตรวจสอบ shelf state ก่อนและหลังการอัปเดต
+                            const oldShelfState = JSON.parse(localStorage.getItem(GLOBAL_SHELF_STATE_KEY) || '[]');
+                            console.log('📦 Shelf state before update:', oldShelfState);
+                            console.log('📦 New shelf state from server:', data.payload.shelf_state);
+                            
                             localStorage.setItem(GLOBAL_SHELF_STATE_KEY, JSON.stringify(data.payload.shelf_state));
                             localStorage.removeItem(ACTIVE_JOB_KEY);
                             renderAll();
-                            showNotification(`Job completed for Lot ${data.payload.lot_no || 'Unknown'}!`, 'success');
+                            showNotification(`✅ Job completed for Lot ${data.payload.lot_no || 'Unknown'}!`, 'success');
 
                             fetch('/api/led/clear', { method: 'POST' });
+                            break;
+                        case "job_warning":
+                            console.log('⚠️ Received job warning:', data.payload);
+                            showNotification(`⚠️ ${data.payload.message}`, 'warning');
+                            
+                            // ถ้า warning เป็น JOB_ALREADY_COMPLETED ให้ลบ active job และ render ใหม่
+                            if (data.payload.warning === 'JOB_ALREADY_COMPLETED') {
+                                localStorage.removeItem(ACTIVE_JOB_KEY);
+                                renderAll();
+                            }
                             break;
                         case "job_error":
                             localStorage.setItem(ACTIVE_JOB_KEY, JSON.stringify(data.payload)); // ใช้ Key ที่ถูกต้อง
@@ -781,16 +1064,10 @@ const ACTIVE_JOB_KEY = 'activeJob';
             };
         }
 
-        // ฟังก์ชันสำหรับอัปเดตขนาด cell ตาม viewport และ full-shelf mode
+        // ฟังก์ชันสำหรับอัปเดตขนาด cell 
         function updateCellSizes() {
-            const isFullShelfMode = document.querySelector('.shelf-container').classList.contains('full-shelf-mode');
-            let cellHeight = 60; // default height
-            
-            if (window.innerWidth <= 1300) {
-                cellHeight = isFullShelfMode ? 100 : 50;
-            } else {
-                cellHeight = isFullShelfMode ? 130 : 60;
-            }
+            // ใช้ขนาดเดียวกันทั้งสองโหมด
+            let cellHeight = 90;
             
             // อัปเดต level containers
             const levelContainers = document.querySelectorAll('.shelf-level');
@@ -829,10 +1106,10 @@ const ACTIVE_JOB_KEY = 'activeJob';
             });
         });
         
-        // เฝ้าดู shelf-container สำหรับการเปลี่ยนแปลง class
-        const shelfContainerElement = document.querySelector('.shelf-container');
-        if (shelfContainerElement) {
-            observer.observe(shelfContainerElement, { attributes: true, attributeFilter: ['class'] });
+        // เฝ้าดู main-container สำหรับการเปลี่ยนแปลง class
+        const mainContainerElement = document.querySelector('.main-container');
+        if (mainContainerElement) {
+            observer.observe(mainContainerElement, { attributes: true, attributeFilter: ['class'] });
         }
 
         /**

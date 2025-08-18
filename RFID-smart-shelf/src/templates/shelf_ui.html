@@ -101,56 +101,178 @@
         <input type="text" id="barcode-scanner-input" style="position: absolute; left: -9999px; opacity: 0;" placeholder="Barcode Scanner Input">
         <!-- 🔼 END OF ADDED INPUT 🔼 -->
         
-        <div class="shelf-container" id="shelfContainer">
-            <div class="details-panel" id="detailsPanel">
-                <!-- JavaScript จะสร้างรายละเอียดงานที่นี่ -->
-            </div>
-            <div class="shelf-panel" id="shelfPanel">
+        <div class="main-container">
+            <!-- Shelf Panel (กลาง) -->
+            <div class="shelf-panel">
                 <h2>Shelf</h2>
                 <div class="shelf-frame"><div class="shelf-grid" id="shelfGrid"></div></div>
+            </div>
+            
+            <!-- Cell Preview Panel (ขวา) -->
+            <div class="cell-preview-container" id="cellPreviewContainer">
+                <h3>Cell Preview</h3>
+                <div class="cell-preview-content" id="cellPreviewContent">
+                    <p>Select a cell to view details</p>
+                </div>
             </div>
         </div>
     </main>
 
     <!-- 3. เรียกใช้ไฟล์ JavaScript ภายนอก (ควรวางไว้ท้าย body) -->
     <script src="/static/js/ui_logic.js"></script>
-    <script>
-      // ปรับ renderQueueSelectionView: ลูกศรอยู่หน้า Lot, ไม่มี label Pick/Place, ดูสะอาด
-      window.renderQueueSelectionView = function(queue) {
-        const queueListContainer = document.getElementById('queueListContainer');
-        queueListContainer.innerHTML = '';
-        queue.forEach(job => {
-          const li = document.createElement('li');
-          li.className = 'queue-list-item';
-          // เลือก icon ตาม action
-          let arrowHtml = '';
-          if (job.place_flg === '0') {
-            arrowHtml = `<span class="arrow up"></span>`;
-          } else {
-            arrowHtml = `<span class="arrow down"></span>`;
-          }
-          li.innerHTML = `
-            <div class="info">
-              <div class="lot">${arrowHtml}Lot: ${job.lot_no}</div>
-              <div class="action">Action: ${job.place_flg === '1' ? 'Place' : 'Pick'} at L:${job.level}, B:${job.block}</div>
-            </div>
-            <button class="select-btn" onclick="selectJob('${job.jobId}')">Select</button>
-          `;
-          queueListContainer.appendChild(li);
-        });
+    <style>
+      /* Simple horizontal 3-column layout - desktop only */
+      .main-container {
+        display: flex;
+        align-items: flex-start;
+        justify-content: flex-start;
+        gap: 40px;
+        width: 100%;
+        height: 100vh;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+      
+      .main-container.full-shelf-mode .details-panel,
+      .main-container.full-shelf-mode .cell-preview-container {
+        display: none;
+      }
 
-        // Logic focus เดิม
-        const lotInput = document.getElementById('lot-no-input');
-        if (lotInput) {
-          lotInput.focus();
-          lotInput.onkeyup = function(event) {
-            if (event.key === 'Enter') {
-              handleLotSearch();
-            }
-          };
-        }
-      };
-    </script>
+      .main-container.full-shelf-mode .shelf-panel {
+        flex: 1 1 100%; /* Take full width */
+        max-width: 100%;
+        justify-content: center; /* Center the shelf grid vertically */
+      }
+      
+      .details-panel {
+        flex: 0 0 280px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        padding: 24px;
+        background: #f8f9fa;
+        border-radius: 16px;
+        border: 1px solid #dee2e6;
+        min-height: 400px;
+      }
+      
+      .details-panel .lot-no-header {
+        font-size: 3.2em;
+        font-weight: 900;
+        color: #212529;
+        margin: 0 0 20px 0;
+        line-height: 1.1;
+      }
+      
+      .details-panel .status-section {
+        margin-bottom: 24px;
+      }
+      
+      .details-panel .status-label {
+        font-size: 1.2em;
+        color: #6c757d;
+        margin-bottom: 10px;
+      }
+      
+      .details-panel .pick-from-section .label {
+        font-size: 1.2em;
+        color: #6c757d;
+        margin-bottom: 10px;
+      }
+      
+      .details-panel .pick-from-section .location-info {
+        font-size: 1.5em;
+        font-weight: 600;
+        color: #343a40;
+        line-height: 1.4;
+      }
+      
+      .cell-preview-container {
+        flex: 0 0 300px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      
+      .cell-preview-container h3 {
+        font-size: 1.3em;
+        font-weight: bold;
+        margin: 0 0 15px 0;
+        text-align: center;
+        color: #343a40;
+      }
+      
+      .block-preview {
+        border: 3px solid #343a40;
+        border-radius: 12px;
+        background: #f8f9fa;
+        padding: 20px;
+        width: 250px;
+        height: 350px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        gap: 8px;
+        overflow: hidden;
+      }
+      
+      .lot-item {
+        border-radius: 8px;
+        border: 2px solid #6c757d;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.95em;
+        transition: all 0.2s;
+        min-height: 40px;
+        padding: 8px 12px;
+        text-align: center;
+        word-wrap: break-word;
+        overflow: hidden;
+      }
+      
+      .lot-item.target-lot {
+        background: repeating-linear-gradient(
+          135deg,
+          #e6f2ff,
+          #e6f2ff 10px,
+          #cce6ff 15px,
+          #e6f2ff 20px
+        );
+        border: 3px solid #0d6efd;
+        font-weight: bold;
+        color: #0d6efd;
+      }
+      
+      .lot-item.empty-slot {
+        height: 50px;
+        background: #e9ecef;
+        color: #6c757d;
+        font-style: italic;
+        border: 2px dashed #adb5bd;
+      }
+      
+      .shelf-panel {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        min-width: 400px;
+      }
+      
+      .shelf-panel h2 {
+        margin: 0 0 30px 0;
+        font-size: 2.2em;
+        color: #343a40;
+        font-weight: 700;
+      }
+      
+      /* Remove all responsive/mobile styles - desktop only */
+    </style>
+    
 
 
 </html></body></body>
