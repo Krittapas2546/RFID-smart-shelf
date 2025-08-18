@@ -7,9 +7,16 @@ import os
 import signal
 import subprocess
 import json
+from dotenv import load_dotenv
 # --- Import Routers จากไฟล์ที่เราสร้าง ---
 from api import jobs, websockets
 from core.websocket_manager import manager
+
+# โหลด Environment Variables จากไฟล์ .env
+load_dotenv()
+
+# โหลด Environment Variables จากไฟล์ .env
+load_dotenv()
 
 # สร้างแอปพลิเคชัน FastAPI หลัก
 app = FastAPI(

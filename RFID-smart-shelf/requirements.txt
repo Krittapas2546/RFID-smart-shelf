@@ -7,3 +7,4 @@ click
 markupsafe
 websockets
 pi5neo
+dotenv

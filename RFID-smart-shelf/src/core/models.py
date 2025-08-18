@@ -29,3 +29,6 @@ class LEDPositionsRequest(BaseModel):
         {"position": "L1B2", "r": 0, "g": 255, "b": 0},
         {"position": "L2B1", "r": 0, "g": 0, "b": 255}
     ])
+
+class LotCheckRequest(BaseModel):
+    lot_no: str = Field(..., example="LOT123456")

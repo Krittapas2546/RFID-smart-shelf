@@ -1,14 +1,16 @@
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 import json
 import pathlib
+import os
+import requests
 
 # --- สำหรับควบคุม LED ---
 from core.led_controller import set_led
 
 # --- Import จากไฟล์ที่เราสร้างขึ้น ---
-from core.models import JobRequest, ErrorRequest, LEDPositionRequest, LEDPositionsRequest
+from core.models import JobRequest, ErrorRequest, LEDPositionRequest, LEDPositionsRequest, LotCheckRequest
 from core.database import (
     DB, get_job_by_id, get_lots_in_position, add_lot_to_position, remove_lot_from_position, update_lot_quantity, validate_position, get_shelf_info, SHELF_CONFIG
 )
@@ -451,4 +453,138 @@ def get_shelf_summary():
             "occupancy_rate": f"{(occupied_count/total_positions)*100:.1f}%"
         },
         "occupied_details": occupied_list
+    }
+
+# --- Mock LMS Database สำหรับทดสอบ ---
+MOCK_LMS_DATABASE = {
+    "LOT001": "Smart Shelf Alpha",
+    "LOT002": "Smart Shelf Beta", 
+    "LOT003": "Smart Shelf Alpha",
+    "LOT004": "Smart Shelf Gamma",
+    "LOT005": "Smart Shelf Beta",
+    "LOT123456": "Smart Shelf Demo",
+    "LOT789012": "Smart Shelf Alpha",
+    "LOT345678": "Smart Shelf Gamma",
+    "LOT555666": "Smart Shelf Beta",
+    "LOT999888": "Smart Shelf Delta",
+    "DEMO001": "Smart Shelf Alpha",
+    "DEMO002": "Smart Shelf Beta",
+    "TEST001": "Smart Shelf Gamma",
+    "PROD001": "Smart Shelf Alpha",
+    "PROD002": "Smart Shelf Beta"
+}
+
+def mock_lms_find_shelf(lot_no: str) -> dict:
+    """จำลอง LMS response สำหรับการหา shelf ของ lot"""
+    lot_no = lot_no.strip().upper()
+    
+    if lot_no in MOCK_LMS_DATABASE:
+        return {
+            "status": "success",
+            "lot_no": lot_no,
+            "shelf_name": MOCK_LMS_DATABASE[lot_no],
+            "found": True
+        }
+    else:
+        return {
+            "status": "not_found", 
+            "lot_no": lot_no,
+            "shelf_name": None,
+            "found": False
+        }
+
+@router.post("/api/lot/check-shelf", tags=["Lot Verification"])
+async def check_lot_correct_shelf(request: LotCheckRequest):
+    """ตรวจสอบ lot กับ LMS server และรับชื่อ shelf ที่ถูกต้องกลับมา"""
+    try:
+        lot_no = request.lot_no.strip()
+        
+        if not lot_no:
+            return JSONResponse(status_code=400, content={
+                "error": "Missing lot_no",
+                "message": "lot_no is required"
+            })
+        
+        # ตรวจสอบว่าต้องการใช้ Mock LMS หรือไม่
+        use_mock = os.getenv("MOCK_LMS_SERVER", "true").lower() == "true"
+        
+        if use_mock:
+            # ใช้ Mock LMS Database
+            print(f"🧪 Using Mock LMS to check lot: {lot_no}")
+            mock_result = mock_lms_find_shelf(lot_no)
+            
+            if mock_result["found"]:
+                return {
+                    "status": "success",
+                    "lot_no": lot_no,
+                    "correct_shelf_name": mock_result["shelf_name"],
+                    "message": f"Lot {lot_no} belongs to {mock_result['shelf_name']}",
+                    "source": "mock_lms"
+                }
+            else:
+                return JSONResponse(status_code=404, content={
+                    "error": "Lot not found",
+                    "message": f"Lot {lot_no} not found in Mock LMS database",
+                    "source": "mock_lms"
+                })
+        else:
+            # ใช้ LMS จริง
+            print(f"🌐 Using Real LMS to check lot: {lot_no}")
+            lms_server_url = os.getenv("LMS_SERVER_URL", "http://192.168.1.200:3000")
+            
+            response = requests.post(
+                f"{lms_server_url}/api/lms/check-lot-shelf",
+                json={"lot_no": lot_no},
+                timeout=5
+            )
+            
+            if response.status_code == 200:
+                lms_data = response.json()
+                shelf_name = lms_data.get("shelf_name", "Unknown Shelf")
+                
+                return {
+                    "status": "success",
+                    "lot_no": lot_no,
+                    "correct_shelf_name": shelf_name,
+                    "message": f"Lot {lot_no} belongs to {shelf_name}",
+                    "source": "real_lms"
+                }
+            else:
+                return JSONResponse(status_code=404, content={
+                    "error": "Lot not found",
+                    "message": f"Lot {lot_no} not found in LMS system",
+                    "source": "real_lms"
+                })
+                
+    except requests.RequestException as e:
+        return JSONResponse(status_code=503, content={
+            "error": "LMS server unavailable",
+            "message": "Cannot connect to LMS server",
+            "detail": str(e)
+        })
+    except Exception as e:
+        return JSONResponse(status_code=500, content={
+            "error": "Server error",
+            "detail": str(e)
+        })
+
+# --- Mock LMS Endpoint สำหรับทดสอบ ---
+@router.get("/api/mock-lms/lots", tags=["Mock LMS"])
+def get_mock_lms_database():
+    """แสดงข้อมูล Mock LMS Database ทั้งหมด"""
+    return {
+        "total_lots": len(MOCK_LMS_DATABASE),
+        "database": MOCK_LMS_DATABASE,
+        "available_shelves": list(set(MOCK_LMS_DATABASE.values()))
+    }
+
+@router.post("/api/mock-lms/add-lot", tags=["Mock LMS"])
+def add_lot_to_mock_database(lot_no: str, shelf_name: str):
+    """เพิ่ม lot ใหม่เข้า Mock LMS Database"""
+    lot_no = lot_no.strip().upper()
+    MOCK_LMS_DATABASE[lot_no] = shelf_name
+    return {
+        "status": "success",
+        "message": f"Added {lot_no} to {shelf_name}",
+        "total_lots": len(MOCK_LMS_DATABASE)
     }

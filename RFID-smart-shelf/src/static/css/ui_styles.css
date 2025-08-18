@@ -498,3 +498,150 @@
     50% { opacity: 0.7; }
 }
 /* --- END: Cell Preview Styles --- */
+
+/* --- START: Lot Verification Modal Styles --- */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    animation: fadeIn 0.3s ease;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    animation: slideUp 0.3s ease;
+}
+
+.redirect-modal .modal-header {
+    background: #ff6b6b;
+    color: white;
+    padding: 20px 24px;
+    border-radius: 12px 12px 0 0;
+    text-align: center;
+}
+
+.redirect-modal .modal-header h2 {
+    margin: 0;
+    font-size: 1.5em;
+    font-weight: 700;
+}
+
+.redirect-modal .modal-body {
+    padding: 24px;
+    text-align: center;
+}
+
+.lot-info {
+    margin-bottom: 20px;
+    padding: 16px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.lot-info p {
+    margin: 0;
+    font-size: 1.1em;
+}
+
+.lot-highlight {
+    font-weight: 700;
+    color: #dc3545;
+    font-size: 1.2em;
+}
+
+.redirect-message {
+    margin: 20px 0;
+}
+
+.redirect-message p {
+    margin: 8px 0;
+    font-size: 1.1em;
+    color: #495057;
+}
+
+.correct-shelf {
+    margin: 16px 0;
+    padding: 20px;
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+
+.correct-shelf h3 {
+    margin: 0;
+    font-size: 1.8em;
+    font-weight: 700;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.modal-footer {
+    padding: 20px 24px;
+    border-top: 1px solid #dee2e6;
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
+.btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 120px;
+}
+
+.btn-primary {
+    background: #007bff;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #0056b3;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #545b62;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from { 
+        opacity: 0; 
+        transform: translateY(30px) scale(0.95); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0) scale(1); 
+    }
+}
+/* --- END: Lot Verification Modal Styles --- */

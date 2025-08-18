@@ -1,3 +1,6 @@
+// --- Smart Shelf UI Logic v3.0 ---
+console.log('🔥 UI Logic JavaScript file loaded successfully!');
+
 // --- Cell Preview: แสดงรายละเอียดช่องที่เลือก (IMPROVED DESIGN) ---
 function renderCellPreview({ level, block, lots, targetLotNo, isPlaceJob = false, newLotTrayCount = 0 }) {
     const container = document.getElementById('cellPreviewContainer');
@@ -135,9 +138,15 @@ const ACTIVE_JOB_KEY = 'activeJob';
 
         localStorage.removeItem(ACTIVE_JOB_KEY);
 
-        let SHELF_CONFIG = {};
-        let TOTAL_LEVELS = 0;
-        let MAX_BLOCKS = 0;
+        // Default fallback configuration
+        let SHELF_CONFIG = {
+            1: 5,  // Level 1 has 5 blocks
+            2: 6,  // Level 2 has 6 blocks  
+            3: 6,  // Level 3 has 6 blocks
+            4: 6   // Level 4 has 6 blocks
+        };
+        let TOTAL_LEVELS = 4;
+        let MAX_BLOCKS = 6;
 
         // ฟังก์ชันสำหรับ Force Refresh Shelf Grid Structure
         function refreshShelfGrid() {
@@ -151,29 +160,39 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 initializeShelfState(); // สร้าง state ใหม่ตาม config ปัจจุบัน
                 renderShelfGrid();
                 console.log('✅ Shelf grid refreshed successfully');
+            } else {
+                console.error('❌ shelfGrid element not found in refreshShelfGrid');
             }
         }
 
         // ฟังก์ชันโหลดการกำหนดค่าจาก Server
         async function loadShelfConfig() {
             try {
+                console.log('📡 Attempting to load shelf config from server...');
                 const response = await fetch('/api/shelf/config');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
                 const data = await response.json();
                 SHELF_CONFIG = data.config;
                 TOTAL_LEVELS = data.total_levels;
                 MAX_BLOCKS = data.max_blocks;
-                console.log('📐 Shelf configuration loaded from server:', SHELF_CONFIG);
+                console.log('✅ Shelf configuration loaded from server:', SHELF_CONFIG);
                 
-                // สร้าง grid structure ใหม่หลังจากโหลด config
-                if (shelfGrid) {
-                    refreshShelfGrid(); // ใช้ refreshShelfGrid แทน
-                }
             } catch (error) {
-                console.warn('⚠️ Failed to load shelf config from server, using local config:', SHELF_CONFIG);
-                // ใช้ config ท้องถิ่นแทน และสร้าง grid
-                if (shelfGrid) {
-                    refreshShelfGrid();
-                }
+                console.warn('⚠️ Failed to load shelf config from server:', error.message);
+                console.log('🔄 Using fallback configuration:', SHELF_CONFIG);
+                // Using fallback config that was already set above
+            }
+            
+            // Always create grid after config is ready (either from server or fallback)
+            console.log('🏗️ Creating shelf grid with config:', SHELF_CONFIG);
+            if (shelfGrid) {
+                createShelfGridStructure();
+            } else {
+                console.error('❌ shelfGrid element not found during loadShelfConfig');
             }
         }
         // 🔼 END OF FLEXIBLE CONFIGURATION 🔼
@@ -277,6 +296,21 @@ const ACTIVE_JOB_KEY = 'activeJob';
         }
 
         function createShelfGridStructure() {
+            console.log('🏗️ createShelfGridStructure() called');
+            console.log('📊 Current SHELF_CONFIG:', SHELF_CONFIG);
+            console.log('📊 TOTAL_LEVELS:', TOTAL_LEVELS);
+            console.log('📊 shelfGrid element:', shelfGrid);
+            
+            if (!shelfGrid) {
+                console.error('❌ shelfGrid element not found');
+                return;
+            }
+            
+            if (!SHELF_CONFIG || Object.keys(SHELF_CONFIG).length === 0) {
+                console.error('❌ SHELF_CONFIG is empty or not loaded');
+                return;
+            }
+            
             // เคลียร์ grid เก่าทิ้งเสมอ เพื่อให้สามารถสร้างใหม่ได้ตาม config ปัจจุบัน
             shelfGrid.innerHTML = '';
             
@@ -716,9 +750,39 @@ const ACTIVE_JOB_KEY = 'activeJob';
 
             console.log(`📱 Barcode scanned: ${scannedData}`);
             
+        function handleBarcodeScanned() {
+            const barcodeInput = document.getElementById('barcode-scanner-input');
+            if (!barcodeInput) return;
+
+            const scannedData = barcodeInput.value.trim();
+            barcodeInput.value = '';
+
+            if (!scannedData) return;
+
+            console.log(`📱 Barcode scanned: ${scannedData}`);
+            
             const activeJob = getActiveJob();
             if (!activeJob) {
-                showNotification('❌ No active job to process barcode.', 'error');
+                // ไม่มี active job - ตรวจสอบว่าเป็น lot number หรือ location barcode
+                const locationMatch = parseLocationFromBarcode(scannedData);
+                
+                if (!locationMatch) {
+                    // ไม่ใช่ location barcode - อาจเป็น lot number
+                    // ตรวจสอบว่าอยู่ใน queue หรือไม่
+                    const jobs = getQueue();
+                    const foundJob = jobs.find(job => 
+                        job.lot_no && job.lot_no.toLowerCase().includes(scannedData.toLowerCase())
+                    );
+
+                    if (!foundJob) {
+                        // ไม่พบใน queue ปัจจุบัน - ตรวจสอบกับ LMS
+                        checkLotWithLMS(scannedData);
+                    } else {
+                        showNotification(`✅ Lot ${scannedData} found in current queue`, 'success');
+                    }
+                } else {
+                    showNotification('❌ No active job to process location barcode.', 'error');
+                }
                 return;
             }
 
@@ -915,15 +979,27 @@ const ACTIVE_JOB_KEY = 'activeJob';
         // 🔼 END OF BARCODE SCANNING FUNCTIONALITY 🔼
 
         function renderAll() {
+            console.log('🎨 renderAll() called');
             const queue = getQueue();
             const activeJob = getActiveJob();
+            console.log(`📊 Queue length: ${queue.length}, Active job:`, activeJob ? 'Yes' : 'No');
+
+            const mainView = document.getElementById('mainView');
+            const queueSelectionView = document.getElementById('queueSelectionView');
+            
+            if (!mainView || !queueSelectionView) {
+                console.error('❌ Cannot find mainView or queueSelectionView elements');
+                return;
+            }
 
             if (queue.length > 0 && !activeJob) {
+                console.log('🔄 Showing queue selection view');
                 mainView.style.display = 'none';
                 queueSelectionView.style.display = 'block';
                 renderQueueSelectionView(queue);
                 controlLEDByQueue();
             } else if (activeJob) {
+                console.log('⚡ Showing main view with active job');
                 // เรียกควบคุมไฟที่นี่ (ไม่ต้องส่ง wrongLocation)
                 controlLEDByActiveJob();
                 queueSelectionView.style.display = 'none';
@@ -932,6 +1008,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 renderShelfGrid();
                 setupBarcodeScanner();
             } else {
+                console.log('🏠 Showing main view (no queue, no active job)');
                 queueSelectionView.style.display = 'none';
                 mainView.style.display = 'flex';
                 renderActiveJob();
@@ -941,14 +1018,170 @@ const ACTIVE_JOB_KEY = 'activeJob';
 
         // --- Initial Load ---
         document.addEventListener('DOMContentLoaded', async () => {
-            await loadShelfConfig();
-            initializeShelfState();
-            setupWebSocket();
-            renderAll();
+            console.log('🚀 Smart Shelf UI: DOMContentLoaded fired');
+            try {
+                console.log('📡 Loading shelf config...');
+                await loadShelfConfig(); // This will create the grid structure
+                console.log('🔧 Initializing shelf state...');
+                initializeShelfState();
+                console.log('🌐 Setting up WebSocket...');
+                setupWebSocket();
+                console.log('🎨 Rendering all views...');
+                renderAll();
+                console.log('✅ Smart Shelf UI: Initialization complete');
+            } catch (error) {
+                console.error('❌ Smart Shelf UI: Initialization failed:', error);
+                // แสดง main view ในกรณีที่เกิดข้อผิดพลาด
+                const mainView = document.getElementById('mainView');
+                const queueView = document.getElementById('queueSelectionView');
+                if (mainView) mainView.style.display = 'flex';
+                if (queueView) queueView.style.display = 'none';
+                
+                // สร้าง fallback grid ถ้าเกิดข้อผิดพลาด
+                try {
+                    createShelfGridStructure();
+                    initializeShelfState();
+                    renderShelfGrid();
+                } catch (fallbackError) {
+                    console.error('❌ Fallback grid creation failed:', fallbackError);
+                }
+            }
         });
         
         // ลบ Event Listener ของ 'storage' เก่าออก เพราะเราจะใช้ WebSocket แทน
         window.removeEventListener('storage', renderAll);
+        
+        // *** START: Lot Verification with LMS Integration ***
+        
+        /**
+         * ตรวจสอบ lot กับ LMS server เมื่อไม่พบใน queue ปัจจุบัน
+         */
+        async function checkLotWithLMS(lotNo) {
+            try {
+                showNotification(`🔍 Checking lot ${lotNo} with LMS server...`, 'info');
+                
+                const response = await fetch('/api/lot/check-shelf', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ lot_no: lotNo })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.status === 'success') {
+                    const correctShelf = data.correct_shelf_name;
+                    showShelfRedirectModal(lotNo, correctShelf);
+                } else if (response.status === 404) {
+                    showNotification(`❌ Lot ${lotNo} not found in system`, 'error');
+                } else if (response.status === 503) {
+                    showNotification(`⚠️ LMS server unavailable. Please try again later.`, 'warning');
+                } else {
+                    showNotification(`❌ Error checking lot: ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error checking lot with LMS:', error);
+                showNotification(`❌ Connection error. Please check network.`, 'error');
+            }
+        }
+
+        /**
+         * แสดง modal สำหรับแจ้งว่าต้องไปวาง lot ที่ shelf ไหน
+         */
+        function showShelfRedirectModal(lotNo, correctShelfName) {
+            // สร้าง modal element
+            const modal = document.createElement('div');
+            modal.id = 'shelf-redirect-modal';
+            modal.className = 'modal-overlay';
+            
+            modal.innerHTML = `
+                <div class="modal-content redirect-modal">
+                    <div class="modal-header">
+                        <h2>🚨 Wrong Shelf</h2>
+                    </div>
+                    <div class="modal-body">
+                        <div class="lot-info">
+                            <p><strong>Lot Number:</strong> <span class="lot-highlight">${lotNo}</span></p>
+                        </div>
+                        <div class="redirect-message">
+                            <p>This lot belongs to:</p>
+                            <div class="correct-shelf">
+                                <h3>📦 ${correctShelfName}</h3>
+                            </div>
+                            <p>Please take this lot to the correct shelf.</p>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="redirect-ok-btn" class="btn btn-primary">
+                            ✅ Understood
+                        </button>
+                        <button id="redirect-cancel-btn" class="btn btn-secondary">
+                            ❌ Cancel
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            // เพิ่ม modal ใน DOM
+            document.body.appendChild(modal);
+
+            // เพิ่ม event listeners
+            document.getElementById('redirect-ok-btn').addEventListener('click', () => {
+                document.body.removeChild(modal);
+                showNotification(`📦 Please take Lot ${lotNo} to ${correctShelf}`, 'info');
+            });
+
+            document.getElementById('redirect-cancel-btn').addEventListener('click', () => {
+                document.body.removeChild(modal);
+            });
+
+            // ปิด modal เมื่อคลิกนอก content
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    document.body.removeChild(modal);
+                }
+            });
+        }
+
+        /**
+         * เพิ่มฟังก์ชันตรวจสอบ lot ใน search box
+         */
+        function enhanceSearchWithLotCheck() {
+            const searchInput = document.getElementById('search-input');
+            if (!searchInput) return;
+
+            // เพิ่ม event listener สำหรับ Enter key
+            searchInput.addEventListener('keydown', async (e) => {
+                if (e.key === 'Enter') {
+                    const searchTerm = searchInput.value.trim();
+                    if (!searchTerm) return;
+
+                    // ตรวจสอบว่ามี job ที่ตรงกับ lot นี้ใน queue หรือไม่
+                    const jobs = getQueue();
+                    const foundJob = jobs.find(job => 
+                        job.lot_no && job.lot_no.toLowerCase().includes(searchTerm.toLowerCase())
+                    );
+
+                    if (!foundJob) {
+                        // ไม่พบใน queue ปัจจุบัน - ตรวจสอบกับ LMS
+                        await checkLotWithLMS(searchTerm);
+                    } else {
+                        showNotification(`✅ Lot ${searchTerm} found in current queue`, 'success');
+                    }
+                    
+                    // ล้าง search input
+                    searchInput.value = '';
+                }
+            });
+        }
+
+        // เรียกใช้ฟังก์ชันเมื่อ DOM โหลดเสร็จ
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', enhanceSearchWithLotCheck);
+        } else {
+            enhanceSearchWithLotCheck();
+        }
+        
+        // *** END: Lot Verification with LMS Integration ***
         
         // *** START: WebSocket Integration ***
         let websocketConnection = null; // เก็บ WebSocket connection
@@ -1160,3 +1393,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 body: JSON.stringify({ level, block, ...color })
             });
         }
+
+        // *** END: Application Logic ***
+
+}
