@@ -212,19 +212,11 @@ const ACTIVE_JOB_KEY = 'activeJob';
             
             // Colors based on type
             switch (type) {
-                case 'success':
-                    notification.style.backgroundColor = '#28a745';
-                    break;
-                case 'error':
-                    notification.style.backgroundColor = '#dc3545';
-                    break;
-                case 'warning':
-                    notification.style.backgroundColor = '#ffc107';
-                    notification.style.color = '#212529';
-                    break;
-                default: // info
-                    notification.style.backgroundColor = '#17a2b8';
-                    break;
+                case 'success': notification.style.backgroundColor = '#28a745'; break;
+                case 'error': notification.style.backgroundColor = '#dc3545'; break;
+                case 'warning': notification.style.backgroundColor = '#ffc107'; notification.style.color = '#212529'; break;
+                case 'info': notification.style.backgroundColor = '#17a2b8'; break;
+                default: notification.style.backgroundColor = '#6c757d';
             }
             
             document.body.appendChild(notification);
@@ -239,12 +231,91 @@ const ACTIVE_JOB_KEY = 'activeJob';
             setTimeout(() => {
                 notification.style.opacity = '0';
                 notification.style.transform = 'translateX(100%)';
-                setTimeout(() => {
-                    if (document.body.contains(notification)) {
-                        document.body.removeChild(notification);
-                    }
-                }, 300);
+                setTimeout(() => notification.remove(), 300);
             }, 3000);
+        }
+
+        /**
+         * แสดง Rich Notification พร้อมรายละเอียด LMS
+         * @param {Object} lmsData - ข้อมูลจาก LMS
+         * @param {string} type - ประเภท notification
+         */
+        function showLMSNotification(lmsData, type = 'success') {
+            console.log(`📋 LMS Notification:`, lmsData);
+            
+            // ลบ notification เก่าทั้งหมดก่อน
+            const existingNotifications = document.querySelectorAll('.notification');
+            existingNotifications.forEach(notification => {
+                notification.remove();
+            });
+            
+            const notification = document.createElement('div');
+            notification.className = `notification lms-notification ${type}`;
+            
+            // สร้าง HTML สำหรับ rich notification
+            notification.innerHTML = `
+                <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 16px; margin-right: 8px;">📋</span>
+                    <strong>ข้อมูลจาก LMS</strong>
+                </div>
+                <div style="font-size: 14px; line-height: 1.4;">
+                    <div>• LOT: <strong>${lmsData.lotNo}</strong></div>
+                    <div>• ชั้นวาง: <strong>${lmsData.correctShelf}</strong></div>
+                    <div>• ประเภท: <strong>${lmsData.placeFlg === "1" ? "วางของ" : "หยิบของ"}</strong></div>
+                </div>
+            `;
+            
+            // Styling
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 20px;
+                border-radius: 12px;
+                color: white;
+                z-index: 1000;
+                opacity: 0;
+                transition: all 0.3s ease-in-out;
+                transform: translateX(100%);
+                box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+                max-width: 380px;
+                min-width: 300px;
+                border-left: 4px solid rgba(255,255,255,0.3);
+            `;
+            
+            // Colors based on type
+            switch (type) {
+                case 'success': 
+                    notification.style.background = 'linear-gradient(135deg, #28a745, #20c997)'; 
+                    break;
+                case 'error': 
+                    notification.style.background = 'linear-gradient(135deg, #dc3545, #e74c3c)'; 
+                    break;
+                case 'warning': 
+                    notification.style.background = 'linear-gradient(135deg, #ffc107, #f39c12)';
+                    notification.style.color = '#212529';
+                    break;
+                case 'info': 
+                    notification.style.background = 'linear-gradient(135deg, #17a2b8, #3498db)'; 
+                    break;
+                default: 
+                    notification.style.background = 'linear-gradient(135deg, #6c757d, #95a5a6)';
+            }
+            
+            document.body.appendChild(notification);
+            
+            // Animate in
+            setTimeout(() => {
+                notification.style.opacity = '1';
+                notification.style.transform = 'translateX(0)';
+            }, 100);
+            
+            // Animate out and remove (longer duration for rich content)
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => notification.remove(), 300);
+            }, 5000); // 5 seconds for rich notification
         }
         // 🔼 END OF ADDED FUNCTION 🔼
 
@@ -1160,3 +1231,133 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 body: JSON.stringify({ level, block, ...color })
             });
         }
+
+        // 🔽 LMS Integration Functions 🔽
+        /**
+         * เรียก LMS API เพื่อตรวจสอบชั้นวางที่ถูกต้องสำหรับ LOT ที่ไม่อยู่ในคิว
+         * @param {string} lotNo - หมายเลข LOT
+         * @param {string} placeFlg - ประเภทงาน ("0" = หยิบ, "1" = วาง)
+         */
+        async function checkShelfFromLMS(lotNo, placeFlg) {
+            if (!lotNo) {
+                showNotification('❌ กรุณาระบุหมายเลข LOT', 'error');
+                return null;
+            }
+
+            try {
+                showNotification(`🔍 กำลังตรวจสอบ LOT ${lotNo} จาก LMS...`, 'info');
+                
+                const response = await fetch('/api/LMS/checkshelf', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        lot_no: lotNo,
+                        place_flg: placeFlg
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showNotification(
+                        `✅ พบข้อมูล LOT ${lotNo} - ชั้นวางที่ถูกต้อง: ${result.correct_shelf}`, 
+                        'success'
+                    );
+                    return {
+                        success: true,
+                        correctShelf: result.correct_shelf,
+                        lotNo: result.lot_no
+                    };
+                } else {
+                    showNotification(
+                        `❌ ไม่พบข้อมูล LOT ${lotNo}: ${result.message || result.error}`, 
+                        'error'
+                    );
+                    return {
+                        success: false,
+                        error: result.error,
+                        message: result.message
+                    };
+                }
+
+            } catch (error) {
+                console.error('LMS API Error:', error);
+                showNotification(`❌ เกิดข้อผิดพลาดในการเชื่อมต่อ LMS: ${error.message}`, 'error');
+                return {
+                    success: false,
+                    error: 'Network Error',
+                    message: error.message
+                };
+            }
+        }
+
+        /**
+         * จัดการเมื่อ scan LOT ที่ไม่อยู่ในคิว (Auto LMS check - No confirmation)
+         * @param {string} scannedLot - หมายเลข LOT ที่ scan
+         */
+        async function handleUnknownLotScanned(scannedLot) {
+            if (!scannedLot) return;
+
+            console.log(`🔍 Processing unknown LOT: ${scannedLot}`);
+            
+            // ตรวจสอบว่า LOT อยู่ในคิวหรือไม่
+            const queue = getQueue();
+            const lotInQueue = queue.find(job => job.lot_no === scannedLot);
+            
+            if (lotInQueue) {
+                showNotification(`✅ พบ LOT ${scannedLot} ในคิว - กำลังเลือก...`, 'success');
+                findAndSelectJobByLot(scannedLot);
+                return;
+            }
+
+            // ถ้าไม่อยู่ในคิว ให้เรียก LMS ทันที (ไม่ต้อง confirm)
+            showNotification(`🔍 LOT ${scannedLot} ไม่อยู่ในคิว - กำลังตรวจสอบจาก LMS...`, 'info');
+
+            // สมมติว่าเป็นงานวาง (place_flg = "1") - สามารถปรับได้ตามความต้องการ
+            const placeFlg = "1"; // หรือให้ user เลือก
+            
+            const lmsResult = await checkShelfFromLMS(scannedLot, placeFlg);
+            
+            if (lmsResult && lmsResult.success) {
+                // ใช้ Rich Notification แทน simple notification
+                showLMSNotification({
+                    lotNo: lmsResult.lotNo,
+                    correctShelf: lmsResult.correctShelf,
+                    placeFlg: placeFlg
+                }, 'success');
+                
+                console.log('📊 LMS Result:', lmsResult);
+                
+                // สามารถเพิ่มการทำงานอื่นๆ ได้ที่นี่ เช่น สร้าง job ใหม่
+            } else if (lmsResult && !lmsResult.success) {
+                // แสดง error notification
+                showNotification(
+                    `❌ ไม่พบข้อมูล LOT ${scannedLot}: ${lmsResult.message || lmsResult.error}`, 
+                    'error'
+                );
+            }
+        }
+
+        /**
+         * Integration กับ barcode scanner ที่มีอยู่
+         * ปรับปรุงฟังก์ชัน findAndSelectJobByLot ให้รองรับ LMS
+         */
+        const originalFindAndSelectJobByLot = findAndSelectJobByLot;
+        
+        window.findAndSelectJobByLot = function(lotNo) {
+            if (!lotNo) return;
+
+            const queue = getQueue();
+            const foundJob = queue.find(job => job.lot_no === lotNo);
+
+            if (foundJob) {
+                // ใช้ฟังก์ชันเดิม
+                originalFindAndSelectJobByLot(lotNo);
+            } else {
+                // เรียก LMS integration
+                handleUnknownLotScanned(lotNo);
+            }
+        };
+        // 🔼 End LMS Integration Functions 🔼

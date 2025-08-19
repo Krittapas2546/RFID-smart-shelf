@@ -3,15 +3,18 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 import json
 import pathlib
+import httpx
+import re
 
 # --- สำหรับควบคุม LED ---
 from core.led_controller import set_led
 
 # --- Import จากไฟล์ที่เราสร้างขึ้น ---
-from core.models import JobRequest, ErrorRequest, LEDPositionRequest, LEDPositionsRequest
+from core.models import JobRequest, ErrorRequest, LEDPositionRequest, LEDPositionsRequest, LMSCheckShelfRequest, LMSCheckShelfResponse
 from core.database import (
     DB, get_job_by_id, get_lots_in_position, add_lot_to_position, remove_lot_from_position, update_lot_quantity, validate_position, get_shelf_info, SHELF_CONFIG
 )
+from core.lms_config import LMS_BASE_URL, LMS_ENDPOINT, LMS_API_KEY, LMS_TIMEOUT
 from api.websockets import manager # <-- import manager มาจากที่ใหม่
 
 router = APIRouter() # <-- สร้าง router สำหรับไฟล์นี้
@@ -218,6 +221,115 @@ def serve_simulator(request: Request):
 @router.get("/health", tags=["System"])
 def health_check():
     return {"status": "ok", "message": "Barcode Smart Shelf Server is running"}
+
+@router.post("/api/LMS/checkshelf", tags=["LMS Integration"])
+async def check_shelf_from_lms(request: LMSCheckShelfRequest):
+    """
+    API สำหรับตรวจสอบชั้นวางที่ถูกต้องจาก LMS
+    เมื่อ scan LOT ที่ไม่ตรงกับคิวที่มีอยู่
+    """
+    try:
+        # ตรวจสอบว่า LOT นี้มีอยู่ในคิวหรือไม่
+        existing_job = any(j['lot_no'] == request.lot_no for j in DB["jobs"])
+        
+        if existing_job:
+            return JSONResponse(
+                status_code=400, 
+                content={
+                    "error": "LOT already exists in queue",
+                    "message": f"LOT {request.lot_no} is already in the job queue"
+                }
+            )
+        
+        # เตรียมข้อมูลสำหรับส่งไป LMS
+        lms_payload = {
+            "lot_no": request.lot_no,
+            "place_flg": request.place_flg
+        }
+        
+        # ส่งข้อมูลไปยัง LMS Server
+        lms_url = f"{LMS_BASE_URL}{LMS_ENDPOINT}"
+        
+        # เพิ่ม API Key ใน headers (ตาม Postman collection)
+        headers = {
+            "Content-Type": "application/json",
+            "apiKey": LMS_API_KEY  # ใช้ header name ตาม Postman: "apiKey"
+        }
+        
+        async with httpx.AsyncClient(timeout=LMS_TIMEOUT) as client:
+            response = await client.post(
+                lms_url,
+                json=lms_payload,
+                headers=headers
+            )
+            
+            if response.status_code == 200:
+                lms_response = response.json()
+                
+                # ตรวจสอบ response format ใหม่ที่มี status, correct_shelf, lot_no, message
+                if ("status" in lms_response and "correct_shelf" in lms_response and 
+                    "lot_no" in lms_response and "message" in lms_response):
+                    
+                    # ตรวจสอบว่า LMS ประมวลผลสำเร็จหรือไม่
+                    if lms_response["status"] == "success":
+                        return {
+                            "status": "success",
+                            "correct_shelf": lms_response["correct_shelf"],
+                            "lot_no": lms_response["lot_no"],
+                            "message": lms_response["message"]
+                        }
+                    else:
+                        return JSONResponse(
+                            status_code=400,
+                            content={
+                                "error": "LMS processing failed",
+                                "message": lms_response.get("message", "Unknown error from LMS"),
+                                "status": lms_response["status"]
+                            }
+                        )
+                else:
+                    return JSONResponse(
+                        status_code=502,
+                        content={
+                            "error": "Invalid LMS response format",
+                            "message": "LMS response missing required fields (status, correct_shelf, lot_no, message)",
+                            "received_fields": list(lms_response.keys())
+                        }
+                    )
+            else:
+                return JSONResponse(
+                    status_code=502,
+                    content={
+                        "error": "LMS server error",
+                        "message": f"LMS server returned status {response.status_code}",
+                        "detail": response.text
+                    }
+                )
+                
+    except httpx.TimeoutException:
+        return JSONResponse(
+            status_code=504,
+            content={
+                "error": "LMS server timeout",
+                "message": "Connection to LMS server timed out"
+            }
+        )
+    except httpx.ConnectError:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "LMS server unavailable",
+                "message": "Cannot connect to LMS server"
+            }
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Internal server error",
+                "message": str(e)
+            }
+        )
 
 @router.get("/command", tags=["Jobs"])
 def get_all_jobs():

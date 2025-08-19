@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 
 class JobRequest(BaseModel):
-    lot_no: str = Field(..., example="LOT123456")
+    lot_no: str = Field(..., example="Y531103TL.07")
     level: str = Field(..., example="1")
     block: str = Field(..., example="2")
     place_flg: str = Field(..., example="1")
@@ -29,3 +29,13 @@ class LEDPositionsRequest(BaseModel):
         {"position": "L1B2", "r": 0, "g": 255, "b": 0},
         {"position": "L2B1", "r": 0, "g": 0, "b": 255}
     ])
+
+class LMSCheckShelfRequest(BaseModel):
+    lot_no: str = Field(..., example="Y531103TL.07")
+    place_flg: str = Field(..., example="1")
+
+class LMSCheckShelfResponse(BaseModel):
+    status: str = Field(..., example="success")
+    correct_shelf: str = Field(..., example="AM_BURN_S_0006")
+    lot_no: str = Field(..., example="Y531103TL.07")
+    message: str = Field(..., example="Found correct shelf for Y531103TL.07")
