@@ -1233,6 +1233,228 @@ const ACTIVE_JOB_KEY = 'activeJob';
         }
 
         // 🔽 LMS Integration Functions 🔽
+        
+        /**
+         * แสดง Alert Popup สำหรับ LMS response แบบใหม่ตามรูปแบบที่กำหนด
+         * @param {string} lotNo - หมายเลข Lot
+         * @param {string} location - ตำแหน่งที่ต้องไป
+         * @param {string} type - ประเภท popup (warning, error, success, info)
+         * @param {number} duration - ระยะเวลาแสดง popup (milliseconds)
+         */
+        function showLMSAlertPopup(lotNo, location, type = 'warning', duration = 0) {
+            // ลบ popup เก่าถ้ามี
+            const existingPopup = document.getElementById('lmsAlertPopup');
+            if (existingPopup) {
+                existingPopup.remove();
+            }
+
+            // เพิ่ม CSS animations ถ้ายังไม่มี
+            if (!document.getElementById('lmsPopupStyles')) {
+                const style = document.createElement('style');
+                style.id = 'lmsPopupStyles';
+                style.textContent = `
+                    @keyframes fadeIn {
+                        from { opacity: 0; }
+                        to { opacity: 1; }
+                    }
+                    @keyframes slideInDown {
+                        from {
+                            transform: translateY(-50px);
+                            opacity: 0;
+                        }
+                        to {
+                            transform: translateY(0);
+                            opacity: 1;
+                        }
+                    }
+                    @keyframes pulse {
+                        0% {
+                            transform: scale(1);
+                        }
+                        50% {
+                            transform: scale(1.05);
+                        }
+                        100% {
+                            transform: scale(1);
+                        }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+
+            // สร้าง overlay
+            const overlay = document.createElement('div');
+            overlay.id = 'lmsAlertPopup';
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.8);
+                z-index: 10000;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                animation: fadeIn 0.3s ease-in-out;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            `;
+
+            // กำหนดสีตาม type
+            let backgroundColor, borderColor;
+            switch (type) {
+                case 'error':
+                    backgroundColor = '#ff4757';
+                    borderColor = '#ff3838';
+                    break;
+                case 'success':
+                    backgroundColor = '#2ed573';
+                    borderColor = '#1dd1a1';
+                    break;
+                case 'info':
+                    backgroundColor = '#3742fa';
+                    borderColor = '#2f3542';
+                    break;
+                default: // warning/default (orange like in image)
+                    backgroundColor = '#ff6b35';
+                    borderColor = '#e55a2b';
+            }
+
+            // สร้าง popup content
+            const popup = document.createElement('div');
+            popup.style.cssText = `
+                background: ${backgroundColor};
+                color: white;
+                padding: 40px 50px;
+                border-radius: 15px;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+                max-width: 500px;
+                width: 90%;
+                text-align: center;
+                position: relative;
+                animation: slideInDown 0.5s ease-out;
+                border: 3px solid ${borderColor};
+                font-weight: bold;
+            `;
+
+            // สร้าง Lot No.
+            const lotElement = document.createElement('div');
+            lotElement.textContent = `Lot No. ${lotNo}`;
+            lotElement.style.cssText = `
+                margin: 0 0 30px 0;
+                font-size: 28px;
+                font-weight: bold;
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+                line-height: 1.2;
+            `;
+
+            // สร้าง "GO TO:" label
+            const goToLabel = document.createElement('div');
+            goToLabel.textContent = 'GO TO:';
+            goToLabel.style.cssText = `
+                margin: 0 0 15px 0;
+                font-size: 20px;
+                font-weight: bold;
+                opacity: 0.9;
+            `;
+
+            // สร้าง location
+            const locationElement = document.createElement('div');
+            locationElement.textContent = location;
+            locationElement.style.cssText = `
+                margin: 0 0 35px 0;
+                font-size: 32px;
+                font-weight: bold;
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+                line-height: 1.2;
+                letter-spacing: 1px;
+            `;
+
+            // สร้างปุ่ม OK
+            const okButton = document.createElement('button');
+            okButton.textContent = 'OK';
+            okButton.style.cssText = `
+                background: rgba(255, 255, 255, 0.9);
+                color: ${backgroundColor};
+                border: none;
+                padding: 12px 40px;
+                border-radius: 8px;
+                font-size: 18px;
+                font-weight: bold;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+                min-width: 120px;
+            `;
+
+            // เพิ่ม hover effect สำหรับปุ่ม OK
+            okButton.addEventListener('mouseenter', () => {
+                okButton.style.background = 'white';
+                okButton.style.transform = 'translateY(-2px)';
+                okButton.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.3)';
+            });
+
+            okButton.addEventListener('mouseleave', () => {
+                okButton.style.background = 'rgba(255, 255, 255, 0.9)';
+                okButton.style.transform = 'translateY(0)';
+                okButton.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.2)';
+            });
+
+            // Click event สำหรับปุ่ม OK
+            okButton.addEventListener('click', () => {
+                overlay.remove();
+            });
+
+            // ประกอบ popup
+            popup.appendChild(lotElement);
+            popup.appendChild(goToLabel);
+            popup.appendChild(locationElement);
+            popup.appendChild(okButton);
+
+            overlay.appendChild(popup);
+            document.body.appendChild(overlay);
+
+            // Auto hide after duration (ถ้ากำหนด duration > 0)
+            if (duration > 0) {
+                setTimeout(() => {
+                    if (overlay && overlay.parentNode) {
+                        overlay.style.animation = 'fadeIn 0.3s ease-in-out reverse';
+                        setTimeout(() => {
+                            overlay.remove();
+                        }, 300);
+                    }
+                }, duration);
+            }
+
+            // Click overlay to close
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    overlay.remove();
+                }
+            });
+
+            // ESC to close
+            const escHandler = (e) => {
+                if (e.key === 'Escape') {
+                    overlay.remove();
+                    document.removeEventListener('keydown', escHandler);
+                }
+            };
+            document.addEventListener('keydown', escHandler);
+
+            // Focus ปุ่ม OK เพื่อให้สามารถกด Enter ได้
+            setTimeout(() => {
+                okButton.focus();
+            }, 100);
+
+            // Enter to close
+            okButton.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    overlay.remove();
+                }
+            });
+        }
+
         /**
          * เรียก LMS API เพื่อตรวจสอบชั้นวางที่ถูกต้องสำหรับ LOT ที่ไม่อยู่ในคิว
          * @param {string} lotNo - หมายเลข LOT
@@ -1240,11 +1462,17 @@ const ACTIVE_JOB_KEY = 'activeJob';
          */
         async function checkShelfFromLMS(lotNo, placeFlg) {
             if (!lotNo) {
-                showNotification('❌ กรุณาระบุหมายเลข LOT', 'error');
+                showLMSAlertPopup(
+                    'ข้อมูลไม่ครบถ้วน',
+                    'กรุณาระบุหมายเลข LOT',
+                    null,
+                    'error'
+                );
                 return null;
             }
 
             try {
+                // แสดง loading popup
                 showNotification(`🔍 กำลังตรวจสอบ LOT ${lotNo} จาก LMS...`, 'info');
                 
                 const response = await fetch('/api/LMS/checkshelf', {
@@ -1260,21 +1488,41 @@ const ACTIVE_JOB_KEY = 'activeJob';
 
                 const result = await response.json();
 
-                if (response.ok) {
-                    showNotification(
-                        `✅ พบข้อมูล LOT ${lotNo} - ชั้นวางที่ถูกต้อง: ${result.correct_shelf}`, 
-                        'success'
+                if (response.ok && result.status === 'success') {
+                    // Success popup
+                    const actionText = placeFlg === "1" ? "วางของ" : "หยิบของ";
+                    showLMSAlertPopup(
+                        '✅ ข้อมูลจาก LMS',
+                        `พบข้อมูล LOT ${result.lot_no}`,
+                        `
+                            <strong>🏷️ LOT:</strong> ${result.lot_no}<br>
+                            <strong>📍 ชั้นวางที่ถูกต้อง:</strong> ${result.correct_shelf}<br>
+                            <strong>⚡ ประเภทงาน:</strong> ${actionText}<br>
+                            <strong>💬 รายละเอียด:</strong> ${result.message}
+                        `,
+                        'success',
+                        5000
                     );
+                    
                     return {
                         success: true,
                         correctShelf: result.correct_shelf,
                         lotNo: result.lot_no
                     };
                 } else {
-                    showNotification(
-                        `❌ ไม่พบข้อมูล LOT ${lotNo}: ${result.message || result.error}`, 
-                        'error'
+                    // Error popup
+                    showLMSAlertPopup(
+                        '❌ ไม่พบข้อมูลใน LMS',
+                        `LOT ${lotNo} ไม่อยู่ในระบบ`,
+                        `
+                            <strong>🔍 LOT ที่ค้นหา:</strong> ${lotNo}<br>
+                            <strong>❌ สาเหตุ:</strong> ${result.message || result.error}<br>
+                            <strong>💡 แนะนำ:</strong> กรุณาตรวจสอบหมายเลข LOT หรือติดต่อ supervisor
+                        `,
+                        'error',
+                        5000
                     );
+                    
                     return {
                         success: false,
                         error: result.error,
@@ -1284,7 +1532,20 @@ const ACTIVE_JOB_KEY = 'activeJob';
 
             } catch (error) {
                 console.error('LMS API Error:', error);
-                showNotification(`❌ เกิดข้อผิดพลาดในการเชื่อมต่อ LMS: ${error.message}`, 'error');
+                
+                // Network error popup
+                showLMSAlertPopup(
+                    '🚫 ข้อผิดพลาดการเชื่อมต่อ',
+                    'ไม่สามารถเชื่อมต่อกับระบบ LMS ได้',
+                    `
+                        <strong>⚠️ ข้อผิดพลาด:</strong> ${error.message}<br>
+                        <strong>🔄 แนะนำ:</strong> กรุณาลองใหม่อีกครั้ง หรือติดต่อ IT Support<br>
+                        <strong>📞 หมายเลขติดต่อ:</strong> ext. 1234
+                    `,
+                    'error',
+                    5000
+                );
+                
                 return {
                     success: false,
                     error: 'Network Error',
@@ -1312,32 +1573,36 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 return;
             }
 
-            // ถ้าไม่อยู่ในคิว ให้เรียก LMS ทันที (ไม่ต้อง confirm)
-            showNotification(`🔍 LOT ${scannedLot} ไม่อยู่ในคิว - กำลังตรวจสอบจาก LMS...`, 'info');
+            // ถ้าไม่อยู่ในคิว ให้แสดง popup แจ้งเตือนก่อน
+            showLMSAlertPopup(
+                '⚠️ LOT ไม่อยู่ในคิวงาน',
+                `LOT ${scannedLot} ไม่พบในคิวงานปัจจุบัน`,
+                `
+                    <strong>🔍 LOT ที่ scan:</strong> ${scannedLot}<br>
+                    <strong>🔄 กำลังดำเนินการ:</strong> ตรวจสอบข้อมูลจาก LMS...<br>
+                    <strong>⏳ โปรดรอ:</strong> ระบบกำลังค้นหาข้อมูลชั้นวางที่ถูกต้อง
+                `,
+                'warning',
+                3000
+            );
 
             // สมมติว่าเป็นงานวาง (place_flg = "1") - สามารถปรับได้ตามความต้องการ
-            const placeFlg = "1"; // หรือให้ user เลือก
+            const placeFlg = "1";
             
-            const lmsResult = await checkShelfFromLMS(scannedLot, placeFlg);
-            
-            if (lmsResult && lmsResult.success) {
-                // ใช้ Rich Notification แทน simple notification
-                showLMSNotification({
-                    lotNo: lmsResult.lotNo,
-                    correctShelf: lmsResult.correctShelf,
-                    placeFlg: placeFlg
-                }, 'success');
+            // รอ 1 วินาทีแล้วค่อยเรียก LMS
+            setTimeout(async () => {
+                const lmsResult = await checkShelfFromLMS(scannedLot, placeFlg);
                 
-                console.log('📊 LMS Result:', lmsResult);
-                
-                // สามารถเพิ่มการทำงานอื่นๆ ได้ที่นี่ เช่น สร้าง job ใหม่
-            } else if (lmsResult && !lmsResult.success) {
-                // แสดง error notification
-                showNotification(
-                    `❌ ไม่พบข้อมูล LOT ${scannedLot}: ${lmsResult.message || lmsResult.error}`, 
-                    'error'
-                );
-            }
+                if (lmsResult && lmsResult.success) {
+                    console.log('📊 LMS Result:', lmsResult);
+                    // LMS popup จะแสดงใน checkShelfFromLMS แล้ว
+                    
+                    // สามารถเพิ่มการทำงานอื่นๆ ได้ที่นี่ เช่น สร้าง job ใหม่
+                } else if (lmsResult && !lmsResult.success) {
+                    // Error popup จะแสดงใน checkShelfFromLMS แล้ว
+                    console.log('❌ LMS Error:', lmsResult);
+                }
+            }, 1000);
         }
 
         /**
