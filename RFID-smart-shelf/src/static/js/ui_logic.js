@@ -179,28 +179,41 @@ const ACTIVE_JOB_KEY = 'activeJob';
         // 🔼 END OF FLEXIBLE CONFIGURATION 🔼
 
         // 🔽 ADD THIS FUNCTION 🔽
-        function showNotification(message, type = 'info') {
+        function showNotification(message, type = 'info', options = {}) {
             console.log(`📢 ${type.toUpperCase()}: ${message}`);
             
-            // ลบ notification เก่าทั้งหมดก่อน
-            const existingNotifications = document.querySelectorAll('.notification');
-            existingNotifications.forEach(notification => {
-                notification.remove();
-            });
+            // ลบ notification เก่าทั้งหมดก่อน (ยกเว้น persistent notifications ถ้าไม่ใช่ persistent notification ใหม่)
+            if (!options.persistent) {
+                const existingNotifications = document.querySelectorAll('.notification:not(.persistent):not(#persistent-correct-shelf):not([data-persistent="true"])');
+                existingNotifications.forEach(notification => {
+                    notification.remove();
+                });
+            } else {
+                // ถ้าเป็น persistent notification ให้ลบ persistent เก่าก่อน
+                const existingPersistent = document.querySelectorAll('.notification.persistent, #persistent-correct-shelf');
+                existingPersistent.forEach(notification => {
+                    notification.remove();
+                });
+            }
             
             const notification = document.createElement('div');
-            notification.className = `notification ${type}`;
+            notification.className = `notification ${type} ${options.persistent ? 'persistent' : ''}`;
             notification.textContent = message;
             
-            // Basic styling
+            // Basic styling with larger text for persistent notifications
+            const fontSize = options.persistent ? '18px' : '14px';
+            const fontWeight = options.persistent ? '900' : 'bold';
+            const padding = options.persistent ? '20px 25px' : '15px 20px';
+            
             notification.style.cssText = `
                 position: fixed;
                 top: 20px;
                 right: 20px;
-                padding: 15px 20px;
+                padding: ${padding};
                 border-radius: 8px;
                 color: white;
-                font-weight: bold;
+                font-weight: ${fontWeight};
+                font-size: ${fontSize};
                 z-index: 1000;
                 opacity: 0;
                 transition: all 0.3s ease-in-out;
@@ -227,12 +240,51 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 notification.style.transform = 'translateX(0)';
             }, 100);
             
-            // Animate out and remove
-            setTimeout(() => {
+            // Auto-remove only if not persistent
+            if (!options.persistent) {
+                setTimeout(() => {
+                    notification.style.opacity = '0';
+                    notification.style.transform = 'translateX(100%)';
+                    setTimeout(() => notification.remove(), 300);
+                }, 3000);
+            }
+        }
+        
+        // Function to clear persistent notifications
+        function clearPersistentNotifications() {
+            // ล้าง notification แบบเก่าและแบบใหม่
+            const persistentNotifications = document.querySelectorAll('.notification.persistent, #persistent-correct-shelf, [data-persistent="true"]');
+            persistentNotifications.forEach(notification => {
                 notification.style.opacity = '0';
                 notification.style.transform = 'translateX(100%)';
-                setTimeout(() => notification.remove(), 300);
-            }, 3000);
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.remove();
+                    }
+                }, 300);
+            });
+            console.log('🧹 Cleared persistent notifications');
+        }
+
+        // Function to protect persistent notifications from being removed
+        function protectPersistentNotifications() {
+            const persistentNotification = document.getElementById('persistent-correct-shelf');
+            if (persistentNotification) {
+                // ป้องกันการลบโดยการ override remove method
+                const originalRemove = persistentNotification.remove;
+                persistentNotification.remove = function() {
+                    console.log('🛡️ Prevented removal of persistent notification');
+                    // ไม่ทำอะไร - ป้องกันการลบ
+                };
+                
+                // ตรวจสอบและกู้คืน style ถ้าถูกเปลี่ยน
+                setInterval(() => {
+                    if (persistentNotification.parentNode && persistentNotification.style.display === 'none') {
+                        persistentNotification.style.display = 'block';
+                        console.log('🔧 Restored persistent notification visibility');
+                    }
+                }, 1000);
+            }
         }
 
         /**
@@ -243,8 +295,8 @@ const ACTIVE_JOB_KEY = 'activeJob';
         function showLMSNotification(lmsData, type = 'success') {
             console.log(`📋 LMS Notification:`, lmsData);
             
-            // ลบ notification เก่าทั้งหมดก่อน
-            const existingNotifications = document.querySelectorAll('.notification');
+            // ลบ notification เก่าทั้งหมดก่อน (ยกเว้น persistent notifications)
+            const existingNotifications = document.querySelectorAll('.notification:not(.persistent):not(#persistent-correct-shelf)');
             existingNotifications.forEach(notification => {
                 notification.remove();
             });
@@ -454,6 +506,9 @@ const ACTIVE_JOB_KEY = 'activeJob';
                     console.log(`✅ Job ${activeJob.lot_no} returned to queue. Queue size: ${queue.length}`);
                 }
             }
+            
+            // Clear persistent notifications when leaving Active Job view
+            clearPersistentNotifications();
             
             localStorage.removeItem(ACTIVE_JOB_KEY);
             renderAll();
@@ -714,8 +769,55 @@ const ACTIVE_JOB_KEY = 'activeJob';
             const foundJob = queue.find(job => job.lot_no === lotNo);
 
             if (foundJob) {
-                showNotification(`Correct shelf`, 'success');
                 selectJob(foundJob.jobId);
+                // รอให้ renderAll() เสร็จแล้วค่อยแสดง notification ที่จะติดยาว
+                setTimeout(() => {
+                    // ล้าง notification เก่าทั้งหมดก่อน (ยกเว้น persistent ที่มีอยู่แล้ว)
+                    const existingNotifications = document.querySelectorAll('.notification:not(#persistent-correct-shelf)');
+                    existingNotifications.forEach(n => n.remove());
+                    
+                    // ลบ persistent notification เก่าถ้ามี
+                    const oldPersistent = document.getElementById('persistent-correct-shelf');
+                    if (oldPersistent) oldPersistent.remove();
+                    
+                    // สร้าง notification แบบคงทนที่ไม่หายไป
+                    const notification = document.createElement('div');
+                    notification.className = 'notification success persistent';
+                    notification.textContent = '✅ Correct shelf';
+                    notification.id = 'persistent-correct-shelf';
+                    
+                    notification.style.cssText = `
+                        position: fixed !important;
+                        top: 20px !important;
+                        right: 20px !important;
+                        padding: 20px 25px !important;
+                        border-radius: 8px !important;
+                        color: white !important;
+                        font-weight: 900 !important;
+                        font-size: 18px !important;
+                        z-index: 99999 !important;
+                        background-color: #28a745 !important;
+                        box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
+                        max-width: 350px !important;
+                        word-wrap: break-word !important;
+                        opacity: 1 !important;
+                        transform: translateX(0) !important;
+                        transition: all 0.3s ease-in-out !important;
+                        pointer-events: auto !important;
+                    `;
+                    
+                    document.body.appendChild(notification);
+                    console.log('✅ Persistent notification created with !important styles:', notification);
+                    
+                    // เพิ่มการป้องกันการลบ
+                    notification.setAttribute('data-persistent', 'true');
+                    
+                    // เปิดใช้งานการป้องกัน
+                    setTimeout(() => {
+                        protectPersistentNotifications();
+                    }, 100);
+                    
+                }, 800); // เพิ่ม delay เป็น 800ms
             } else {
                 showNotification(`❌ Lot No. ${lotNo} not found in queue.`, 'error');
                 const lotInput = document.getElementById('lot-no-input');
@@ -944,6 +1046,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 .then(data => {
                     console.log('✅ Job completed via HTTP API:', data);
                     showNotification(`✅ Job completed successfully!`, 'success');
+                    clearPersistentNotifications(); // Clear persistent notifications on job completion
                     localStorage.removeItem(ACTIVE_JOB_KEY);
                     renderAll();
 
@@ -1049,7 +1152,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
                                 queue.push(data.payload);
                                 localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
                                 renderAll();
-                                showNotification(`New job added: ${data.payload.lot_no}`);
+                                showNotification(`New Lot: ${data.payload.lot_no}`);
                             }
                             break;
                         case "job_completed":
@@ -1091,12 +1194,11 @@ const ACTIVE_JOB_KEY = 'activeJob';
                             console.log('📦 Shelf state before update:', oldShelfState);
                             console.log('📦 New shelf state from server:', data.payload.shelf_state);
                             
-                            localStorage.setItem(GLOBAL_SHELF_STATE_KEY, JSON.stringify(data.payload.shelf_state));
-                            localStorage.removeItem(ACTIVE_JOB_KEY);
-                            renderAll();
-                            showNotification(`✅ Job completed for Lot ${data.payload.lot_no || 'Unknown'}!`, 'success');
-
-                            fetch('/api/led/clear', { method: 'POST' });
+            localStorage.setItem(GLOBAL_SHELF_STATE_KEY, JSON.stringify(data.payload.shelf_state));
+            clearPersistentNotifications(); // Clear persistent notifications on job completion
+            localStorage.removeItem(ACTIVE_JOB_KEY);
+            renderAll();
+            showNotification(`✅ Job completed for Lot ${data.payload.lot_no || 'Unknown'}!`, 'success');                            fetch('/api/led/clear', { method: 'POST' });
                             break;
                         case "job_warning":
                             console.log('⚠️ Received job warning:', data.payload);
