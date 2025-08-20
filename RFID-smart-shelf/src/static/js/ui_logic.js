@@ -714,14 +714,14 @@ const ACTIVE_JOB_KEY = 'activeJob';
             const foundJob = queue.find(job => job.lot_no === lotNo);
 
             if (foundJob) {
-                showNotification(`✅ Lot No. ${lotNo} found. Selecting job...`, 'success');
+                showNotification(`Correct shelf`, 'success');
                 selectJob(foundJob.jobId);
             } else {
                 showNotification(`❌ Lot No. ${lotNo} not found in queue.`, 'error');
                 const lotInput = document.getElementById('lot-no-input');
                 if (lotInput) {
                     lotInput.classList.add('shake');
-                    setTimeout(() => lotInput.classList.remove('shake'), 500);
+                    setTimeout(() => lotInput.classList.remove('shake'), 1000);
                 }
             }
         }
@@ -1235,29 +1235,29 @@ const ACTIVE_JOB_KEY = 'activeJob';
         // 🔽 LMS Integration Functions 🔽
         
         /**
-         * แสดง Alert Popup สำหรับ LMS response แบบใหม่ตามรูปแบบที่กำหนด
+         * แสดง Location Popup สำหรับ LMS ตามรูปแบบที่กำหนด
          * @param {string} lotNo - หมายเลข Lot
          * @param {string} location - ตำแหน่งที่ต้องไป
          * @param {string} type - ประเภท popup (warning, error, success, info)
-         * @param {number} duration - ระยะเวลาแสดง popup (milliseconds)
+         * @param {number} duration - ระยะเวลาแสดง popup (milliseconds, 0 = ไม่ปิดอัตโนมัติ)
          */
-        function showLMSAlertPopup(lotNo, location, type = 'warning', duration = 0) {
+        function showLMSLocationPopup(lotNo, location, type = 'warning', duration = 0) {
             // ลบ popup เก่าถ้ามี
-            const existingPopup = document.getElementById('lmsAlertPopup');
+            const existingPopup = document.getElementById('lmsLocationPopup');
             if (existingPopup) {
                 existingPopup.remove();
             }
 
             // เพิ่ม CSS animations ถ้ายังไม่มี
-            if (!document.getElementById('lmsPopupStyles')) {
+            if (!document.getElementById('lmsLocationPopupStyles')) {
                 const style = document.createElement('style');
-                style.id = 'lmsPopupStyles';
+                style.id = 'lmsLocationPopupStyles';
                 style.textContent = `
-                    @keyframes fadeIn {
+                    @keyframes lmsLocationFadeIn {
                         from { opacity: 0; }
                         to { opacity: 1; }
                     }
-                    @keyframes slideInDown {
+                    @keyframes lmsLocationSlideInDown {
                         from {
                             transform: translateY(-50px);
                             opacity: 0;
@@ -1267,7 +1267,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
                             opacity: 1;
                         }
                     }
-                    @keyframes pulse {
+                    @keyframes lmsLocationPulse {
                         0% {
                             transform: scale(1);
                         }
@@ -1284,7 +1284,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
 
             // สร้าง overlay
             const overlay = document.createElement('div');
-            overlay.id = 'lmsAlertPopup';
+            overlay.id = 'lmsLocationPopup';
             overlay.style.cssText = `
                 position: fixed;
                 top: 0;
@@ -1296,7 +1296,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 display: flex;
                 justify-content: center;
                 align-items: center;
-                animation: fadeIn 0.3s ease-in-out;
+                animation: lmsLocationFadeIn 0.3s ease-in-out;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
             `;
 
@@ -1332,7 +1332,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 width: 90%;
                 text-align: center;
                 position: relative;
-                animation: slideInDown 0.5s ease-out;
+                animation: lmsLocationSlideInDown 0.5s ease-out;
                 border: 3px solid ${borderColor};
                 font-weight: bold;
             `;
@@ -1418,7 +1418,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
             if (duration > 0) {
                 setTimeout(() => {
                     if (overlay && overlay.parentNode) {
-                        overlay.style.animation = 'fadeIn 0.3s ease-in-out reverse';
+                        overlay.style.animation = 'lmsLocationFadeIn 0.3s ease-in-out reverse';
                         setTimeout(() => {
                             overlay.remove();
                         }, 300);
@@ -1456,6 +1456,285 @@ const ACTIVE_JOB_KEY = 'activeJob';
         }
 
         /**
+         * แสดง Alert Popup สำหรับ LMS response (แบบเก่า)
+         */
+        function showLMSAlertPopup(title, message, details = null, type = 'warning', duration = 0) {
+            // ลบ popup เก่าถ้ามี
+            const existingPopup = document.getElementById('lmsAlertPopup');
+            if (existingPopup) {
+                existingPopup.remove();
+            }
+
+            // เพิ่ม CSS animations ถ้ายังไม่มี
+            if (!document.getElementById('lmsPopupStyles')) {
+                const style = document.createElement('style');
+                style.id = 'lmsPopupStyles';
+                style.textContent = `
+                    @keyframes fadeIn {
+                        from { opacity: 0; }
+                        to { opacity: 1; }
+                    }
+                    @keyframes slideInDown {
+                        from {
+                            transform: translateY(-50px);
+                            opacity: 0;
+                        }
+                        to {
+                            transform: translateY(0);
+                            opacity: 1;
+                        }
+                    }
+                    @keyframes bounce {
+                        0%, 20%, 50%, 80%, 100% {
+                            transform: translateY(0);
+                        }
+                        40% {
+                            transform: translateY(-10px);
+                        }
+                        60% {
+                            transform: translateY(-5px);
+                        }
+                    }
+                    @keyframes pulse {
+                        0% {
+                            box-shadow: 0 0 0 0 rgba(255, 87, 87, 0.7);
+                        }
+                        70% {
+                            box-shadow: 0 0 0 20px rgba(255, 87, 87, 0);
+                        }
+                        100% {
+                            box-shadow: 0 0 0 0 rgba(255, 87, 87, 0);
+                        }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+
+            // สร้าง overlay
+            const overlay = document.createElement('div');
+            overlay.id = 'lmsAlertPopup';
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.8);
+                z-index: 10000;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                animation: fadeIn 0.3s ease-in-out;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            `;
+
+            // กำหนดสีตาม type
+            let backgroundColor, borderColor, iconColor, icon;
+            switch (type) {
+                case 'error':
+                    backgroundColor = 'linear-gradient(135deg, #ff4757, #ff3838)';
+                    borderColor = '#ff4757';
+                    iconColor = '#fff';
+                    icon = '⚠️';
+                    break;
+                case 'success':
+                    backgroundColor = 'linear-gradient(135deg, #2ed573, #1dd1a1)';
+                    borderColor = '#2ed573';
+                    iconColor = '#fff';
+                    icon = '✅';
+                    break;
+                case 'info':
+                    backgroundColor = 'linear-gradient(135deg, #3742fa, #2f3542)';
+                    borderColor = '#3742fa';
+                    iconColor = '#fff';
+                    icon = '🔍';
+                    break;
+                default: // warning
+                    backgroundColor = 'linear-gradient(135deg, #ffa502, #ff6348)';
+                    borderColor = '#ffa502';
+                    iconColor = '#fff';
+                    icon = '⚠️';
+            }
+
+            // สร้าง popup content
+            const popup = document.createElement('div');
+            popup.style.cssText = `
+                background: ${backgroundColor};
+                color: white;
+                padding: 40px;
+                border-radius: 20px;
+                box-shadow: 0 25px 80px rgba(0, 0, 0, 0.3);
+                max-width: 600px;
+                width: 90%;
+                text-align: center;
+                position: relative;
+                animation: slideInDown 0.5s ease-out;
+                border: 4px solid ${borderColor};
+                ${type === 'error' ? 'animation: slideInDown 0.5s ease-out, pulse 2s infinite;' : ''}
+            `;
+
+            // สร้าง icon
+            const iconElement = document.createElement('div');
+            iconElement.innerHTML = icon;
+            iconElement.style.cssText = `
+                font-size: 80px;
+                margin-bottom: 20px;
+                animation: bounce 1s ease-in-out infinite;
+                filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
+            `;
+
+            // สร้าง title
+            const titleElement = document.createElement('h2');
+            titleElement.textContent = title;
+            titleElement.style.cssText = `
+                margin: 0 0 20px 0;
+                font-size: 32px;
+                font-weight: bold;
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+                line-height: 1.2;
+            `;
+
+            // สร้าง message
+            const messageElement = document.createElement('p');
+            messageElement.textContent = message;
+            messageElement.style.cssText = `
+                margin: 0 0 25px 0;
+                font-size: 20px;
+                line-height: 1.5;
+                font-weight: 500;
+            `;
+
+            // สร้าง details ถ้ามี
+            let detailsElement = null;
+            if (details) {
+                detailsElement = document.createElement('div');
+                detailsElement.style.cssText = `
+                    background-color: rgba(255, 255, 255, 0.2);
+                    padding: 20px;
+                    border-radius: 12px;
+                    margin: 20px 0;
+                    font-size: 16px;
+                    line-height: 1.6;
+                    border: 1px solid rgba(255, 255, 255, 0.3);
+                `;
+                detailsElement.innerHTML = details;
+            }
+
+            // สร้าง countdown และ progress bar เฉพาะเมื่อ duration > 0
+            let countdownElement = null;
+            let progressBar = null;
+            let progressFill = null;
+            let countdownInterval = null;
+
+            if (duration > 0) {
+                // สร้าง countdown
+                countdownElement = document.createElement('div');
+                countdownElement.style.cssText = `
+                    margin-top: 25px;
+                    font-size: 14px;
+                    opacity: 0.8;
+                    font-weight: 500;
+                `;
+                
+                let timeLeft = Math.floor(duration / 1000);
+                countdownElement.textContent = `หน้าต่างนี้จะปิดอัตโนมัติใน ${timeLeft} วินาที`;
+
+                // สร้าง progress bar
+                progressBar = document.createElement('div');
+                progressBar.style.cssText = `
+                    width: 100%;
+                    height: 4px;
+                    background-color: rgba(255, 255, 255, 0.3);
+                    border-radius: 2px;
+                    margin-top: 15px;
+                    overflow: hidden;
+                `;
+                
+                progressFill = document.createElement('div');
+                progressFill.style.cssText = `
+                    height: 100%;
+                    background-color: rgba(255, 255, 255, 0.8);
+                    width: 100%;
+                    border-radius: 2px;
+                    transition: width ${duration}ms linear;
+                `;
+                progressBar.appendChild(progressFill);
+            } else {
+                // เพิ่มข้อความสำหรับ manual close
+                const manualCloseNote = document.createElement('div');
+                manualCloseNote.style.cssText = `
+                    margin-top: 25px;
+                    font-size: 14px;
+                    opacity: 0.8;
+                    font-weight: 500;
+                `;
+                manualCloseNote.textContent = 'กด ESC หรือคลิกด้านนอกเพื่อปิด';
+                countdownElement = manualCloseNote;
+            }
+
+            // ประกอบ popup
+            popup.appendChild(iconElement);
+            popup.appendChild(titleElement);
+            popup.appendChild(messageElement);
+            if (detailsElement) popup.appendChild(detailsElement);
+            if (countdownElement) popup.appendChild(countdownElement);
+            if (progressBar) popup.appendChild(progressBar);
+
+            overlay.appendChild(popup);
+            document.body.appendChild(overlay);
+
+            // เริ่ม countdown และ progress bar เฉพาะเมื่อ duration > 0
+            if (duration > 0 && progressFill) {
+                setTimeout(() => {
+                    progressFill.style.width = '0%';
+                }, 100);
+
+                countdownInterval = setInterval(() => {
+                    let timeLeft = Math.floor((duration - (Date.now() - startTime)) / 1000);
+                    if (timeLeft < 0) timeLeft = 0;
+                    countdownElement.textContent = `หน้าต่างนี้จะปิดอัตโนมัติใน ${timeLeft} วินาที`;
+                    
+                    if (timeLeft <= 0) {
+                        clearInterval(countdownInterval);
+                    }
+                }, 1000);
+
+                const startTime = Date.now();
+            }
+
+            // Auto hide after duration (เฉพาะเมื่อ duration > 0)
+            if (duration > 0) {
+                setTimeout(() => {
+                    if (overlay && overlay.parentNode) {
+                        overlay.style.animation = 'fadeIn 0.3s ease-in-out reverse';
+                        setTimeout(() => {
+                            overlay.remove();
+                        }, 300);
+                    }
+                    if (countdownInterval) clearInterval(countdownInterval);
+                }, duration);
+            }
+
+            // Click to close
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    if (countdownInterval) clearInterval(countdownInterval);
+                    overlay.remove();
+                }
+            });
+
+            // ESC to close
+            const escHandler = (e) => {
+                if (e.key === 'Escape') {
+                    if (countdownInterval) clearInterval(countdownInterval);
+                    overlay.remove();
+                    document.removeEventListener('keydown', escHandler);
+                }
+            };
+            document.addEventListener('keydown', escHandler);
+        }
+
+        /**
          * เรียก LMS API เพื่อตรวจสอบชั้นวางที่ถูกต้องสำหรับ LOT ที่ไม่อยู่ในคิว
          * @param {string} lotNo - หมายเลข LOT
          * @param {string} placeFlg - ประเภทงาน ("0" = หยิบ, "1" = วาง)
@@ -1466,7 +1745,8 @@ const ACTIVE_JOB_KEY = 'activeJob';
                     'ข้อมูลไม่ครบถ้วน',
                     'กรุณาระบุหมายเลข LOT',
                     null,
-                    'error'
+                    'error',
+                    0
                 );
                 return null;
             }
@@ -1510,7 +1790,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
                         lotNo: result.lot_no
                     };
                 } else {
-                    // Error popup
+                    // Error popup - ไม่ปิดอัตโนมัติ
                     showLMSAlertPopup(
                         '❌ ไม่พบข้อมูลใน LMS',
                         `LOT ${lotNo} ไม่อยู่ในระบบ`,
@@ -1520,7 +1800,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
                             <strong>💡 แนะนำ:</strong> กรุณาตรวจสอบหมายเลข LOT หรือติดต่อ supervisor
                         `,
                         'error',
-                        5000
+                        0
                     );
                     
                     return {
@@ -1533,7 +1813,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
             } catch (error) {
                 console.error('LMS API Error:', error);
                 
-                // Network error popup
+                // Network error popup - ไม่ปิดอัตโนมัติ
                 showLMSAlertPopup(
                     '🚫 ข้อผิดพลาดการเชื่อมต่อ',
                     'ไม่สามารถเชื่อมต่อกับระบบ LMS ได้',
@@ -1543,7 +1823,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
                         <strong>📞 หมายเลขติดต่อ:</strong> ext. 1234
                     `,
                     'error',
-                    5000
+                    0
                 );
                 
                 return {
@@ -1625,4 +1905,91 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 handleUnknownLotScanned(lotNo);
             }
         };
+
+        /**
+         * เรียก LMS API เพื่อตรวจสอบชั้นวางที่ถูกต้องสำหรับ LOT ที่ไม่อยู่ในคิว
+         * @param {string} lotNo - หมายเลข LOT
+         * @param {string} placeFlg - ประเภทงาน ("0" = หยิบ, "1" = วาง)
+         */
+        async function checkShelfFromLMS(lotNo, placeFlg) {
+            if (!lotNo) {
+                showLMSAlertPopup(
+                    '❌ ข้อมูลไม่ครบถ้วน',
+                    'กรุณาระบุหมายเลข LOT',
+                    null,
+                    'error'
+                );
+                return null;
+            }
+
+            try {
+                // แสดง loading popup
+                showNotification(`🔍 กำลังตรวจสอบ LOT ${lotNo} จาก LMS...`, 'info');
+                
+                const response = await fetch('/api/LMS/checkshelf', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        lot_no: lotNo,
+                        place_flg: placeFlg
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.status === 'success') {
+                    // Success - แสดง location popup แบบใหม่
+                    showLMSLocationPopup(result.lot_no, result.correct_shelf, 'success', 0);
+                    
+                    return {
+                        success: true,
+                        correctShelf: result.correct_shelf,
+                        lotNo: result.lot_no
+                    };
+                } else {
+                    // Error popup
+                    showLMSAlertPopup(
+                        '❌ ไม่พบข้อมูลใน LMS',
+                        `LOT ${lotNo} ไม่อยู่ในระบบ`,
+                        `
+                            <strong>🔍 LOT ที่ค้นหา:</strong> ${lotNo}<br>
+                            <strong>❌ สาเหตุ:</strong> ${result.message || result.error}<br>
+                            <strong>💡 แนะนำ:</strong> กรุณาตรวจสอบหมายเลข LOT หรือติดต่อ supervisor
+                        `,
+                        'error',
+                        5000
+                    );
+                    
+                    return {
+                        success: false,
+                        error: result.error,
+                        message: result.message
+                    };
+                }
+
+            } catch (error) {
+                console.error('LMS API Error:', error);
+                
+                // Network error popup
+                showLMSAlertPopup(
+                    '🚫 ข้อผิดพลาดการเชื่อมต่อ',
+                    'ไม่สามารถเชื่อมต่อกับระบบ LMS ได้',
+                    `
+                        <strong>⚠️ ข้อผิดพลาด:</strong> ${error.message}<br>
+                        <strong>🔧 วิธีแก้:</strong> ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต<br>
+                        <strong>📞 ติดต่อ:</strong> แจ้ง IT Support หากปัญหายังคงอยู่
+                    `,
+                    'error',
+                    5000
+                );
+                
+                return {
+                    success: false,
+                    error: 'NETWORK_ERROR',
+                    message: error.message
+                };
+            }
+        }
         // 🔼 End LMS Integration Functions 🔼
