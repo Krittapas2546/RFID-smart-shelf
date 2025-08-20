@@ -685,38 +685,105 @@ const ACTIVE_JOB_KEY = 'activeJob';
 }
 
         function renderQueueSelectionView(queue) {
-    queueListContainer.innerHTML = '';
-    queue.forEach(job => {
-        const li = document.createElement('li');
-        li.className = 'queue-list-item';
-        // เลือก icon ตาม action
-        let arrowHtml = '';
-        if (job.place_flg === '0') {
-            arrowHtml = `<span class="arrow up"></span>`;
-        } else {
-            arrowHtml = `<span class="arrow down"></span>`;
-        }
-        li.innerHTML = `
-            <div class="info">
-                <div class="lot">${arrowHtml}Lot: ${job.lot_no}</div>
-                <div class="action">Action: ${job.place_flg === '1' ? 'Place' : 'Pick'} at L:${job.level}, B:${job.block}</div>
-            </div>
-            <button class="select-btn" onclick="selectJob('${job.jobId}')">Select</button>
-        `;
-        queueListContainer.appendChild(li);
-    });
+            // ล้าง containers
+            queueListContainer.innerHTML = '';
+            
+            // หา containers สำหรับแต่ละฝั่ง
+            const placeContainer = document.getElementById('placeQueueContainer');
+            const pickContainer = document.getElementById('pickQueueContainer');
+            
+            if (placeContainer) placeContainer.innerHTML = '';
+            if (pickContainer) pickContainer.innerHTML = '';
 
-    // Logic focus เดิม
-    const lotInput = document.getElementById('lot-no-input');
-    if (lotInput) {
-        lotInput.focus();
-        lotInput.onkeyup = function(event) {
-            if (event.key === 'Enter') {
-                handleLotSearch();
+            // แยกงานตาม place_flg
+            const placeJobs = queue.filter(job => job.place_flg === '1'); // วาง
+            const pickJobs = queue.filter(job => job.place_flg === '0');  // หยิบ
+
+            // ฟังก์ชันสำหรับสร้าง job item
+            function createJobItem(job) {
+                const li = document.createElement('li');
+                li.className = 'queue-list-item';
+                
+                // เลือก arrow ตาม place_flg เหมือนเดิม
+                let arrowHtml = '';
+                if (job.place_flg === '0') {
+                    arrowHtml = `<span class="arrow up"></span>`;
+                } else {
+                    arrowHtml = `<span class="arrow down"></span>`;
+                }
+                
+                li.innerHTML = `
+                    <div class="info">
+                        <div class="lot">${arrowHtml}Lot: ${job.lot_no}</div>
+                        <div class="action">Action: ${job.place_flg === '1' ? 'Place' : 'Pick'} at L:${job.level}, B:${job.block}</div>
+                    </div>
+                    <button class="select-btn" onclick="selectJob('${job.jobId}')">Select</button>
+                `;
+                return li;
             }
-        };
-    }
-}
+
+            // เพิ่มงานวางในฝั่งซ้าย
+            if (placeContainer) {
+                placeJobs.forEach(job => {
+                    placeContainer.appendChild(createJobItem(job));
+                });
+                
+                // แสดงข้อความถ้าไม่มีงาน
+                if (placeJobs.length === 0) {
+                    const emptyMessage = document.createElement('li');
+                    emptyMessage.innerHTML = '<div style="text-align: center; color: #6c757d; padding: 20px; font-style: italic;">ไม่มีงานวาง</div>';
+                    placeContainer.appendChild(emptyMessage);
+                }
+            }
+
+            // เพิ่มงานหยิบในฝั่งขวา
+            if (pickContainer) {
+                pickJobs.forEach(job => {
+                    pickContainer.appendChild(createJobItem(job));
+                });
+                
+                // แสดงข้อความถ้าไม่มีงาน
+                if (pickJobs.length === 0) {
+                    const emptyMessage = document.createElement('li');
+                    emptyMessage.innerHTML = '<div style="text-align: center; color: #6c757d; padding: 20px; font-style: italic;">ไม่มีงานหยิบ</div>';
+                    pickContainer.appendChild(emptyMessage);
+                }
+            }
+
+            // Fallback: ใช้ container เดิมถ้าไม่มี container ใหม่
+            if (!placeContainer || !pickContainer) {
+                queue.forEach(job => {
+                    const li = document.createElement('li');
+                    li.className = 'queue-list-item';
+                    // เลือก icon ตาม action
+                    let arrowHtml = '';
+                    if (job.place_flg === '0') {
+                        arrowHtml = `<span class="arrow up"></span>`;
+                    } else {
+                        arrowHtml = `<span class="arrow down"></span>`;
+                    }
+                    li.innerHTML = `
+                        <div class="info">
+                            <div class="lot">${arrowHtml}Lot: ${job.lot_no}</div>
+                            <div class="action">Action: ${job.place_flg === '1' ? 'Place' : 'Pick'} at L:${job.level}, B:${job.block}</div>
+                        </div>
+                        <button class="select-btn" onclick="selectJob('${job.jobId}')">Select</button>
+                    `;
+                    queueListContainer.appendChild(li);
+                });
+            }
+
+            // Logic focus เดิม
+            const lotInput = document.getElementById('lot-no-input');
+            if (lotInput) {
+                lotInput.focus();
+                lotInput.onkeyup = function(event) {
+                    if (event.key === 'Enter') {
+                        handleLotSearch();
+                    }
+                };
+            }
+        }
 
         // --- START: ลบฟังก์ชันที่ไม่จำเป็นออก ---
         /*

@@ -74,6 +74,42 @@
       .select-btn:hover {
         background: #219150;
       }
+
+      /* Layout สำหรับ 2 ฝั่ง */
+      .queue-container {
+        display: flex;
+        gap: 30px;
+        margin-top: 20px;
+      }
+
+      .queue-section {
+        flex: 1;
+        min-height: 400px;
+      }
+
+      .queue-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+
+      /* ปรับปรุง queue-list-item สำหรับ layout ใหม่ */
+      .queue-list .queue-list-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        padding: 18px 24px;
+        margin-bottom: 18px;
+        min-height: 56px;
+      }
+
+      .queue-list .queue-list-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      }
     </style>
 </head>
 <body>
@@ -90,7 +126,25 @@
         </div>
         <!-- 🔼 END OF ADDED BLOCK 🔼 -->
 
-        <ul id="queueListContainer">
+        <!-- แบ่งเป็น 2 ฝั่ง -->
+        <div class="queue-container">
+            <!-- ฝั่งซ้าย: งานวาง (Place) -->
+            <div class="queue-section place-section">
+                <ul id="placeQueueContainer" class="queue-list">
+                    <!-- Place jobs will be injected here -->
+                </ul>
+            </div>
+
+            <!-- ฝั่งขวา: งานหยิบ (Pick) -->
+            <div class="queue-section pick-section">
+                <ul id="pickQueueContainer" class="queue-list">
+                    <!-- Pick jobs will be injected here -->
+                </ul>
+            </div>
+        </div>
+
+        <!-- เก็บ container เดิมไว้สำหรับ backward compatibility -->
+        <ul id="queueListContainer" style="display: none;">
             <!-- Job items will be injected here by JavaScript -->
         </ul>
     </div>
