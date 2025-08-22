@@ -1808,7 +1808,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 `;
                 
                 let timeLeft = Math.floor(duration / 1000);
-                countdownElement.textContent = `หน้าต่างนี้จะปิดอัตโนมัติใน ${timeLeft} วินาที`;
+                countdownElement.textContent = `This window will close in ${timeLeft} second`;
 
                 // สร้าง progress bar
                 progressBar = document.createElement('div');
@@ -1863,8 +1863,8 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 countdownInterval = setInterval(() => {
                     let timeLeft = Math.floor((duration - (Date.now() - startTime)) / 1000);
                     if (timeLeft < 0) timeLeft = 0;
-                    countdownElement.textContent = `หน้าต่างนี้จะปิดอัตโนมัติใน ${timeLeft} วินาที`;
-                    
+                    countdownElement.textContent = `This window will close in ${timeLeft} seconds`;
+
                     if (timeLeft <= 0) {
                         clearInterval(countdownInterval);
                     }
@@ -2108,8 +2108,8 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 } else {
                     // Error popup
                     showLMSAlertPopup(
-                        '❌ ไม่พบข้อมูลใน LMS',
-                        `LOT ${lotNo} ไม่อยู่ในระบบ`,
+                        '❌ Not found in LMS',
+                        `LOT ${lotNo} is not in the system`,
                         null,
                         'error',
                         5000
@@ -2129,11 +2129,6 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 showLMSAlertPopup(
                     '🚫 Connection Error',
                     'Cannot connect to LMS system',
-                    `
-                        <strong>⚠️ Error:</strong> ${error.message}<br>
-                        <strong>🔧 Solution:</strong> Check internet connection<br>
-                        <strong>📞 Contact:</strong> IT Support if problem persists
-                    `,
                     'error',
                     5000
                 );
@@ -2145,4 +2140,4 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 };
             }
         }
-        // 🔼 End LMS Integration Functions 🔼
+
