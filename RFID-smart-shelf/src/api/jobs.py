@@ -5,6 +5,7 @@ import json
 import pathlib
 import httpx
 import re
+import asyncio
 
 # --- สำหรับควบคุม LED ---
 from core.led_controller import set_led

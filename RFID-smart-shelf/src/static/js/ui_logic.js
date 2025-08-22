@@ -313,7 +313,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 <div style="font-size: 14px; line-height: 1.4;">
                     <div>• LOT: <strong>${lmsData.lotNo}</strong></div>
                     <div>• ชั้นวาง: <strong>${lmsData.correctShelf}</strong></div>
-                    <div>• ประเภท: <strong>${lmsData.placeFlg === "1" ? "วางของ" : "หยิบของ"}</strong></div>
+                    <div>• Type: <strong>${lmsData.placeFlg === "1" ? "Place" : "Pick"}</strong></div>
                 </div>
             `;
             
@@ -731,7 +731,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 // แสดงข้อความถ้าไม่มีงาน
                 if (placeJobs.length === 0) {
                     const emptyMessage = document.createElement('li');
-                    emptyMessage.innerHTML = '<div style="text-align: center; color: #6c757d; padding: 20px; font-style: italic;">ไม่มีงานวาง</div>';
+                    emptyMessage.innerHTML = '<div style="text-align: center; color: #6c757d; padding: 20px; font-style: italic;">No job place</div>';
                     placeContainer.appendChild(emptyMessage);
                 }
             }
@@ -745,7 +745,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 // แสดงข้อความถ้าไม่มีงาน
                 if (pickJobs.length === 0) {
                     const emptyMessage = document.createElement('li');
-                    emptyMessage.innerHTML = '<div style="text-align: center; color: #6c757d; padding: 20px; font-style: italic;">ไม่มีงานหยิบ</div>';
+                    emptyMessage.innerHTML = '<div style="text-align: center; color: #6c757d; padding: 20px; font-style: italic;">No job pick</div>';
                     pickContainer.appendChild(emptyMessage);
                 }
             }
@@ -1264,7 +1264,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
             localStorage.setItem(GLOBAL_SHELF_STATE_KEY, JSON.stringify(data.payload.shelf_state));
             clearPersistentNotifications(); // Clear persistent notifications on job completion
             localStorage.removeItem(ACTIVE_JOB_KEY);
-            renderAll();
+            renderAll();1
             showNotification(`✅ Job completed for Lot ${data.payload.lot_no || 'Unknown'}!`, 'success');                            fetch('/api/led/clear', { method: 'POST' });
                             break;
                         case "job_warning":
@@ -1707,8 +1707,10 @@ const ACTIVE_JOB_KEY = 'activeJob';
                     icon = '⚠️';
                     break;
                 case 'success':
-                    backgroundColor = 'linear-gradient(135deg, #2ed573, #1dd1a1)';
-                    borderColor = '#2ed573';
+                    backgroundColor = 'linear-gradient(135deg, #ffa502, #ff6348)';
+                    borderColor = '#ffa502';
+                    //backgroundColor = 'linear-gradient(135deg, #2ed573, #1dd1a1)';
+                    //borderColor = '#2ed573';
                     iconColor = '#fff';
                     icon = '✅';
                     break;
@@ -1911,8 +1913,8 @@ const ACTIVE_JOB_KEY = 'activeJob';
         async function checkShelfFromLMS(lotNo, placeFlg) {
             if (!lotNo) {
                 showLMSAlertPopup(
-                    'ข้อมูลไม่ครบถ้วน',
-                    'กรุณาระบุหมายเลข LOT',
+                    'Incomplete Data',
+                    'Please specify LOT number',
                     null,
                     'error',
                     0
@@ -1922,7 +1924,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
 
             try {
                 // แสดง loading popup
-                showNotification(`🔍 กำลังตรวจสอบ LOT ${lotNo} จาก LMS...`, 'info');
+                showNotification(`🔍 Checking LOT ${lotNo} from LMS...`, 'info');
                 
                 const response = await fetch('/api/LMS/checkshelf', {
                     method: 'POST',
@@ -1939,7 +1941,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
 
                 if (response.ok && result.status === 'success') {
                     // Success popup
-                    const actionText = placeFlg === "1" ? "วางของ" : "หยิบของ";
+                    const actionText = placeFlg === "1" ? "Place" : "Pick";
                     showLMSAlertPopup(
                         '✅ ข้อมูลจาก LMS',
                         `พบข้อมูล LOT ${result.lot_no}`,
@@ -1961,13 +1963,9 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 } else {
                     // Error popup - ไม่ปิดอัตโนมัติ
                     showLMSAlertPopup(
-                        '❌ ไม่พบข้อมูลใน LMS',
-                        `LOT ${lotNo} ไม่อยู่ในระบบ`,
-                        `
-                            <strong>🔍 LOT ที่ค้นหา:</strong> ${lotNo}<br>
-                            <strong>❌ สาเหตุ:</strong> ${result.message || result.error}<br>
-                            <strong>💡 แนะนำ:</strong> กรุณาตรวจสอบหมายเลข LOT หรือติดต่อ supervisor
-                        `,
+                        '❌ LOT Not Found',
+                        `LOT ${lotNo} is not in the system`,
+                        null,
                         'error',
                         0
                     );
@@ -1984,14 +1982,8 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 
                 // Network error popup - ไม่ปิดอัตโนมัติ
                 showLMSAlertPopup(
-                    '🚫 ข้อผิดพลาดการเชื่อมต่อ',
-                    'ไม่สามารถเชื่อมต่อกับระบบ LMS ได้',
-                    `
-                        <strong>⚠️ ข้อผิดพลาด:</strong> ${error.message}<br>
-                        <strong>🔄 แนะนำ:</strong> กรุณาลองใหม่อีกครั้ง หรือติดต่อ IT Support<br>
-                        <strong>📞 หมายเลขติดต่อ:</strong> ext. 1234
-                    `,
-                    'error',
+                    '🚫 Connection Error',
+                    'Cannot connect to LMS system',
                     0
                 );
                 
@@ -2024,13 +2016,9 @@ const ACTIVE_JOB_KEY = 'activeJob';
 
             // ถ้าไม่อยู่ในคิว ให้แสดง popup แจ้งเตือนก่อน
             showLMSAlertPopup(
-                '⚠️ LOT ไม่อยู่ในคิวงาน',
-                `LOT ${scannedLot} ไม่พบในคิวงานปัจจุบัน`,
-                `
-                    <strong>🔍 LOT ที่ scan:</strong> ${scannedLot}<br>
-                    <strong>🔄 กำลังดำเนินการ:</strong> ตรวจสอบข้อมูลจาก LMS...<br>
-                    <strong>⏳ โปรดรอ:</strong> ระบบกำลังค้นหาข้อมูลชั้นวางที่ถูกต้อง
-                `,
+                '⚠️ LOT Not in Job Queue',
+                `LOT ${scannedLot} not found in current job queue`,
+                null,
                 'warning',
                 3000
             );
@@ -2083,8 +2071,8 @@ const ACTIVE_JOB_KEY = 'activeJob';
         async function checkShelfFromLMS(lotNo, placeFlg) {
             if (!lotNo) {
                 showLMSAlertPopup(
-                    '❌ ข้อมูลไม่ครบถ้วน',
-                    'กรุณาระบุหมายเลข LOT',
+                    '❌ Incomplete Data',
+                    'Please specify LOT number',
                     null,
                     'error'
                 );
@@ -2093,7 +2081,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
 
             try {
                 // แสดง loading popup
-                showNotification(`🔍 กำลังตรวจสอบ LOT ${lotNo} จาก LMS...`, 'info');
+                showNotification(`🔍 Checking LOT ${lotNo} from LMS...`, 'info');
                 
                 const response = await fetch('/api/LMS/checkshelf', {
                     method: 'POST',
@@ -2110,7 +2098,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
 
                 if (response.ok && result.status === 'success') {
                     // Success - แสดง location popup แบบใหม่
-                    showLMSLocationPopup(result.lot_no, result.correct_shelf, 'success', 0);
+                    showLMSLocationPopup(result.lot_no, result.correct_shelf, 'warning', 0);
                     
                     return {
                         success: true,
@@ -2122,11 +2110,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
                     showLMSAlertPopup(
                         '❌ ไม่พบข้อมูลใน LMS',
                         `LOT ${lotNo} ไม่อยู่ในระบบ`,
-                        `
-                            <strong>🔍 LOT ที่ค้นหา:</strong> ${lotNo}<br>
-                            <strong>❌ สาเหตุ:</strong> ${result.message || result.error}<br>
-                            <strong>💡 แนะนำ:</strong> กรุณาตรวจสอบหมายเลข LOT หรือติดต่อ supervisor
-                        `,
+                        null,
                         'error',
                         5000
                     );
@@ -2143,12 +2127,12 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 
                 // Network error popup
                 showLMSAlertPopup(
-                    '🚫 ข้อผิดพลาดการเชื่อมต่อ',
-                    'ไม่สามารถเชื่อมต่อกับระบบ LMS ได้',
+                    '🚫 Connection Error',
+                    'Cannot connect to LMS system',
                     `
-                        <strong>⚠️ ข้อผิดพลาด:</strong> ${error.message}<br>
-                        <strong>🔧 วิธีแก้:</strong> ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต<br>
-                        <strong>📞 ติดต่อ:</strong> แจ้ง IT Support หากปัญหายังคงอยู่
+                        <strong>⚠️ Error:</strong> ${error.message}<br>
+                        <strong>🔧 Solution:</strong> Check internet connection<br>
+                        <strong>📞 Contact:</strong> IT Support if problem persists
                     `,
                     'error',
                     5000
