@@ -122,18 +122,21 @@ function getCellCapacity(level, block) {
                     body: JSON.stringify({ leds })
                 }));
         }
-const ACTIVE_JOB_KEY = 'activeJob';
+        const ACTIVE_JOB_KEY = 'activeJob';
         const GLOBAL_SHELF_STATE_KEY = 'globalShelfState';
         const QUEUE_KEY = 'shelfQueue';
+
+        // เพิ่มตัวแปรสำหรับจัดการโหมด main-with-queue และ auto-return timer
+        let showMainWithQueue = false;
+        let autoReturnTimer = null;
+        let activityDetectionActive = false;
 
         const queueSelectionView = document.getElementById('queueSelectionView');
         const activeJobView = document.getElementById('activeJobView');
         const queueListContainer = document.getElementById('queueListContainer');
         const mainView = document.getElementById('mainView');
         const shelfGrid = document.getElementById('shelfGrid');
-        const mainContainer = document.getElementById('mainContainer');
-
-        localStorage.removeItem(ACTIVE_JOB_KEY);
+        const mainContainer = document.getElementById('mainContainer');        localStorage.removeItem(ACTIVE_JOB_KEY);
 
         let SHELF_CONFIG = {};
         let TOTAL_LEVELS = 0;
@@ -313,7 +316,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 <div style="font-size: 14px; line-height: 1.4;">
                     <div>• LOT: <strong>${lmsData.lotNo}</strong></div>
                     <div>• ชั้นวาง: <strong>${lmsData.correctShelf}</strong></div>
-                    <div>• Type: <strong>${lmsData.placeFlg === "1" ? "Place" : "Pick"}</strong></div>
+                    <div>• ประเภท: <strong>${lmsData.placeFlg === "1" ? "วางของ" : "หยิบของ"}</strong></div>
                 </div>
             `;
             
@@ -512,6 +515,133 @@ const ACTIVE_JOB_KEY = 'activeJob';
             
             localStorage.removeItem(ACTIVE_JOB_KEY);
             renderAll();
+        }
+
+        // 🔽 ADD NEW FUNCTIONS FOR MAIN-WITH-QUEUE MODE 🔽
+        /**
+         * กลับไปหน้า Main แต่ยังคง queue ไว้ (จากหน้า Queue Selection)
+         */
+        function goBackToMain() {
+            console.log('🏠 Going back to main view with queue preserved');
+            showMainWithQueue = true;
+            stopAutoReturnTimer(); // หยุด timer เก่าถ้ามี
+            startActivityDetection(); // เริ่มตรวจจับกิจกรรม
+            startAutoReturnTimer(); // เริ่ม timer ใหม่
+            renderAll();
+        }
+
+        /**
+         * ไปหน้า Queue Selection (จากปุ่ม notification ในหน้า Main)
+         */
+        function goToQueueSelection() {
+            console.log('📋 Going to queue selection view');
+            showMainWithQueue = false;
+            stopAutoReturnTimer();
+            stopActivityDetection();
+            renderAll();
+        }
+
+        /**
+         * เริ่ม Auto Return Timer (7 วินาที)
+         */
+        function startAutoReturnTimer() {
+            if (autoReturnTimer) {
+                clearTimeout(autoReturnTimer);
+            }
+            
+            console.log('⏱️ Starting auto-return timer (7 seconds)');
+            autoReturnTimer = setTimeout(() => {
+                console.log('🔄 Auto-returning to queue selection due to inactivity');
+                const queue = getQueue();
+                if (queue.length > 0) {
+                    showMainWithQueue = false;
+                    stopActivityDetection();
+                    renderAll();
+                    showNotification('Returned to queue due to inactivity', 'info');
+                }
+            }, 7000); // 7 seconds
+        }
+
+        /**
+         * หยุด Auto Return Timer
+         */
+        function stopAutoReturnTimer() {
+            if (autoReturnTimer) {
+                clearTimeout(autoReturnTimer);
+                autoReturnTimer = null;
+                console.log('⏹️ Auto-return timer stopped');
+            }
+        }
+
+        /**
+         * Reset Auto Return Timer (เมื่อมีกิจกรรม)
+         */
+        function resetAutoReturnTimer() {
+            if (showMainWithQueue && autoReturnTimer) {
+                console.log('🔄 Resetting auto-return timer due to activity');
+                startAutoReturnTimer(); // รีสตาร์ท timer
+            }
+        }
+
+        /**
+         * เริ่มตรวจจับกิจกรรมของผู้ใช้
+         */
+        function startActivityDetection() {
+            if (activityDetectionActive) return;
+            
+            activityDetectionActive = true;
+            console.log('👁️ Starting activity detection');
+            
+            // Event listeners สำหรับตรวจจับกิจกรรม
+            const activityEvents = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
+            
+            activityEvents.forEach(event => {
+                document.addEventListener(event, resetAutoReturnTimer, { passive: true });
+            });
+        }
+
+        /**
+         * หยุดตรวจจับกิจกรรมของผู้ใช้
+         */
+        function stopActivityDetection() {
+            if (!activityDetectionActive) return;
+            
+            activityDetectionActive = false;
+            console.log('🛑 Stopping activity detection');
+            
+            const activityEvents = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
+            
+            activityEvents.forEach(event => {
+                document.removeEventListener(event, resetAutoReturnTimer, { passive: true });
+            });
+        }
+
+        /**
+         * อัปเดตปุ่ม Queue Notification
+         */
+        function updateQueueNotificationButton() {
+            const queueBtn = document.getElementById('queueNotificationBtn');
+            const queueCountBadge = document.getElementById('queueCountBadge');
+            
+            if (!queueBtn || !queueCountBadge) return;
+            
+            const queue = getQueue();
+            const queueCount = queue.length;
+            
+            if (showMainWithQueue && queueCount > 0) {
+                queueBtn.style.display = 'flex';
+                queueCountBadge.textContent = queueCount;
+                
+                // เพิ่ม pulse effect ถ้ามี queue มาก
+                if (queueCount >= 3) {
+                    queueBtn.classList.add('pulse');
+                } else {
+                    queueBtn.classList.remove('pulse');
+                }
+            } else {
+                queueBtn.style.display = 'none';
+                queueBtn.classList.remove('pulse');
+            }
         }
         // 🔼 END OF FIX 🔼
 
@@ -731,7 +861,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 // แสดงข้อความถ้าไม่มีงาน
                 if (placeJobs.length === 0) {
                     const emptyMessage = document.createElement('li');
-                    emptyMessage.innerHTML = '<div style="text-align: center; color: #6c757d; padding: 20px; font-style: italic;">No job place</div>';
+                    emptyMessage.innerHTML = '<div style="text-align: center; color: #6c757d; padding: 20px; font-style: italic;">No job placed</div>';
                     placeContainer.appendChild(emptyMessage);
                 }
             }
@@ -745,7 +875,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 // แสดงข้อความถ้าไม่มีงาน
                 if (pickJobs.length === 0) {
                     const emptyMessage = document.createElement('li');
-                    emptyMessage.innerHTML = '<div style="text-align: center; color: #6c757d; padding: 20px; font-style: italic;">No job pick</div>';
+                    emptyMessage.innerHTML = '<div style="text-align: center; color: #6c757d; padding: 20px; font-style: italic;">No job picked</div>';
                     pickContainer.appendChild(emptyMessage);
                 }
             }
@@ -799,6 +929,11 @@ const ACTIVE_JOB_KEY = 'activeJob';
             
             if (selectedJob) {
                 console.log(`📋 Selecting job: ${selectedJob.lot_no} (ID: ${jobId})`);
+                
+                // รีเซ็ตโหมด main-with-queue เมื่อเลือก job
+                showMainWithQueue = false;
+                stopAutoReturnTimer();
+                stopActivityDetection();
                 
                 // เพิ่ม UUID และ timestamp สำหรับการติดตาม
                 const jobWithMeta = {
@@ -1159,13 +1294,30 @@ const ACTIVE_JOB_KEY = 'activeJob';
             const queue = getQueue();
             const activeJob = getActiveJob();
 
-            if (queue.length > 0 && !activeJob) {
+            // อัปเดตปุ่ม Queue Notification
+            updateQueueNotificationButton();
+
+            // Logic สำหรับแสดงหน้าที่เหมาะสม
+            if (showMainWithQueue) {
+                // โหมด Main with Queue - แสดงหน้า Main แต่มี notification button
+                console.log('🏠 Rendering Main view with queue notification');
+                queueSelectionView.style.display = 'none';
+                mainView.style.display = 'flex';
+                renderActiveJob(); // แสดง shelf แบบ full mode
+                renderShelfGrid();
+            } else if (queue.length > 0 && !activeJob) {
+                // แสดงหน้า Queue Selection
+                console.log('📋 Rendering Queue Selection view');
                 mainView.style.display = 'none';
                 queueSelectionView.style.display = 'block';
                 renderQueueSelectionView(queue);
                 controlLEDByQueue();
             } else if (activeJob) {
-                // เรียกควบคุมไฟที่นี่ (ไม่ต้องส่ง wrongLocation)
+                // แสดงหน้า Active Job
+                console.log('🎯 Rendering Active Job view');
+                showMainWithQueue = false; // รีเซ็ต flag
+                stopAutoReturnTimer(); // หยุด timer
+                stopActivityDetection(); // หยุดตรวจจับกิจกรรม
                 controlLEDByActiveJob();
                 queueSelectionView.style.display = 'none';
                 mainView.style.display = 'flex';
@@ -1173,6 +1325,11 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 renderShelfGrid();
                 setupBarcodeScanner();
             } else {
+                // ไม่มี queue และไม่มี active job - แสดงหน้า Main แบบปกติ
+                console.log('🏠 Rendering Main view (no queue, no active job)');
+                showMainWithQueue = false;
+                stopAutoReturnTimer();
+                stopActivityDetection();
                 queueSelectionView.style.display = 'none';
                 mainView.style.display = 'flex';
                 renderActiveJob();
@@ -1190,6 +1347,14 @@ const ACTIVE_JOB_KEY = 'activeJob';
         
         // ลบ Event Listener ของ 'storage' เก่าออก เพราะเราจะใช้ WebSocket แทน
         window.removeEventListener('storage', renderAll);
+
+        // 🔽 EXPOSE FUNCTIONS TO GLOBAL SCOPE FOR HTML ONCLICK 🔽
+        window.goBackToMain = goBackToMain;
+        window.goToQueueSelection = goToQueueSelection;
+        window.selectJob = selectJob;
+        window.handleLotSearch = handleLotSearch;
+        window.findAndSelectJobByLot = findAndSelectJobByLot;
+        // 🔼 END OF EXPOSED FUNCTIONS 🔼
         
         // *** START: WebSocket Integration ***
         let websocketConnection = null; // เก็บ WebSocket connection
@@ -1218,6 +1383,15 @@ const ACTIVE_JOB_KEY = 'activeJob';
                             if (!queue.some(job => job.jobId === data.payload.jobId)) {
                                 queue.push(data.payload);
                                 localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+                                
+                                // ถ้าอยู่ในโหมด main-with-queue ให้กลับไปหน้า queue เมื่อมี job ใหม่
+                                if (showMainWithQueue) {
+                                    console.log('📋 New job arrived, returning to queue selection');
+                                    showMainWithQueue = false;
+                                    stopAutoReturnTimer();
+                                    stopActivityDetection();
+                                }
+                                
                                 renderAll();
                                 showNotification(`New Lot: ${data.payload.lot_no}`);
                             }
@@ -1264,7 +1438,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
             localStorage.setItem(GLOBAL_SHELF_STATE_KEY, JSON.stringify(data.payload.shelf_state));
             clearPersistentNotifications(); // Clear persistent notifications on job completion
             localStorage.removeItem(ACTIVE_JOB_KEY);
-            renderAll();1
+            renderAll();
             showNotification(`✅ Job completed for Lot ${data.payload.lot_no || 'Unknown'}!`, 'success');                            fetch('/api/led/clear', { method: 'POST' });
                             break;
                         case "job_warning":
@@ -1401,7 +1575,7 @@ const ACTIVE_JOB_KEY = 'activeJob';
             });
         }
 
-        // 🔽 LMS Integration Functions 🔽
+          // 🔽 LMS Integration Functions 🔽
         
         /**
          * แสดง Location Popup สำหรับ LMS ตามรูปแบบที่กำหนด
@@ -1906,96 +2080,6 @@ const ACTIVE_JOB_KEY = 'activeJob';
         }
 
         /**
-         * เรียก LMS API เพื่อตรวจสอบชั้นวางที่ถูกต้องสำหรับ LOT ที่ไม่อยู่ในคิว
-         * @param {string} lotNo - หมายเลข LOT
-         * @param {string} placeFlg - ประเภทงาน ("0" = หยิบ, "1" = วาง)
-         */
-        async function checkShelfFromLMS(lotNo, placeFlg) {
-            if (!lotNo) {
-                showLMSAlertPopup(
-                    'Incomplete Data',
-                    'Please specify LOT number',
-                    null,
-                    'error',
-                    0
-                );
-                return null;
-            }
-
-            try {
-                // แสดง loading popup
-                showNotification(`🔍 Checking LOT ${lotNo} from LMS...`, 'info');
-                
-                const response = await fetch('/api/LMS/checkshelf', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        lot_no: lotNo,
-                        place_flg: placeFlg
-                    })
-                });
-
-                const result = await response.json();
-
-                if (response.ok && result.status === 'success') {
-                    // Success popup
-                    const actionText = placeFlg === "1" ? "Place" : "Pick";
-                    showLMSAlertPopup(
-                        '✅ ข้อมูลจาก LMS',
-                        `พบข้อมูล LOT ${result.lot_no}`,
-                        `
-                            <strong>🏷️ LOT:</strong> ${result.lot_no}<br>
-                            <strong>📍 ชั้นวางที่ถูกต้อง:</strong> ${result.correct_shelf}<br>
-                            <strong>⚡ ประเภทงาน:</strong> ${actionText}<br>
-                            <strong>💬 รายละเอียด:</strong> ${result.message}
-                        `,
-                        'success',
-                        5000
-                    );
-                    
-                    return {
-                        success: true,
-                        correctShelf: result.correct_shelf,
-                        lotNo: result.lot_no
-                    };
-                } else {
-                    // Error popup - ไม่ปิดอัตโนมัติ
-                    showLMSAlertPopup(
-                        '❌ LOT Not Found',
-                        `LOT ${lotNo} is not in the system`,
-                        null,
-                        'error',
-                        0
-                    );
-                    
-                    return {
-                        success: false,
-                        error: result.error,
-                        message: result.message
-                    };
-                }
-
-            } catch (error) {
-                console.error('LMS API Error:', error);
-                
-                // Network error popup - ไม่ปิดอัตโนมัติ
-                showLMSAlertPopup(
-                    '🚫 Connection Error',
-                    'Cannot connect to LMS system',
-                    0
-                );
-                
-                return {
-                    success: false,
-                    error: 'Network Error',
-                    message: error.message
-                };
-            }
-        }
-
-        /**
          * จัดการเมื่อ scan LOT ที่ไม่อยู่ในคิว (Auto LMS check - No confirmation)
          * @param {string} scannedLot - หมายเลข LOT ที่ scan
          */
@@ -2074,7 +2158,8 @@ const ACTIVE_JOB_KEY = 'activeJob';
                     '❌ Incomplete Data',
                     'Please specify LOT number',
                     null,
-                    'error'
+                    'error',
+                    0
                 );
                 return null;
             }
@@ -2117,18 +2202,19 @@ const ACTIVE_JOB_KEY = 'activeJob';
                     
                     return {
                         success: false,
-                        error: result.error,
-                        message: result.message
+                        error: result.error || 'Unknown error',
+                        message: result.message || 'No message provided'
                     };
                 }
 
             } catch (error) {
                 console.error('LMS API Error:', error);
                 
-                // Network error popup
+                // Network error popup - แก้ไข parameter order
                 showLMSAlertPopup(
                     '🚫 Connection Error',
                     'Cannot connect to LMS system',
+                    null,
                     'error',
                     5000
                 );
@@ -2140,4 +2226,3 @@ const ACTIVE_JOB_KEY = 'activeJob';
                 };
             }
         }
-

@@ -208,6 +208,239 @@ sequenceDiagram
 
 ---
 
+## 🎮 การใช้งานระบบ (System Usage Guide)
+
+### 🚀 การเริ่มต้นใช้งาน (Getting Started)
+
+#### 1. **เปิดระบบครั้งแรก**
+
+```bash
+# เริ่มต้นระบบ
+cd src/
+python main.py
+
+# เข้าใช้งานผ่าน browser
+# เปิด http://localhost:8000
+```
+
+#### 2. **หน้าจอหลัก (Main Interface)**
+
+- **Shelf Grid:** แสดงผังชั้นวางพร้อมสถานะการใช้งาน
+- **Cell Preview:** แสดงรายละเอียด lots ในแต่ละช่อง (คลิกที่ cell)
+- **Queue Notification:** ปุ่มซ้ายล่าง แสดงจำนวนงานค้างอยู่
+
+#### 3. **ขั้นตอนการทำงาน (Workflow)**
+
+##### 📥 **กรณีมีงานใหม่เข้าระบบ:**
+
+```text
+1. ระบบรับ job จาก API/WebSocket
+2. แสดงหน้า Job Queue แบบ 2 ฝั่ง (Place/Pick)  
+3. ไฟ LED สีฟ้าจะติดที่ตำแหน่งทุกงานในคิว
+4. ผู้ใช้เลือกงานที่ต้องการทำ
+```
+
+##### 🎯 **การเลือกและทำงาน:**
+
+```text
+1. คลิก "Select" ที่งานที่ต้องการ
+2. ระบบแสดงหน้า Active Job  
+3. ไฟ LED เฉพาะตำแหน่งเป้าหมายจะติด
+4. สแกนบาร์โค้ดที่ตำแหน่งเป้าหมาย
+5. ถ้าถูกต้อง: งานเสร็จสิ้น / ถ้าผิด: แสดง error
+```
+
+##### 🔄 **การนำทางระหว่างหน้า:**
+
+```text
+หน้า Queue → กด "Back to Main" → หน้า Main (พร้อม queue notification)
+หน้า Main → ไม่แตะ 7 วินาที → กลับหน้า Queue อัตโนมัติ  
+หน้า Main → คลิก queue notification → หน้า Queue
+```
+
+### 📱 ฟีเจอร์การใช้งานใหม่ (New Usage Features)
+
+#### 🏠 **โหมด "Main with Queue"**
+
+- กดปุ่ม "← Back to Main" ในหน้า Queue
+- กลับหน้า Main แต่ยังคงงานในคิวไว้
+- แสดงปุ่ม notification ที่มุมซ้ายล่าง
+- มีระบบ auto-return timer 7 วินาที
+
+#### ⏱️ **ระบบ Auto-Return Timer**
+
+```javascript
+// การทำงานของ timer
+1. เริ่มนับถอยหลัง 7 วินาที เมื่อเข้าโหมด "Main with Queue"
+2. Reset timer เมื่อมีการโต้ตอบ: mouse, keyboard, touch
+3. หมดเวลา → กลับหน้า Queue อัตโนมัติ
+4. งานใหม่เข้า → กลับหน้า Queue ทันที
+```
+
+#### 🔔 **ระบบ Queue Notification**
+
+- **แสดงจำนวนงาน:** Badge สีแดงบอกจำนวน jobs ค้างอยู่
+- **Pulse Animation:** กระพริบเมื่อมีงาน 3+ รายการ  
+- **One-Click Access:** คลิกเพื่อไปหน้า Queue Selection
+- **Smart Display:** แสดงเฉพาะเมื่อมีงานค้างอยู่
+
+### 🔍 การสแกนบาร์โค้ด (Barcode Scanning)
+
+#### 📍 **รูปแบบบาร์โค้ดที่รองรับ:**
+```
+✅ L1-B2    (Level 1, Block 2)
+✅ L1B2     (Level 1, Block 2)  
+✅ 1-2      (Level 1, Block 2)
+✅ 1,2      (Level 1, Block 2)
+✅ 1_2      (Level 1, Block 2)
+```
+
+#### 🎯 **การทำงานของระบบสแกน:**
+```javascript
+// ขั้นตอนการตรวจสอบ
+1. สแกนบาร์โค้ด → แยกข้อมูล Level/Block
+2. เปรียบเทียบกับตำแหน่งเป้าหมาย
+3. ถูกต้อง → Complete job + ดับไฟ + อัปเดต shelf state
+4. ผิด → แสดงไฟฟ้าแดงที่ตำแหน่งผิด + เก็บไฟฟ้าฟ้าที่ตำแหน่งถูก
+```
+
+#### ❌ **การจัดการข้อผิดพลาด:**
+- **Invalid Format:** แจ้งเตือนรูปแบบบาร์โค้ดไม่ถูกต้อง
+- **Wrong Location:** แสดง error visualization + LED แดง/ฟ้า
+- **Auto Recovery:** สแกนตำแหน่งถูกต้องเพื่อแก้ error
+
+### 🌐 การเชื่อมต่อกับระบบภายนอก (External Integration)
+
+#### 📡 **LMS Integration**
+```javascript
+// การตรวจสอบ LOT ที่ไม่อยู่ในคิว
+1. สแกน LOT ที่ไม่อยู่ในระบบ
+2. เรียก LMS API อัตโนมัติ  
+3. แสดง popup ข้อมูลจาก LMS
+4. บอกตำแหน่งที่ถูกต้องสำหรับ LOT นั้น
+```
+
+#### 🔗 **WebSocket Real-time Updates**
+```javascript
+// Message Types ที่รองรับ
+- new_job: งานใหม่เข้าระบบ
+- job_completed: งานเสร็จสิ้น  
+- job_error: ข้อผิดพลาดในงาน
+- system_reset: รีเซ็ตระบบ
+- initial_state: สถานะเริ่มต้น
+```
+
+### 💡 การควบคุม LED (LED Control)
+
+#### 🎨 **โหมดการแสดงผล:**
+
+| โหมด | การทำงาน | สีไฟ | ตำแหน่ง |
+|------|----------|------|---------|
+| **Queue Preview** | แสดงงานทั้งหมดในคิว | 🔵 สีฟ้า | ทุกตำแหน่งในคิว |
+| **Active Place** | งานวางของ | 🔵 สีฟ้า | ตำแหน่งเป้าหมายเท่านั้น |
+| **Active Pick** | งานหยิบของ | 🔵 สีฟ้าอ่อน | ตำแหน่งเป้าหมายเท่านั้น |
+| **Error State** | สแกนผิดตำแหน่ง | 🔵 ฟ้า + 🔴 แดง | ตำแหน่งถูก + ผิด |
+| **Job Complete** | งานเสร็จสิ้น | ⚫ ดับ | ทุกตำแหน่ง |
+
+#### ⚡ **การควบคุมไฟแบบ Batch:**
+```javascript
+// ส่งคำสั่งหลายดวงพร้อมกัน
+const leds = [
+    { level: 1, block: 1, r: 0, g: 0, b: 255 },
+    { level: 1, block: 3, r: 0, g: 0, b: 255 },
+    { level: 2, block: 5, r: 0, g: 0, b: 255 }
+];
+
+fetch('/api/led/batch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ leds })
+});
+```
+
+### 📊 การจัดการ Cell และ Shelf State
+
+#### 📦 **ระบบ Cell Preview:**
+- **LIFO Display:** แสดง lots เรียงตาม Last In, First Out
+- **Proportional Height:** ความสูงแสดงตามจำนวน tray_count
+- **Capacity Visualization:** แสดงเปอร์เซ็นต์การใช้งาน
+- **Real-time Preview:** จำลองการวางของใหม่
+
+#### 🏗️ **การกำหนดค่า Shelf:**
+```python
+# core/database.py
+SHELF_CONFIG = {
+    1: 5,  # Level 1 = 5 blocks  
+    2: 7,  # Level 2 = 7 blocks
+    3: 6,  # Level 3 = 6 blocks  
+    4: 8   # Level 4 = 8 blocks
+}
+
+# ความจุของแต่ละ cell
+CELL_CAPACITIES = {
+    '1-1': 22,  # Level 1 Block 1 = 22 trays
+    '1-2': 24,  # Level 1 Block 2 = 24 trays
+    # ... กำหนดได้ตามต้องการ
+}
+```
+
+### 🛠️ การ Debug และ Troubleshooting
+
+#### 🔍 **เครื่องมือ Debug:**
+- **Browser Console:** ดู logs การทำงานของระบบ
+- **API Testing Page:** `/simulator` - ทดสอบ API calls
+- **Health Check:** `/health` - ตรวจสอบสถานะระบบ
+- **Auto-generated Docs:** `/docs` - API documentation
+
+#### ❗ **ปัญหาที่พบบ่อย:**
+
+| ปัญหา | สาเหตุ | วิธีแก้ |
+|-------|--------|---------|
+| **LED ไม่ติด** | Hardware connection | ตรวจสอบสาย SPI |
+| **WebSocket ขาด** | Network issues | Auto-reconnect ใน 3 วินาที |
+| **Job หาย** | Browser refresh | ใช้ localStorage persistence |
+| **Barcode ไม่รู้จัก** | Format ไม่ถูกต้อง | ตรวจสอบ pattern support |
+
+#### 🔧 **Debug Commands:**
+```javascript
+// เช็คสถานะในระบบ
+console.log('Queue:', getQueue());
+console.log('Active Job:', getActiveJob());  
+console.log('Shelf State:', JSON.parse(localStorage.getItem('globalShelfState')));
+
+// ทดสอบ LED control
+fetch('/api/led', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ level: 1, block: 1, r: 255, g: 0, b: 0 })
+});
+```
+
+### 📈 Performance และการใช้งานขั้นสูง
+
+#### ⚡ **การเพิ่มประสิทธิภาพ:**
+- **Batch DOM Updates:** รวม DOM operations เพื่อลด reflow
+- **Event Delegation:** ใช้ event listener เดียวสำหรับ multiple elements
+- **Smart Caching:** เก็บ state ใน localStorage
+- **WebSocket Queuing:** จัดคิว messages เมื่อขาดการเชื่อมต่อ
+
+#### 🔗 **การใช้งานแบบ Multi-client:**
+```javascript
+// รองรับหลาย browser พร้อมกัน
+- แต่ละ client จะได้รับ state updates แบบ real-time
+- UUID tracking เพื่อป้องกัน job conflicts  
+- Automatic state synchronization
+- Conflict resolution โดยใช้ timestamp
+```
+
+#### 📱 **Mobile/Tablet Support:**
+- Responsive design สำหรับหน้าจอขนาดต่างๆ
+- Touch-friendly interface
+- Gesture support สำหรับการนำทาง
+- Auto-focus management สำหรับ barcode input
+
+---
+
 ## 📁 4. โครงสร้างโปรเจกต์ (Project Structure)
 
 ```
@@ -281,7 +514,52 @@ app.mount("/static", StaticFiles(directory="static"))
 
 ## ✨ 5. ฟีเจอร์หลัก (Core Features)
 
-### 5.1. Smart LED Visualization System
+### 5.1. ระบบจัดการงาน (Advanced Job Management System)
+
+#### 5.1.1. Job Queue Management with Smart Navigation
+- **Two-Panel Queue Display:** แบ่งแสดงงานเป็น 2 ฝั่ง (Place/Pick) พร้อม visual indicators
+  - ฝั่งซ้าย: งานวาง (Place) พร้อม arrow ลง ⬇️
+  - ฝั่งขวา: งานหยิบ (Pick) พร้อม arrow ขึ้น ⬆️
+- **Auto-Search by Lot Number:** ค้นหางานจาก Lot Number ผ่าน barcode scanner หรือ manual input
+- **Smart Job Selection:** เลือกงานแล้วย้ายไปหน้า Active Job โดยอัตโนมัติ
+- **Back to Main Mode:** กลับหน้า Main พร้อมแสดง Queue Notification
+- **Auto-Return Timer:** หากไม่มีการใช้งาน 7 วินาที จะกลับหน้า Queue อัตโนมัติ
+- **Activity Detection:** ตรวจจับ mouse movement, clicks, keyboard input เพื่อ reset timer
+
+#### 5.1.2. Queue State Visualization
+```javascript
+// Job Queue States
+const JOB_STATES = {
+    PENDING: 'อยู่ในคิว - รอการดำเนินการ',
+    ACTIVE: 'กำลังดำเนินการ - แสดงใน UI',
+    ERROR: 'ข้อผิดพลาด - ตำแหน่งไม่ถูกต้อง',
+    COMPLETED: 'เสร็จสิ้น - อัปเดต shelf state'
+};
+
+// Job Management Functions
+function selectJob(jobId) {
+    // รีเซ็ตโหมด main-with-queue เมื่อเลือก job
+    showMainWithQueue = false;
+    stopAutoReturnTimer();
+    stopActivityDetection();
+    
+    // เพิ่ม UUID และ timestamp สำหรับการติดตาม
+    const jobWithMeta = {
+        ...selectedJob,
+        selectedAt: new Date().toISOString(),
+        uuid: crypto.randomUUID()
+    };
+}
+```
+
+#### 5.1.3. Smart Queue Notification System
+- **Bottom-Left Notification Button:** แสดงจำนวน jobs ที่ค้างอยู่ในหน้า Main
+- **Dynamic Badge Count:** อัปเดตจำนวนงานแบบ real-time
+- **Pulse Animation:** เตือนเมื่อมีงานมากกว่า 3 รายการ
+- **One-Click Navigation:** คลิกเพื่อไปหน้า Queue Selection
+- **Context-Aware Display:** แสดงเฉพาะเมื่ออยู่ในโหมด "Main with Queue"
+
+### 5.2. Smart LED Visualization System
 
 ```mermaid
 stateDiagram-v2
@@ -307,65 +585,557 @@ stateDiagram-v2
     end note
 ```
 
-#### 5.1.1. LED Control Logic
+#### 5.2.1. Advanced LED Control Logic
 
-| Scenario | LED Behavior | Color Code | Purpose |
-|----------|--------------|------------|---------|
-| **Queue Preview** | All queue positions | Blue (0,0,255) | Show all pending jobs |
-| **Active Job (Place)** | Target position only | Blue (0,0,255) | Guide placement |
-| **Active Job (Pick)** | Target position only | Light Blue (0,0,22) | Guide picking |
-| **Error State** | Target + Wrong position | Blue + Red (255,0,0) | Error indication |
-| **Job Complete** | All LEDs off | (0,0,0) | Reset state |
+| Scenario | LED Behavior | Color Code | Frontend Logic | Hardware Action |
+|----------|--------------|------------|----------------|-----------------|
+| **Queue Preview Mode** | All queue positions | Blue (0,0,255) | `controlLEDByQueue()` | Batch LED update |
+| **Active Job (Place)** | Target position only | Blue (0,0,255) | `controlLEDByActiveJob()` | Single LED control |
+| **Active Job (Pick)** | Target position only | Light Blue (0,0,22) | Color differentiation | Single LED control |
+| **Error State** | Target + Wrong position | Blue + Red (255,0,0) | Error detection logic | Dual LED control |
+| **Job Complete** | All LEDs off | (0,0,0) | `fetch('/api/led/clear')` | Clear all LEDs |
 
-#### 5.1.2. Batch LED Updates
+#### 5.2.2. Intelligent LED Batch Updates
 ```javascript
 // Frontend สามารถสั่งไฟหลายดวงพร้อมกัน
-const leds = [
-    { level: 1, block: 1, r: 0, g: 0, b: 255 },
-    { level: 1, block: 3, r: 0, g: 0, b: 255 },
-    { level: 2, block: 2, r: 0, g: 0, b: 255 }
-];
-fetch('/api/led/batch', { 
-    method: 'POST', 
-    body: JSON.stringify({ leds }) 
-});
+function controlLEDByQueue() {
+    const queue = getQueue();
+    const leds = queue.map(job => ({
+        level: Number(job.level),
+        block: Number(job.block),
+        r: 0, g: 0, b: 255 // Blue for all queue items
+    }));
+    
+    // Clear first, then batch update
+    fetch('/api/led/clear', { method: 'POST' })
+        .then(() => fetch('/api/led/batch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ leds })
+        }));
+}
+
+// Smart error LED control
+function controlLEDByActiveJob() {
+    const activeJob = getActiveJob();
+    if (activeJob.error && activeJob.errorType === 'WRONG_LOCATION') {
+        // แสดงไฟฟ้าสีฟ้าที่ตำแหน่งถูก + สีแดงที่ตำแหน่งผิด
+        const match = activeJob.errorMessage.match(/L(\d+)-B(\d+)/);
+        if (match) {
+            const wrongLevel = Number(match[1]);
+            const wrongBlock = Number(match[2]);
+            // Correct position (blue)
+            fetch('/api/led', {
+                method: 'POST',
+                body: JSON.stringify({ level, block, r: 0, g: 0, b: 255 })
+            });
+            // Wrong position (red)
+            fetch('/api/led', {
+                method: 'POST', 
+                body: JSON.stringify({ level: wrongLevel, block: wrongBlock, r: 255, g: 0, b: 0 })
+            });
+        }
+    }
+}
 ```
 
-### 5.2. Dynamic Shelf Configuration
+### 5.3. Dynamic Shelf Configuration & Cell Preview
 
+#### 5.3.1. Flexible Shelf Architecture
 ```python
-# core/database.py
+# core/database.py - Configurable Shelf Layout
 SHELF_CONFIG = {
     1: 5,  # Level 1 มี 5 blocks
     2: 7,  # Level 2 มี 7 blocks  
     3: 6,  # Level 3 มี 6 blocks
     4: 8   # Level 4 มี 8 blocks
 }
+
+# Cell Capacity Configuration
+def getCellCapacity(level, block):
+    cellCapacities = {
+        '1-1': 22, # Level 1 Block 1 = 22 trays
+        '1-2': 24, # Level 1 Block 2 = 24 trays
+        '1-3': 24, # Level 1 Block 3 = 24 trays
+        # ... สามารถกำหนดความจุของแต่ละ cell ได้
+    }
+    cellKey = f"{level}-{block}"
+    return cellCapacities.get(cellKey, 24)  # default 24 trays
 ```
 
-- **ปรับได้ง่าย:** เปลี่ยนจำนวนชั้นและช่องได้ที่ไฟล์เดียว
-- **Auto-scaling:** UI และ LED จะปรับตามการตั้งค่าโดยอัตโนมัติ
-- **Validation:** ตรวจสอบตำแหน่งที่ถูกต้องก่อนดำเนินการ
+#### 5.3.2. Advanced Cell Preview System
+- **LIFO Stack Visualization:** แสดง lots ในแต่ละ cell แบบ stack (Last In, First Out)
+- **Proportional Height Display:** ความสูงของแต่ละ lot แสดงตามจำนวน tray_count
+- **Real-time Preview:** จำลองการวางของใหม่ในโหมด Place Job
+- **Target Lot Highlighting:** เน้นสี lot ที่เป็น target ของงานปัจจุบัน
+- **Capacity Calculation:** แสดงเปอร์เซ็นต์การใช้งานของแต่ละ cell
 
-### 5.3. Advanced Barcode Processing
+#### 5.3.3. Smart Cell Preview Logic
+```javascript
+function renderCellPreview({ level, block, lots, targetLotNo, isPlaceJob = false, newLotTrayCount = 0 }) {
+    // จำลองการวางของใหม่สำหรับ Place Job
+    let previewLots = [...lots];
+    if (isPlaceJob && targetLotNo && newLotTrayCount > 0) {
+        previewLots.push({
+            lot_no: targetLotNo,
+            tray_count: newLotTrayCount
+        });
+    }
+    
+    // คำนวณความสูงตามสัดส่วน tray_count
+    const maxCapacity = getCellCapacity(level, block);
+    const maxContainerHeight = 300;
+    const heightRatio = trayCount / maxCapacity;
+    const height = Math.max(heightRatio * maxContainerHeight, 8);
+    
+    // แสดง lots จากล่างขึ้นบน (LIFO order)
+    for (let i = previewLots.length - 1; i >= 0; i--) {
+        const lot = previewLots[i];
+        const isTarget = lot.lot_no === targetLotNo;
+        const isNewLot = isPlaceJob && i === previewLots.length - 1 && isTarget;
+        
+        // Highlight target lots and new lots
+        let itemClass = 'lot-item';
+        if (isTarget) itemClass += ' target-lot';
+        if (isNewLot) itemClass += ' new-lot';
+    }
+}
+```
 
+### 5.4. Advanced Barcode Processing & Error Handling
+
+#### 5.4.1. Multi-Format Barcode Support
 ```javascript
 function parseLocationFromBarcode(barcode) {
+    // ลบช่องว่างและแปลงเป็นตัวพิมพ์ใหญ่
+    const cleaned = barcode.replace(/\s+/g, '').toUpperCase();
+    
+    // รองรับรูปแบบบาร์โค้ดหลากหลาย
     const patterns = [
         /^L(\d+)-?B(\d+)$/,  // L1-B2 หรือ L1B2
         /^(\d+)-(\d+)$/,     // 1-2
         /^(\d+),(\d+)$/,     // 1,2
         /^(\d+)_(\d+)$/,     // 1_2
+        /^L(\d+)B(\d+)$/     // L1B2
     ];
-    // รองรับรูปแบบบาร์โค้ดหลากหลาย
+    
+    for (const pattern of patterns) {
+        const match = cleaned.match(pattern);
+        if (match) {
+            const level = parseInt(match[1]);
+            const block = parseInt(match[2]);
+            
+            // Validation against SHELF_CONFIG
+            if (level >= 1 && level <= TOTAL_LEVELS && 
+                block >= 1 && block <= SHELF_CONFIG[level]) {
+                return { level, block };
+            }
+        }
+    }
+    return null; // Invalid position
 }
 ```
 
-### 5.4. Real-time State Synchronization
+#### 5.4.2. Smart Error Detection & Recovery
+```javascript
+function handleBarcodeScanned() {
+    const scannedData = barcodeInput.value.trim();
+    barcodeInput.value = '';
+    
+    const activeJob = getActiveJob();
+    const locationMatch = parseLocationFromBarcode(scannedData);
+    
+    if (!locationMatch) {
+        showNotification(`❌ Invalid barcode format: ${scannedData}`, 'error');
+        return;
+    }
+    
+    const { level, block } = locationMatch;
+    const correctLevel = Number(activeJob.level);
+    const correctBlock = Number(activeJob.block);
+    
+    // ก่อนอัปเดต UI ให้ลบ class error เดิมออกจากทุก cell
+    const allCells = document.querySelectorAll('.shelf-cell');
+    allCells.forEach(cell => {
+        cell.classList.remove('wrong-location');
+    });
+    
+    if (Number(level) === correctLevel && Number(block) === correctBlock) {
+        // ✅ Correct location - Complete job
+        if (activeJob.error) {
+            const cleanJob = { ...activeJob };
+            delete cleanJob.error;
+            delete cleanJob.errorType;
+            delete cleanJob.errorMessage;
+            setActiveJob(cleanJob);
+            renderAll();
+        }
+        showNotification(`✅ Correct location! Completing job for Lot ${activeJob.lot_no}...`, 'success');
+        completeCurrentJob();
+    } else {
+        // ❌ Wrong location - Show error state
+        updateErrorVisualization(correctLevel, correctBlock, level, block);
+        reportJobError('WRONG_LOCATION', `Scanned wrong location: L${level}-B${block}, Expected: L${correctLevel}-B${correctBlock}`);
+    }
+}
+```
 
+#### 5.4.3. Enhanced Error Visualization
+```javascript
+function updateErrorVisualization(correctLevel, correctBlock, wrongLevel, wrongBlock) {
+    // อัปเดต UI: ช่องถูกต้อง (selected-task)
+    const correctCell = document.getElementById(`cell-${correctLevel}-${correctBlock}`);
+    if (correctCell) {
+        correctCell.classList.add('selected-task');
+    }
+    
+    // ช่องผิด (wrong-location)
+    const wrongCell = document.getElementById(`cell-${wrongLevel}-${wrongBlock}`);
+    if (wrongCell) {
+        wrongCell.classList.add('wrong-location');
+        wrongCell.classList.remove('selected-task');
+    }
+}
+```
+
+### 5.5. Real-time State Synchronization & WebSocket Management
+
+#### 5.5.1. Advanced WebSocket Architecture
+```javascript
+// WebSocket Message Types
+const MESSAGE_TYPES = {
+    // Client to Server
+    COMPLETE_JOB: 'complete_job',
+    JOB_ERROR: 'job_error',
+    
+    // Server to Client  
+    INITIAL_STATE: 'initial_state',
+    NEW_JOB: 'new_job',
+    JOB_COMPLETED: 'job_completed',
+    JOB_WARNING: 'job_warning',
+    JOB_ERROR: 'job_error',
+    SYSTEM_RESET: 'system_reset'
+};
+
+// Enhanced WebSocket Setup with Auto-Reconnection
+function setupWebSocket() {
+    const ws = new WebSocket(`ws://${window.location.host}/ws`);
+    websocketConnection = ws;
+
+    ws.onopen = function(event) {
+        console.log("✅ WebSocket connected");
+    };
+
+    ws.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        switch (data.type) {
+            case "new_job":
+                // ถ้าอยู่ในโหมด main-with-queue ให้กลับไปหน้า queue เมื่อมี job ใหม่
+                if (showMainWithQueue) {
+                    console.log('📋 New job arrived, returning to queue selection');
+                    showMainWithQueue = false;
+                    stopAutoReturnTimer();
+                    stopActivityDetection();
+                }
+                break;
+        }
+    };
+
+    ws.onclose = function(event) {
+        console.log("❌ WebSocket disconnected. Reconnecting in 3 seconds...");
+        setTimeout(setupWebSocket, 3000); // Auto-reconnect
+    };
+}
+```
+
+#### 5.5.2. Smart State Management
 - **Multi-client support:** หลายเบราว์เซอร์ใช้งานพร้อมกันได้
-- **Auto-reconnect:** เชื่อมต่อ WebSocket ใหม่อัตโนมัติหากหลุด
+- **Auto-reconnect:** เชื่อมต่อ WebSocket ใหม่อัตโนมัติหากหลุด (3 วินาที)
 - **State persistence:** ข้อมูลไม่หายแม้ปิดเบราว์เซอร์ชั่วคราว
+- **Conflict Resolution:** จัดการ UUID และ timestamp เพื่อป้องกัน job conflicts
+
+#### 5.5.3. Enhanced Job Tracking
+```javascript
+function selectJob(jobId) {
+    // เพิ่ม UUID และ timestamp สำหรับการติดตาม
+    const jobWithMeta = {
+        ...selectedJob,
+        selectedAt: new Date().toISOString(),
+        uuid: crypto.randomUUID ? crypto.randomUUID() : 'uuid-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9)
+    };
+    
+    console.log(`🔍 Job metadata added - UUID: ${jobWithMeta.uuid}, Selected at: ${jobWithMeta.selectedAt}`);
+    console.log(`✅ Job ${selectedJob.lot_no} activated. Remaining queue size: ${updatedQueue.length}`);
+    console.log(`📌 Active job stored with UUID: ${jobWithMeta.uuid}`);
+}
+```
+
+### 5.6. LMS Integration & External System Communication
+
+#### 5.6.1. Smart LMS Popup System
+```javascript
+// Location-specific popup for unknown lots
+function showLMSLocationPopup(lotNo, location, type = 'warning', duration = 0) {
+    // สร้าง full-screen overlay ด้วย animation
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background-color: rgba(0, 0, 0, 0.8); z-index: 10000;
+        display: flex; justify-content: center; align-items: center;
+        animation: lmsLocationFadeIn 0.3s ease-in-out;
+    `;
+    
+    // สร้าง popup content ด้วยสีที่เหมาะสม
+    const popup = document.createElement('div');
+    popup.innerHTML = `
+        <div style="font-size: 28px; margin-bottom: 30px;">${lotNo}</div>
+        <div style="font-size: 20px; margin-bottom: 15px;">GO TO:</div>
+        <div style="font-size: 32px; margin-bottom: 35px;">${location}</div>
+        <button class="ok-button">OK</button>
+    `;
+}
+
+// Detailed alert popup for LMS responses  
+function showLMSAlertPopup(title, message, details = null, type = 'warning', duration = 0) {
+    // แสดงข้อมูลรายละเอียดจาก LMS พร้อม countdown และ progress bar
+    if (duration > 0) {
+        const countdownElement = document.createElement('div');
+        countdownElement.textContent = `This window will close in ${Math.floor(duration/1000)} seconds`;
+        
+        const progressBar = document.createElement('div');
+        progressBar.innerHTML = '<div class="progress-fill"></div>';
+    }
+}
+```
+
+#### 5.6.2. LMS API Integration
+```javascript
+async function checkShelfFromLMS(lotNo, placeFlg) {
+    try {
+        showNotification(`🔍 Checking LOT ${lotNo} from LMS...`, 'info');
+        
+        const response = await fetch('/api/LMS/checkshelf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lot_no: lotNo, place_flg: placeFlg })
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.status === 'success') {
+            // แสดง location popup แบบใหม่
+            showLMSLocationPopup(result.lot_no, result.correct_shelf, 'warning', 0);
+            return { success: true, correctShelf: result.correct_shelf, lotNo: result.lot_no };
+        } else {
+            showLMSAlertPopup('❌ Not found in LMS', `LOT ${lotNo} is not in the system`, null, 'error', 5000);
+            return { success: false, error: result.error || 'Unknown error' };
+        }
+    } catch (error) {
+        console.error('LMS API Error:', error);
+        showLMSAlertPopup('🚫 Connection Error', 'Cannot connect to LMS system', null, 'error', 5000);
+        return { success: false, error: 'NETWORK_ERROR', message: error.message };
+    }
+}
+```
+
+### 5.7. Enhanced User Experience Features
+
+#### 5.7.1. Smart Navigation System
+```javascript
+// Context-Aware Navigation Functions
+function goBackToMain() {
+    console.log('🏠 Going back to main view with queue preserved');
+    showMainWithQueue = true;
+    stopAutoReturnTimer();
+    startActivityDetection(); 
+    startAutoReturnTimer(); // 7 seconds timer
+    renderAll();
+}
+
+function goToQueueSelection() {
+    console.log('📋 Going to queue selection view');
+    showMainWithQueue = false;
+    stopAutoReturnTimer();
+    stopActivityDetection();
+    renderAll();
+}
+
+// Auto-Return Timer Management
+function startAutoReturnTimer() {
+    console.log('⏱️ Starting auto-return timer (7 seconds)');
+    autoReturnTimer = setTimeout(() => {
+        console.log('🔄 Auto-returning to queue selection due to inactivity');
+        const queue = getQueue();
+        if (queue.length > 0) {
+            showMainWithQueue = false;
+            stopActivityDetection();
+            renderAll();
+            showNotification('Returned to queue due to inactivity', 'info');
+        }
+    }, 7000);
+}
+
+// Activity Detection System
+function startActivityDetection() {
+    if (activityDetectionActive) return;
+    activityDetectionActive = true;
+    console.log('👁️ Starting activity detection');
+    
+    const activityEvents = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
+    activityEvents.forEach(event => {
+        document.addEventListener(event, resetAutoReturnTimer, { passive: true });
+    });
+}
+```
+
+#### 5.7.2. Enhanced Queue Notification System
+```javascript
+function updateQueueNotificationButton() {
+    const queueBtn = document.getElementById('queueNotificationBtn');
+    const queueCountBadge = document.getElementById('queueCountBadge');
+    
+    if (!queueBtn || !queueCountBadge) return;
+    
+    const queue = getQueue();
+    const queueCount = queue.length;
+    
+    if (showMainWithQueue && queueCount > 0) {
+        queueBtn.style.display = 'flex';
+        queueCountBadge.textContent = queueCount;
+        
+        // เพิ่ม pulse effect ถ้ามี queue มาก
+        if (queueCount >= 3) {
+            queueBtn.classList.add('pulse');
+        } else {
+            queueBtn.classList.remove('pulse');
+        }
+    } else {
+        queueBtn.style.display = 'none';
+        queueBtn.classList.remove('pulse');
+    }
+}
+```
+
+#### 5.7.3. Responsive Cell Grid System
+```javascript
+function createShelfGridStructure() {
+    shelfGrid.innerHTML = '';
+    
+    // กำหนดขนาด shelf-frame แบบ responsive
+    const shelfFrameWidth = 500;
+    const shelfFrameHeight = 475; 
+    const cellHeight = 90;
+    
+    // สร้าง flexbox layout สำหรับแต่ละ level
+    for (let level = 1; level <= TOTAL_LEVELS; level++) {
+        const blocksInThisLevel = SHELF_CONFIG[level];
+        
+        const levelContainer = document.createElement('div');
+        levelContainer.className = 'shelf-level';
+        levelContainer.style.display = 'flex';
+        levelContainer.style.gap = '4px';
+        levelContainer.style.height = `${cellHeight}px`;
+        levelContainer.style.justifyContent = 'stretch';
+        
+        // สร้าง cells สำหรับ level นี้
+        for (let block = 1; block <= blocksInThisLevel; block++) {
+            const cell = document.createElement('div');
+            cell.id = `cell-${level}-${block}`;
+            cell.className = 'shelf-cell';
+            cell.style.flex = '1'; // ให้ทุก cell มีขนาดเท่ากันและเต็มพื้นที่
+            cell.style.height = '100%';
+            cell.style.cursor = 'pointer';
+            
+            // เพิ่ม click event สำหรับแสดง cell preview
+            cell.addEventListener('click', () => {
+                const lots = getLotsInCell(level, block);
+                const activeJob = getActiveJob();
+                const targetLotNo = activeJob ? activeJob.lot_no : null;
+                renderCellPreview({ level, block, lots, targetLotNo });
+            });
+            
+            levelContainer.appendChild(cell);
+        }
+        shelfGrid.appendChild(levelContainer);
+    }
+}
+```
+
+### 5.8. Performance Optimization Features
+
+#### 5.8.1. Efficient DOM Management
+```javascript
+// Batch DOM updates
+function renderShelfGrid() {
+    const shelfState = JSON.parse(localStorage.getItem(GLOBAL_SHELF_STATE_KEY) || '[]');
+    
+    // Clear all cells first (single operation)
+    for (let level = 1; level <= TOTAL_LEVELS; level++) {
+        const blocksInThisLevel = SHELF_CONFIG[level];
+        for (let block = 1; block <= blocksInThisLevel; block++) {
+            const cell = document.getElementById(`cell-${level}-${block}`);
+            if (cell) {
+                cell.className = 'shelf-cell';
+                cell.innerHTML = '';
+            }
+        }
+    }
+    
+    // Batch update all cells with new state
+    shelfState.forEach(cellData => {
+        // Process each cell efficiently
+    });
+}
+
+// Event Delegation for Cell Clicks
+shelfGrid.addEventListener('click', (event) => {
+    const cell = event.target.closest('.shelf-cell');
+    if (cell) {
+        const [, level, block] = cell.id.match(/cell-(\d+)-(\d+)/);
+        const lots = getLotsInCell(level, block);
+        renderCellPreview({ level, block, lots });
+    }
+});
+```
+
+#### 5.8.2. Smart Caching Strategy
+```javascript
+// LocalStorage Optimization
+const CACHE_KEYS = {
+    ACTIVE_JOB: 'activeJob',
+    SHELF_STATE: 'globalShelfState', 
+    QUEUE: 'shelfQueue'
+};
+
+// Efficient State Getters/Setters
+function getQueue() {
+    const cached = localStorage.getItem(CACHE_KEYS.QUEUE);
+    return cached ? JSON.parse(cached) : [];
+}
+
+function setQueue(queue) {
+    localStorage.setItem(CACHE_KEYS.QUEUE, JSON.stringify(queue));
+}
+
+// LED Control Batching to reduce hardware communication
+function batchLEDUpdates(operations) {
+    const batchedOps = operations.reduce((batches, op) => {
+        if (!batches[op.type]) batches[op.type] = [];
+        batches[op.type].push(op);
+        return batches;
+    }, {});
+    
+    // Execute batched operations
+    Object.entries(batchedOps).forEach(([type, ops]) => {
+        if (type === 'batch') {
+            fetch('/api/led/batch', {
+                method: 'POST',
+                body: JSON.stringify({ leds: ops })
+            });
+        }
+    });
+}
+```
 
 ---
 

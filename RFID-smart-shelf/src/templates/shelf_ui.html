@@ -110,6 +110,99 @@
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(0,0,0,0.08);
       }
+
+      /* Styles for Queue Header with Back Button */
+      .queue-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+      }
+
+      .back-to-main-btn {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        background: #6c757d;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 20px;
+        font-size: 1em;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        z-index: 1001;
+      }
+
+      .back-to-main-btn:hover {
+        background: #5a6268;
+        transform: translateY(-1px);
+      }
+
+      /* Styles for Queue Notification Button */
+      .queue-notification-btn {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        background: linear-gradient(135deg, #007bff, #0056b3);
+        color: white;
+        border: none;
+        border-radius: 50px;
+        padding: 15px 25px;
+        font-size: 1em;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        z-index: 1000;
+        min-width: 160px;
+      }
+
+      .queue-notification-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 123, 255, 0.4);
+      }
+
+      .queue-icon {
+        font-size: 1.2em;
+      }
+
+      .queue-count-badge {
+        background: #dc3545;
+        color: white;
+        border-radius: 50%;
+        padding: 4px 8px;
+        font-size: 0.9em;
+        font-weight: bold;
+        min-width: 20px;
+        text-align: center;
+        line-height: 1;
+      }
+
+      .queue-text {
+        font-size: 0.95em;
+      }
+
+      /* Animation for queue notification */
+      @keyframes pulse-notification {
+        0% {
+          box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+        }
+        50% {
+          box-shadow: 0 4px 25px rgba(0, 123, 255, 0.6);
+        }
+        100% {
+          box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+        }
+      }
+
+      .queue-notification-btn.pulse {
+        animation: pulse-notification 2s infinite;
+      }
     </style>
 </head>
 <body>
@@ -117,7 +210,12 @@
 
     <!-- View 1: หน้าสำหรับเลือกงานจากคิว -->
     <div id="queueSelectionView" style="display: none;">
-        <h2>Job Queue</h2>
+        <div class="queue-header">
+            <h2>Job Queue</h2>
+            <button id="backToMainBtn" class="back-to-main-btn" onclick="goBackToMain()">
+                ← Back to Main
+            </button>
+        </div>
 
         <!-- 🔽 ADD THIS ENTIRE BLOCK 🔽 -->
         <div class="barcode-scanner-container">
@@ -154,6 +252,13 @@
         <!-- 🔽 ADD HIDDEN INPUT FOR BARCODE SCANNER 🔽 -->
         <input type="text" id="barcode-scanner-input" style="position: absolute; left: -9999px; opacity: 0;" placeholder="Barcode Scanner Input">
         <!-- 🔼 END OF ADDED INPUT 🔼 -->
+        
+        <!-- Queue notification button (แสดงเมื่อมี queue และอยู่ในโหมด main) -->
+        <div id="queueNotificationBtn" class="queue-notification-btn" onclick="goToQueueSelection()" style="display: none;">
+            <span class="queue-icon">📋</span>
+            <span class="queue-count-badge" id="queueCountBadge">0</span>
+            <span class="queue-text">Jobs Waiting</span>
+        </div>
         
         <div class="main-container">
             <!-- Shelf Panel (กลาง) -->
@@ -329,5 +434,6 @@
     
 
 
-</html></body></body>
+</body>
+</html>
 </html>
