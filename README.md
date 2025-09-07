@@ -1,4 +1,4 @@
-# 🏭 RFID Smart Shelf System - Full Stack Engineering Documentation
+# 🏭 RFID Smart Shelf System - Engineering Documentation
 
 [![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green.svg)](https://fastapi.tiangolo.com)
@@ -86,91 +86,384 @@ graph TB
 
 ## 🏛️ 2. สถาปัตยกรรมระบบ (System Architecture)
 
-### 2.1. High-Level Architecture Diagram
+### 2.1. Enterprise Architecture Overview
 
+#### 2.1.1. System Context Diagram
 ```mermaid
-flowchart LR
-    subgraph EXT["External Systems"]
-        ERP["🏭 ERP/MES<br/>Systems"]
-        SCANNER["📱 Barcode<br/>Scanner"]
-    end
+C4Context
+    title System Context - RFID Smart Shelf Ecosystem
+
+    Person(operator, "Shop Floor Operator", "Uses barcode scanner and web interface to manage inventory")
+    Person(engineer, "Process Engineer", "Monitors system performance and configurations") 
+    Person(manager, "Production Manager", "Reviews reports and system analytics")
     
-    subgraph CLIENT["Client Layer"]
-        BROWSER["🌐 Web Browser<br/>Frontend UI"]
-        MOBILE["📱 Mobile<br/>Interface"]
-    end
+    System(smartShelf, "Smart Shelf System", "IoT-enabled inventory management with real-time tracking")
     
-    subgraph SERVER["Server Layer (Raspberry Pi)"]
-        FASTAPI["🚀 FastAPI<br/>Application"]
-        ROUTER["⚡ API Routes<br/>Jobs & System"]
-        WEBSOCKET["📡 WebSocket<br/>Manager"]
-        BUSINESS["🧠 Business Logic<br/>Core Functions"]
-        DATABASE["💾 In-Memory<br/>Database"]
-    end
+    System_Ext(lms, "LMS System", "Laboratory Management System - sends job commands")
+    System_Ext(mes, "MES System", "Manufacturing Execution System - receives status updates")
+    System_Ext(erp, "ERP System", "Enterprise Resource Planning - inventory synchronization")
+    System_Ext(plc, "PLC Controllers", "Programmable Logic Controllers - production line integration")
     
-    subgraph HARDWARE["Hardware Layer"]
-        LED["💡 LED RGB<br/>Controller"]
-        GPIO["🔌 GPIO<br/>Interface"]
-        RFID["📡 RFID<br/>Reader"]
-    end
+    Rel(operator, smartShelf, "Scans barcodes, monitors UI", "HTTPS/WebSocket")
+    Rel(engineer, smartShelf, "Configures parameters", "HTTPS/REST API")
+    Rel(manager, smartShelf, "Views dashboards", "HTTPS")
     
-    ERP -->|HTTP POST| FASTAPI
-    SCANNER -->|Barcode Data| BROWSER
-    BROWSER <-->|WebSocket| WEBSOCKET
-    BROWSER -->|HTTP API| ROUTER
-    MOBILE <-->|WebSocket| WEBSOCKET
+    Rel(lms, smartShelf, "Sends job commands", "REST API/JSON")
+    Rel(smartShelf, mes, "Updates job status", "REST API/JSON")
+    Rel(smartShelf, erp, "Syncs inventory data", "REST API/JSON") 
+    Rel(plc, smartShelf, "Production triggers", "TCP/Modbus")
     
-    FASTAPI --> ROUTER
-    ROUTER --> BUSINESS
-    BUSINESS --> DATABASE
-    BUSINESS --> WEBSOCKET
-    ROUTER --> LED
-    LED --> GPIO
-    RFID --> GPIO
-    
-    classDef external fill:#e74c3c,stroke:#c0392b,color:#fff
-    classDef client fill:#3498db,stroke:#2980b9,color:#fff
-    classDef server fill:#2ecc71,stroke:#27ae60,color:#fff
-    classDef hardware fill:#f39c12,stroke:#e67e22,color:#fff
-    
-    class EXT,ERP,SCANNER external
-    class CLIENT,BROWSER,MOBILE client
-    class SERVER,FASTAPI,ROUTER,WEBSOCKET,BUSINESS,DATABASE server
-    class HARDWARE,LED,GPIO,RFID hardware
+    UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="2")
 ```
 
-### 2.2. Data Flow Architecture
+#### 2.1.2. Container Architecture Diagram
+```mermaid
+C4Container
+    title Container Diagram - Smart Shelf System Architecture
 
+    Person(operator, "Operator", "Shop floor worker")
+    System_Ext(lms, "LMS System")
+    
+    Container_Boundary(smartShelf, "Smart Shelf System") {
+        Container(webApp, "Web Application", "FastAPI/Python", "Provides web UI and REST API endpoints")
+        Container(wsManager, "WebSocket Manager", "FastAPI WebSocket", "Handles real-time communication") 
+        Container(businessLogic, "Business Logic Core", "Python", "Processes jobs, manages state transitions")
+        Container(ledController, "LED Controller", "Python/SPI", "Controls RGB LED hardware")
+        Container(database, "In-Memory Database", "Python Dict/JSON", "Stores jobs, shelf state, configurations")
+        Container(staticAssets, "Static Assets", "HTML/CSS/JavaScript", "Frontend user interface")
+    }
+    
+    Container_Boundary(hardware, "Hardware Layer") {
+        Container(ledStrips, "LED RGB Strips", "WS2812B/SK6812", "Visual position indicators")
+        Container(barcodeScanner, "Barcode Scanner", "USB HID", "Reads lot and location barcodes")
+        Container(raspberryPi, "Raspberry Pi 4", "Linux ARM64", "Edge computing platform")
+    }
+    
+    Rel(operator, webApp, "Uses web interface", "HTTPS")
+    Rel(operator, wsManager, "Real-time updates", "WebSocket")
+    Rel(lms, webApp, "Sends jobs", "REST API")
+    
+    Rel(webApp, businessLogic, "Processes requests")
+    Rel(wsManager, businessLogic, "Event notifications")
+    Rel(businessLogic, database, "CRUD operations")
+    Rel(businessLogic, ledController, "LED commands")
+    Rel(webApp, staticAssets, "Serves UI files")
+    
+    Rel(ledController, ledStrips, "SPI protocol")
+    Rel(barcodeScanner, webApp, "Barcode data", "USB/HID")
+    Rel(ledStrips, raspberryPi, "GPIO pins")
+    
+    UpdateLayoutConfig($c4ShapeInRow="2", $c4BoundaryInRow="1")
+```
+
+#### 2.1.3. Component Architecture Diagram  
+```mermaid
+C4Component
+    title Component Diagram - Core Business Logic
+
+    Container(webApp, "Web Application", "FastAPI")
+    Container_Ext(database, "Database", "In-Memory")
+    Container_Ext(ledController, "LED Controller")
+    Container_Ext(wsManager, "WebSocket Manager")
+    
+    Container_Boundary(businessLogic, "Business Logic Core") {
+        Component(jobManager, "Job Manager", "Python Class", "Manages job lifecycle and queue")
+        Component(shelfStateManager, "Shelf State Manager", "Python Class", "Tracks inventory positions")
+        Component(validationEngine, "Validation Engine", "Python Class", "Validates barcode scans and locations")
+        Component(eventProcessor, "Event Processor", "Python Class", "Handles system events and notifications")
+        Component(configManager, "Configuration Manager", "Python Class", "Manages shelf layout and settings")
+        Component(errorHandler, "Error Handler", "Python Class", "Processes and recovers from errors")
+    }
+    
+    Rel(webApp, jobManager, "Job CRUD operations")
+    Rel(webApp, shelfStateManager, "State queries")
+    Rel(webApp, validationEngine, "Location validation")
+    Rel(webApp, configManager, "Configuration access")
+    
+    Rel(jobManager, database, "Persist jobs")
+    Rel(shelfStateManager, database, "Update state")
+    Rel(validationEngine, configManager, "Validate against config")
+    Rel(eventProcessor, wsManager, "Broadcast events")
+    Rel(jobManager, ledController, "LED control commands")
+    Rel(errorHandler, eventProcessor, "Error notifications")
+    
+    Rel(jobManager, eventProcessor, "Job events")
+    Rel(shelfStateManager, eventProcessor, "State change events")
+    Rel(validationEngine, errorHandler, "Validation errors")
+    
+    UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
+```
+
+### 2.2. Technology Architecture
+
+#### 2.2.1. Full Stack Technology Matrix
+```mermaid
+graph TB
+    subgraph "🌐 Presentation Tier"
+        HTML5[HTML5<br/>Semantic markup, Web Components]
+        CSS3[CSS3<br/>Flexbox, Grid, Animations]  
+        JS[JavaScript ES6+<br/>Async/Await, Modules]
+        WS_CLIENT[WebSocket Client<br/>Real-time communication]
+    end
+    
+    subgraph "🔗 Communication Layer"
+        HTTP[HTTP/REST<br/>RESTful APIs, JSON]
+        WEBSOCKET[WebSocket Protocol<br/>Bi-directional real-time]
+        SPI[SPI Protocol<br/>LED hardware control]
+        USB[USB HID<br/>Barcode scanner input]
+    end
+    
+    subgraph "⚙️ Application Tier"
+        FASTAPI[FastAPI Framework<br/>Python ASGI, Auto docs]
+        PYDANTIC[Pydantic Models<br/>Data validation, Serialization]  
+        ASYNCIO[AsyncIO<br/>Concurrency, Event loop]
+        BUSINESS[Business Logic<br/>Domain models, Rules engine]
+    end
+    
+    subgraph "💾 Data Tier"
+        MEMORY[In-Memory Database<br/>Python dict, JSON storage]
+        STATE[State Management<br/>Persistent storage, Caching]
+        CONFIG[Configuration Store<br/>YAML, Environment variables]
+    end
+    
+    subgraph "🔧 Hardware Abstraction"
+        PI5NEO[Pi5Neo Library<br/>LED strip control]
+        GPIO[GPIO Interface<br/>Hardware abstraction]
+        LINUX[Linux Kernel<br/>Device drivers, System calls]
+    end
+    
+    HTML5 -.->|DOM manipulation| JS
+    CSS3 -.->|Styling| HTML5
+    JS -.->|Real-time| WS_CLIENT
+    
+    WS_CLIENT -.->|WebSocket| WEBSOCKET
+    JS -.->|HTTP requests| HTTP
+    
+    HTTP -.->|API calls| FASTAPI
+    WEBSOCKET -.->|Real-time| FASTAPI
+    FASTAPI -.->|Validation| PYDANTIC
+    FASTAPI -.->|Async ops| ASYNCIO
+    FASTAPI -.->|Domain logic| BUSINESS
+    
+    BUSINESS -.->|Data ops| MEMORY
+    BUSINESS -.->|State mgmt| STATE
+    BUSINESS -.->|Settings| CONFIG
+    
+    BUSINESS -.->|LED control| PI5NEO
+    PI5NEO -.->|Hardware| GPIO
+    GPIO -.->|System calls| LINUX
+    
+    classDef presentation fill:#3498db,stroke:#2980b9,color:#fff
+    classDef communication fill:#e74c3c,stroke:#c0392b,color:#fff  
+    classDef application fill:#2ecc71,stroke:#27ae60,color:#fff
+    classDef data fill:#f39c12,stroke:#e67e22,color:#fff
+    classDef hardware fill:#9b59b6,stroke:#8e44ad,color:#fff
+    
+    class HTML5,CSS3,JS,WS_CLIENT presentation
+    class HTTP,WEBSOCKET,SPI,USB communication
+    class FASTAPI,PYDANTIC,ASYNCIO,BUSINESS application
+    class MEMORY,STATE,CONFIG data
+    class PI5NEO,GPIO,LINUX hardware
+```
+
+### 2.3. Deployment Architecture
+
+#### 2.3.1. Production Deployment Diagram
+```mermaid
+deployment
+    node "Production Environment" {
+        node "Raspberry Pi 4" {
+            component "Smart Shelf Application" {
+                [FastAPI Server]
+                [WebSocket Manager]  
+                [LED Controller]
+                [Business Logic]
+            }
+            component "System Services" {
+                [Systemd Service]
+                [Log Rotation]
+                [Health Monitoring]
+            }
+            component "Hardware Drivers" {
+                [SPI Driver]
+                [USB HID Driver] 
+                [GPIO Driver]
+            }
+        }
+        
+        node "LED Hardware" {
+            [WS2812B LED Strips]
+            [Power Supply 5V]
+            [Level Shifters]
+        }
+        
+        node "Input Devices" {
+            [USB Barcode Scanner]
+            [Network Interface]
+        }
+    }
+    
+    node "Network Infrastructure" {
+        [WiFi Router]
+        [Ethernet Switch]
+        [Firewall]
+    }
+    
+    node "External Systems" {
+        [LMS Server]
+        [MES System]
+        [ERP Database]
+    }
+    
+    [FastAPI Server] --> [LED Controller] : LED Commands
+    [LED Controller] --> [WS2812B LED Strips] : SPI
+    [USB Barcode Scanner] --> [FastAPI Server] : HID Input
+    [FastAPI Server] --> [LMS Server] : REST API
+    [Raspberry Pi 4] --> [WiFi Router] : TCP/IP
+```
+
+### 2.4. Data Flow & Process Architecture
+
+#### 2.4.1. Event-Driven Architecture Flow
 ```mermaid
 sequenceDiagram
-    participant ERP as LMS System
-    participant API as FastAPI Server
-    participant WS as WebSocket Manager
-    participant UI as Frontend UI
-    participant LED as LED Controller
-    participant USER as Operator
+    participant ERP as 🏭 ERP/LMS System
+    participant Gateway as 🚪 API Gateway
+    participant Core as 🧠 Business Logic
+    participant State as 💾 State Manager
+    participant WS as 📡 WebSocket Manager
+    participant UI as 🖥️ Frontend UI
+    participant LED as 💡 LED Controller
+    participant HW as 🔧 Hardware
+    participant User as 👤 Operator
     
-    Note over ERP,USER: Job Creation Flow
-    ERP->>API: POST /command (New Job)
-    API->>WS: Broadcast new_job
-    WS->>UI: Real-time update
-    UI->>LED: Preview all queue jobs (Blue LEDs)
+    Note over ERP,User: Job Creation & Distribution
+    ERP->>Gateway: POST /command (Create Job)
+    Gateway->>Core: Validate & Process Job
+    Core->>State: Store Job in Queue
+    Core->>WS: Broadcast new_job event
+    WS->>UI: Push real-time update
+    UI->>LED: Display queue preview (Blue LEDs)
+    LED->>HW: SPI command to LED strips
+    HW-->>User: Visual indication (Blue lights)
     
-    Note over ERP,USER: Job Execution Flow
-    USER->>UI: Scan Lot Barcode
-    UI->>API: Select Job Request
-    API->>LED: Show target position (Blue/Yellow)
-    USER->>UI: Scan Location Barcode
+    Note over ERP,User: Job Selection & Activation  
+    User->>UI: Scan Lot Barcode
+    UI->>Gateway: GET /jobs (Find by Lot)
+    Gateway->>Core: Query Job by Lot
+    Core->>State: Retrieve Job Details
+    State-->>Core: Job Data
+    Core-->>UI: Job Information
+    UI->>LED: Highlight target position
+    LED->>HW: SPI command (Blue/Yellow LED)
+    HW-->>User: Target position indicator
+    
+    Note over ERP,User: Location Validation & Completion
+    User->>UI: Scan Location Barcode
+    UI->>Gateway: POST /validate (Check Location)
+    Gateway->>Core: Validate Scan vs Target
     
     alt Correct Location
-        UI->>API: Complete Job
-        API->>WS: Broadcast job_completed
-        WS->>UI: Update shelf state
-        API->>LED: Clear all LEDs
+        Core->>State: Update Shelf State
+        Core->>State: Mark Job Complete
+        Core->>WS: Broadcast job_completed
+        WS->>UI: Update UI state
+        UI->>LED: Clear all LEDs
+        LED->>HW: Turn off LEDs
+        Gateway-->>ERP: Job completion callback
     else Wrong Location
-        UI->>LED: Show error (Red + Blue)
-        Note over USER: User must scan correct location
+        Core->>WS: Broadcast job_error  
+        WS->>UI: Show error state
+        UI->>LED: Error visualization (Red+Blue)
+        LED->>HW: Error LED pattern
+        Note over User: Retry with correct location
     end
+```
+
+### 2.5. Security Architecture
+
+#### 2.5.1. Security Layer Design
+```mermaid
+graph TB
+    subgraph "🔐 Security Layers"
+        subgraph "Network Security"
+            FIREWALL[Firewall Rules<br/>Port 8000, SSH]
+            VPN[VPN Access<br/>Remote management]
+            HTTPS[HTTPS/TLS<br/>Encrypted transport]
+        end
+        
+        subgraph "Application Security"
+            AUTH[Authentication<br/>API keys, Basic auth]
+            VALID[Input Validation<br/>Pydantic models]
+            CORS[CORS Policy<br/>Cross-origin control]
+            RATE[Rate Limiting<br/>API throttling]
+        end
+        
+        subgraph "System Security"
+            USER[User Privileges<br/>Non-root execution]
+            LOGS[Security Logging<br/>Audit trails]
+            UPDATE[System Updates<br/>Security patches]
+            BACKUP[Configuration Backup<br/>Recovery procedures]
+        end
+        
+        subgraph "Hardware Security"
+            PHYSICAL[Physical Security<br/>Enclosure, locks]
+            GPIO_PROT[GPIO Protection<br/>Over-current protection]
+            POWER[Power Management<br/>UPS, surge protection]
+        end
+    end
+    
+    classDef security fill:#e74c3c,stroke:#c0392b,color:#fff
+    class FIREWALL,VPN,HTTPS,AUTH,VALID,CORS,RATE,USER,LOGS,UPDATE,BACKUP,PHYSICAL,GPIO_PROT,POWER security
+```
+
+### 2.6. Integration Architecture
+
+#### 2.6.1. Enterprise Integration Patterns
+```mermaid
+graph LR
+    subgraph "🏭 Manufacturing Systems"
+        MES[MES System<br/>Production scheduling]
+        ERP[ERP System<br/>Resource planning] 
+        SCADA[SCADA System<br/>Supervisory control]
+        PLC[PLC Controllers<br/>Process control]
+    end
+    
+    subgraph "🔗 Integration Layer"
+        ESB[Enterprise Service Bus<br/>Message routing]
+        API_GW[API Gateway<br/>Protocol translation]
+        MSG_Q[Message Queue<br/>Async communication]
+        EVENT_HUB[Event Hub<br/>Event streaming]
+    end
+    
+    subgraph "📊 Smart Shelf System"
+        CORE_API[Core API<br/>Business logic]
+        JOB_MGR[Job Manager<br/>Workflow engine]
+        STATE_MGR[State Manager<br/>Data consistency]
+        WS_MGR[WebSocket Manager<br/>Real-time updates]
+    end
+    
+    MES -.->|Production orders| ESB
+    ERP -.->|Inventory updates| ESB
+    SCADA -.->|Control signals| ESB
+    PLC -.->|Status updates| MSG_Q
+    
+    ESB -.->|Job commands| API_GW
+    API_GW -.->|Standardized API| CORE_API
+    MSG_Q -.->|Async events| EVENT_HUB
+    EVENT_HUB -.->|Real-time data| WS_MGR
+    
+    CORE_API --> JOB_MGR
+    JOB_MGR --> STATE_MGR
+    STATE_MGR --> WS_MGR
+    
+    classDef manufacturing fill:#3498db,stroke:#2980b9,color:#fff
+    classDef integration fill:#e74c3c,stroke:#c0392b,color:#fff
+    classDef smartshelf fill:#2ecc71,stroke:#27ae60,color:#fff
+    
+    class MES,ERP,SCADA,PLC manufacturing
+    class ESB,API_GW,MSG_Q,EVENT_HUB integration  
+    class CORE_API,JOB_MGR,STATE_MGR,WS_MGR smartshelf
 ```
 
 ---
@@ -2468,43 +2761,597 @@ async def batch_led_update_async(leds):
 
 ---
 
-## 🚀 13. การต่อยอดในอนาคต (Future Enhancements)
+## 📈 13. การต่อยอดในอนาคต (Future Enhancements)
 
-### 13.1. Technical Roadmap
+### 13.1. Digital Twin & Industry 4.0 Evolution
 
-#### 13.1.1. Phase 1: Core Improvements (Q1-Q2 2024)
-- **Persistent Database Integration**
-  ```python
-  # PostgreSQL integration
-  from sqlalchemy.ext.asyncio import create_async_engine
-  
-  DATABASE_URL = "postgresql+asyncpg://user:pass@localhost/smartshelf"
-  engine = create_async_engine(DATABASE_URL)
-  ```
+#### 13.1.1. Digital Twin Architecture Roadmap
+```mermaid
+graph TB
+    subgraph "🎯 Current State (V1.0)"
+        CURRENT_UI[Web UI Interface]
+        CURRENT_API[REST API]
+        CURRENT_LED[LED Control]
+        CURRENT_DB[In-Memory Database]
+    end
+    
+    subgraph "🚀 Phase 1: Digital Twin Foundation (V2.0)"
+        DT_ENGINE[Digital Twin Engine<br/>Real-time synchronization]
+        PHYSICS_SIM[Physics Simulation<br/>3D visualization]
+        PRED_MODEL[Predictive Models<br/>AI-powered analytics]
+        CLOUD_SYNC[Cloud Integration<br/>Multi-shelf coordination]
+    end
+    
+    subgraph "🤖 Phase 2: AI & Robotics Integration (V3.0)"
+        ML_OPTIMIZE[Machine Learning<br/>Optimization algorithms]
+        ROBOT_API[Robotics API<br/>AGV integration]
+        AR_INTERFACE[AR Interface<br/>Mixed reality visualization]
+        VOICE_CONTROL[Voice Control<br/>Natural language processing]
+    end
+    
+    subgraph "🌐 Phase 3: Enterprise Ecosystem (V4.0)"
+        BLOCKCHAIN[Blockchain Traceability<br/>Supply chain transparency]
+        IOT_MESH[IoT Mesh Network<br/>Edge computing]
+        DIGITAL_WORKER[Digital Worker<br/>Process automation]
+        CARBON_TRACK[Carbon Footprint<br/>Sustainability metrics]
+    end
+    
+    CURRENT_UI --> DT_ENGINE
+    CURRENT_API --> PHYSICS_SIM
+    CURRENT_LED --> PRED_MODEL
+    CURRENT_DB --> CLOUD_SYNC
+    
+    DT_ENGINE --> ML_OPTIMIZE
+    PHYSICS_SIM --> ROBOT_API
+    PRED_MODEL --> AR_INTERFACE
+    CLOUD_SYNC --> VOICE_CONTROL
+    
+    ML_OPTIMIZE --> BLOCKCHAIN
+    ROBOT_API --> IOT_MESH
+    AR_INTERFACE --> DIGITAL_WORKER
+    VOICE_CONTROL --> CARBON_TRACK
+    
+    classDef current fill:#3498db,stroke:#2980b9,color:#fff
+    classDef phase1 fill:#2ecc71,stroke:#27ae60,color:#fff
+    classDef phase2 fill:#f39c12,stroke:#e67e22,color:#fff
+    classDef phase3 fill:#e74c3c,stroke:#c0392b,color:#fff
+    
+    class CURRENT_UI,CURRENT_API,CURRENT_LED,CURRENT_DB current
+    class DT_ENGINE,PHYSICS_SIM,PRED_MODEL,CLOUD_SYNC phase1
+    class ML_OPTIMIZE,ROBOT_API,AR_INTERFACE,VOICE_CONTROL phase2
+    class BLOCKCHAIN,IOT_MESH,DIGITAL_WORKER,CARBON_TRACK phase3
+```
 
-- **User Authentication & Authorization**
-  ```python
-  from fastapi_users import FastAPIUsers
-  from fastapi_users.authentication import JWTAuthentication
-  
-  # JWT-based authentication
-  auth_backends = [JWTAuthentication(secret=SECRET, lifetime_seconds=3600)]
-  ```
+#### 13.1.2. Smart Manufacturing Integration
+```python
+# future/smart_manufacturing_integration.py
+from typing import List, Dict
+import asyncio
+from dataclasses import dataclass
+from datetime import datetime
 
-- **Advanced Analytics Dashboard**
-  ```python
-  # Metrics collection
-  from prometheus_client import Counter, Histogram
-  
-  job_counter = Counter('jobs_completed_total', 'Total completed jobs')
-  response_time = Histogram('api_response_seconds', 'API response time')
-  ```
+@dataclass
+class DigitalTwinState:
+    """Digital representation of physical shelf state"""
+    shelf_id: str
+    physical_state: Dict
+    digital_state: Dict
+    sync_timestamp: datetime
+    prediction_accuracy: float
+    
+class SmartManufacturingHub:
+    """Central hub for Industry 4.0 integration"""
+    
+    def __init__(self):
+        self.digital_twins: Dict[str, DigitalTwinState] = {}
+        self.ml_models = {}
+        self.robotics_interface = RoboticsInterface()
+        self.enterprise_connector = EnterpriseConnector()
+    
+    async def create_digital_twin(self, shelf_id: str) -> DigitalTwinState:
+        """Create digital twin for physical shelf"""
+        physical_state = await self.scan_physical_shelf(shelf_id)
+        
+        twin = DigitalTwinState(
+            shelf_id=shelf_id,
+            physical_state=physical_state,
+            digital_state=physical_state.copy(),
+            sync_timestamp=datetime.now(),
+            prediction_accuracy=0.95
+        )
+        
+        self.digital_twins[shelf_id] = twin
+        return twin
+    
+    async def predictive_placement_optimization(self, shelf_id: str) -> Dict:
+        """AI-powered placement optimization"""
+        twin = self.digital_twins.get(shelf_id)
+        if not twin:
+            return {"error": "Digital twin not found"}
+        
+        # Machine learning model for optimal placement
+        optimal_positions = await self.ml_models["placement_optimizer"].predict({
+            "current_state": twin.digital_state,
+            "historical_patterns": await self.get_historical_data(shelf_id),
+            "upcoming_jobs": await self.get_job_forecast(shelf_id)
+        })
+        
+        return {
+            "optimized_layout": optimal_positions,
+            "efficiency_gain": optimal_positions.get("efficiency_percentage", 0),
+            "recommendations": optimal_positions.get("suggestions", [])
+        }
+    
+    async def coordinate_with_agv_robots(self, job_queue: List[Dict]) -> Dict:
+        """Coordinate shelf operations with AGV robots"""
+        robot_tasks = []
+        
+        for job in job_queue:
+            if job.get("requires_robot_assistance"):
+                robot_task = {
+                    "task_id": f"AGV_{job['lot_no']}_{int(datetime.now().timestamp())}",
+                    "type": "TRANSPORT_TO_SHELF",
+                    "source_location": job.get("pickup_location"),
+                    "destination_shelf": job.get("shelf_id"),
+                    "destination_position": f"L{job['level']}B{job['block']}",
+                    "priority": job.get("priority", 1),
+                    "estimated_duration": self.calculate_transport_time(job)
+                }
+                robot_tasks.append(robot_task)
+        
+        # Send tasks to robot fleet management
+        robot_response = await self.robotics_interface.schedule_tasks(robot_tasks)
+        
+        return {
+            "scheduled_tasks": len(robot_tasks),
+            "robot_assignments": robot_response.get("assignments", []),
+            "estimated_completion": robot_response.get("total_duration", 0)
+        }
+    
+    async def generate_sustainability_metrics(self, shelf_id: str) -> Dict:
+        """Calculate environmental impact and sustainability metrics"""
+        twin = self.digital_twins.get(shelf_id)
+        operations_data = await self.get_operations_history(shelf_id)
+        
+        metrics = {
+            "energy_consumption": {
+                "led_usage_kwh": self.calculate_led_energy_usage(operations_data),
+                "system_power_kwh": self.calculate_system_power(operations_data),
+                "daily_average_kwh": 0.0
+            },
+            "efficiency_metrics": {
+                "space_utilization_percent": self.calculate_space_utilization(twin),
+                "job_completion_rate": self.calculate_completion_rate(operations_data),
+                "error_reduction_percent": self.calculate_error_reduction(operations_data)
+            },
+            "carbon_footprint": {
+                "co2_saved_kg_per_day": self.calculate_co2_savings(operations_data),
+                "waste_reduction_percent": self.calculate_waste_reduction(operations_data),
+                "sustainability_score": 0.0
+            }
+        }
+        
+        # Calculate composite sustainability score
+        metrics["carbon_footprint"]["sustainability_score"] = (
+            metrics["efficiency_metrics"]["space_utilization_percent"] * 0.4 +
+            metrics["efficiency_metrics"]["job_completion_rate"] * 0.4 +
+            (100 - metrics["energy_consumption"]["daily_average_kwh"]) * 0.2
+        )
+        
+        return metrics
 
-#### 13.1.2. Phase 2: Hardware Integration (Q3-Q4 2024)
-- **Direct RFID Reader Integration**
-  ```python
-  class RFIDManager:
-      async def continuous_scan(self):
+class RoboticsInterface:
+    """Interface for AGV and robotic systems"""
+    
+    async def schedule_tasks(self, tasks: List[Dict]) -> Dict:
+        """Schedule tasks with robot fleet management system"""
+        # Implementation would integrate with actual robotics systems
+        # Examples: MiR robots, KIVA systems, custom AGVs
+        return {
+            "assignments": [
+                {
+                    "task_id": task["task_id"],
+                    "assigned_robot": f"AGV_{i % 3 + 1}",
+                    "estimated_start": datetime.now().isoformat(),
+                    "estimated_completion": self.estimate_completion_time(task)
+                }
+                for i, task in enumerate(tasks)
+            ],
+            "total_duration": sum(self.estimate_task_duration(task) for task in tasks)
+        }
+    
+    def estimate_completion_time(self, task: Dict) -> str:
+        """Estimate task completion time"""
+        base_duration = 300  # 5 minutes base
+        complexity_factor = task.get("priority", 1) * 60
+        return (datetime.now() + timedelta(seconds=base_duration + complexity_factor)).isoformat()
+    
+    def estimate_task_duration(self, task: Dict) -> int:
+        """Estimate task duration in seconds"""
+        return task.get("priority", 1) * 180  # 3 minutes per priority level
+
+class EnterpriseConnector:
+    """Connector for enterprise systems integration"""
+    
+    async def sync_with_erp(self, shelf_data: Dict) -> Dict:
+        """Synchronize with ERP system"""
+        return {
+            "sync_status": "success",
+            "records_updated": len(shelf_data.get("lots", [])),
+            "next_sync": (datetime.now() + timedelta(hours=1)).isoformat()
+        }
+    
+    async def update_mes_system(self, production_data: Dict) -> Dict:
+        """Update Manufacturing Execution System"""
+        return {
+            "mes_update": "success",
+            "production_orders_updated": production_data.get("completed_jobs", 0),
+            "efficiency_metrics": production_data.get("efficiency", {})
+        }
+```
+
+### 13.2. Advanced Technology Integration
+
+#### 13.2.1. Augmented Reality (AR) Interface
+```python
+# future/ar_interface.py
+class ARVisualizationEngine:
+    """Augmented Reality interface for Smart Shelf system"""
+    
+    def __init__(self):
+        self.ar_markers = {}
+        self.spatial_mapping = SpatialMappingEngine()
+        self.gesture_recognition = GestureRecognitionEngine()
+    
+    async def generate_ar_overlay(self, shelf_id: str, user_position: Dict) -> Dict:
+        """Generate AR overlay for shelf visualization"""
+        shelf_state = await get_shelf_state(shelf_id)
+        job_queue = await get_active_jobs(shelf_id)
+        
+        ar_elements = []
+        
+        # Generate 3D position indicators
+        for job in job_queue:
+            ar_elements.append({
+                "type": "position_indicator",
+                "position": {
+                    "level": job["level"],
+                    "block": job["block"],
+                    "world_coordinates": self.convert_to_world_coords(job["level"], job["block"])
+                },
+                "visual": {
+                    "color": "blue" if job["place_flg"] == "1" else "yellow",
+                    "animation": "pulse",
+                    "text_overlay": job["lot_no"],
+                    "distance_from_user": self.calculate_distance(user_position, job)
+                }
+            })
+        
+        # Generate lot information overlays
+        for cell in shelf_state:
+            if cell.get("lots"):
+                ar_elements.append({
+                    "type": "lot_information",
+                    "position": self.convert_to_world_coords(cell["level"], cell["block"]),
+                    "content": {
+                        "lot_count": len(cell["lots"]),
+                        "total_trays": sum(lot.get("tray_count", 0) for lot in cell["lots"]),
+                        "utilization_percent": self.calculate_utilization(cell),
+                        "next_expiry": self.get_next_expiry_date(cell["lots"])
+                    }
+                })
+        
+        return {
+            "ar_scene": {
+                "elements": ar_elements,
+                "lighting": self.calculate_optimal_lighting(),
+                "camera_position": user_position,
+                "tracking_markers": self.generate_tracking_markers(shelf_id)
+            },
+            "interaction_zones": self.define_interaction_zones(shelf_id),
+            "voice_commands": self.get_available_voice_commands()
+        }
+    
+    async def process_gesture_command(self, gesture_data: Dict) -> Dict:
+        """Process gesture-based commands"""
+        gesture_type = self.gesture_recognition.classify(gesture_data)
+        
+        commands = {
+            "point_and_select": self.handle_point_selection,
+            "swipe_left": self.handle_shelf_navigation,
+            "swipe_right": self.handle_shelf_navigation,
+            "pinch_zoom": self.handle_detail_view,
+            "tap_air": self.handle_confirmation
+        }
+        
+        if gesture_type in commands:
+            return await commands[gesture_type](gesture_data)
+        
+        return {"status": "gesture_not_recognized", "gesture": gesture_type}
+
+class VoiceControlInterface:
+    """Natural language voice control for Smart Shelf"""
+    
+    def __init__(self):
+        self.nlp_processor = NLPProcessor()
+        self.command_parser = CommandParser()
+        self.tts_engine = TextToSpeechEngine()
+    
+    async def process_voice_command(self, audio_data: bytes) -> Dict:
+        """Process voice command and execute action"""
+        # Speech to text
+        text_command = await self.speech_to_text(audio_data)
+        
+        # Natural language understanding
+        intent = await self.nlp_processor.extract_intent(text_command)
+        entities = await self.nlp_processor.extract_entities(text_command)
+        
+        # Command execution
+        result = await self.execute_voice_command(intent, entities)
+        
+        # Generate voice response
+        response_text = self.generate_response_text(result)
+        response_audio = await self.tts_engine.synthesize(response_text)
+        
+        return {
+            "original_command": text_command,
+            "understood_intent": intent,
+            "extracted_entities": entities,
+            "execution_result": result,
+            "response_text": response_text,
+            "response_audio": response_audio
+        }
+    
+    async def execute_voice_command(self, intent: str, entities: Dict) -> Dict:
+        """Execute parsed voice command"""
+        if intent == "find_lot":
+            lot_no = entities.get("lot_number")
+            return await self.find_lot_by_voice(lot_no)
+        
+        elif intent == "complete_job":
+            return await self.complete_current_job_by_voice()
+        
+        elif intent == "show_status":
+            shelf_id = entities.get("shelf_id", "SHELF_001")
+            return await self.get_shelf_status_by_voice(shelf_id)
+        
+        elif intent == "navigate_to":
+            level = entities.get("level")
+            block = entities.get("block")
+            return await self.navigate_to_position_by_voice(level, block)
+        
+        return {"status": "command_not_supported", "intent": intent}
+```
+
+### 13.3. Advanced Analytics & Machine Learning
+
+#### 13.3.1. Predictive Analytics Engine
+```python
+# future/predictive_analytics.py
+import numpy as np
+import pandas as pd
+from sklearn.ensemble import RandomForestRegressor, IsolationForest
+from sklearn.preprocessing import StandardScaler
+import joblib
+from datetime import datetime, timedelta
+
+class PredictiveAnalyticsEngine:
+    """Advanced analytics for Smart Shelf optimization"""
+    
+    def __init__(self):
+        self.models = {
+            "demand_forecast": None,
+            "placement_optimizer": None,
+            "anomaly_detector": None,
+            "efficiency_predictor": None
+        }
+        self.scalers = {}
+        self.is_trained = False
+    
+    async def train_demand_forecasting_model(self, historical_data: List[Dict]) -> Dict:
+        """Train model to predict future demand patterns"""
+        df = pd.DataFrame(historical_data)
+        
+        # Feature engineering
+        df['hour'] = pd.to_datetime(df['timestamp']).dt.hour
+        df['day_of_week'] = pd.to_datetime(df['timestamp']).dt.dayofweek
+        df['month'] = pd.to_datetime(df['timestamp']).dt.month
+        
+        features = ['hour', 'day_of_week', 'month', 'lot_category', 'priority']
+        X = pd.get_dummies(df[features])
+        y = df['demand_quantity']
+        
+        # Train model
+        self.models["demand_forecast"] = RandomForestRegressor(n_estimators=100)
+        self.scalers["demand_forecast"] = StandardScaler()
+        
+        X_scaled = self.scalers["demand_forecast"].fit_transform(X)
+        self.models["demand_forecast"].fit(X_scaled, y)
+        
+        # Model validation
+        train_score = self.models["demand_forecast"].score(X_scaled, y)
+        
+        return {
+            "model_type": "demand_forecasting",
+            "training_accuracy": train_score,
+            "feature_importance": dict(zip(X.columns, self.models["demand_forecast"].feature_importances_)),
+            "training_completed": datetime.now().isoformat()
+        }
+    
+    async def predict_optimal_layout(self, current_state: Dict, upcoming_jobs: List[Dict]) -> Dict:
+        """Predict optimal shelf layout for efficiency"""
+        if not self.is_trained:
+            await self.train_all_models()
+        
+        # Prepare features
+        features = self.extract_layout_features(current_state, upcoming_jobs)
+        
+        # Generate predictions
+        predictions = {
+            "optimal_positions": {},
+            "expected_efficiency_gain": 0.0,
+            "placement_recommendations": [],
+            "risk_assessment": {}
+        }
+        
+        # Calculate optimal positions for each upcoming job
+        for job in upcoming_jobs:
+            job_features = self.extract_job_features(job, current_state)
+            optimal_position = await self.predict_best_position(job_features)
+            
+            predictions["optimal_positions"][job["lot_no"]] = {
+                "recommended_level": optimal_position["level"],
+                "recommended_block": optimal_position["block"],
+                "confidence_score": optimal_position["confidence"],
+                "alternative_positions": optimal_position["alternatives"]
+            }
+        
+        # Calculate efficiency metrics
+        efficiency_gain = self.calculate_efficiency_improvement(
+            current_state, predictions["optimal_positions"]
+        )
+        predictions["expected_efficiency_gain"] = efficiency_gain
+        
+        return predictions
+    
+    async def detect_operational_anomalies(self, recent_operations: List[Dict]) -> Dict:
+        """Detect unusual patterns in operations data"""
+        if "anomaly_detector" not in self.models or not self.models["anomaly_detector"]:
+            await self.train_anomaly_detection_model()
+        
+        # Prepare features
+        features_df = pd.DataFrame([
+            {
+                "response_time": op.get("response_time", 0),
+                "error_count": op.get("errors", 0),
+                "job_completion_time": op.get("completion_time", 0),
+                "led_commands_sent": op.get("led_commands", 0),
+                "websocket_disconnections": op.get("ws_disconnects", 0)
+            }
+            for op in recent_operations
+        ])
+        
+        # Detect anomalies
+        anomaly_scores = self.models["anomaly_detector"].decision_function(features_df)
+        anomalies = self.models["anomaly_detector"].predict(features_df)
+        
+        # Identify specific anomalies
+        anomalous_operations = []
+        for i, (score, is_anomaly) in enumerate(zip(anomaly_scores, anomalies)):
+            if is_anomaly == -1:  # Anomaly detected
+                anomalous_operations.append({
+                    "operation_index": i,
+                    "anomaly_score": float(score),
+                    "operation_data": recent_operations[i],
+                    "severity": "high" if score < -0.5 else "medium",
+                    "probable_causes": self.identify_anomaly_causes(recent_operations[i])
+                })
+        
+        return {
+            "total_operations_analyzed": len(recent_operations),
+            "anomalies_detected": len(anomalous_operations),
+            "anomalous_operations": anomalous_operations,
+            "overall_system_health": "normal" if len(anomalous_operations) == 0 else "attention_required",
+            "recommendations": self.generate_anomaly_recommendations(anomalous_operations)
+        }
+    
+    async def forecast_maintenance_needs(self, hardware_metrics: Dict) -> Dict:
+        """Predict when maintenance will be needed"""
+        current_metrics = {
+            "led_strip_usage_hours": hardware_metrics.get("led_usage_hours", 0),
+            "power_cycles": hardware_metrics.get("power_cycles", 0),
+            "temperature_average": hardware_metrics.get("avg_temperature", 25),
+            "error_frequency": hardware_metrics.get("error_count", 0),
+            "system_uptime_hours": hardware_metrics.get("uptime_hours", 0)
+        }
+        
+        # Predict maintenance schedule
+        led_maintenance_days = self.predict_led_replacement_schedule(current_metrics)
+        system_maintenance_days = self.predict_system_maintenance(current_metrics)
+        
+        return {
+            "maintenance_forecast": {
+                "led_replacement_due_in_days": led_maintenance_days,
+                "system_maintenance_due_in_days": system_maintenance_days,
+                "next_recommended_inspection": (datetime.now() + timedelta(days=30)).isoformat(),
+                "critical_components": self.identify_critical_components(current_metrics)
+            },
+            "preventive_actions": [
+                "Monitor LED strip temperature regularly",
+                "Schedule power supply inspection",
+                "Update system firmware",
+                "Calibrate sensors monthly"
+            ],
+            "cost_estimates": {
+                "led_replacement_cost": self.estimate_led_replacement_cost(),
+                "system_maintenance_cost": self.estimate_maintenance_cost(),
+                "downtime_cost_per_hour": self.estimate_downtime_cost()
+            }
+        }
+
+# Advanced reporting and dashboard
+class AdvancedReportingEngine:
+    """Generate comprehensive reports and dashboards"""
+    
+    async def generate_executive_dashboard(self, timeframe: str = "weekly") -> Dict:
+        """Generate executive-level dashboard data"""
+        return {
+            "kpi_summary": await self.calculate_kpis(timeframe),
+            "efficiency_trends": await self.analyze_efficiency_trends(timeframe),
+            "cost_analysis": await self.generate_cost_analysis(timeframe),
+            "sustainability_metrics": await self.calculate_sustainability_metrics(timeframe),
+            "roi_analysis": await self.calculate_roi_metrics(timeframe)
+        }
+    
+    async def generate_operational_insights(self) -> Dict:
+        """Generate operational insights for process improvement"""
+        return {
+            "bottleneck_analysis": await self.identify_bottlenecks(),
+            "optimization_opportunities": await self.identify_optimization_opportunities(),
+            "best_practices": await self.identify_best_practices(),
+            "training_recommendations": await self.generate_training_recommendations()
+        }
+```
+
+### 13.4. Enterprise Integration & Ecosystem
+
+#### 13.4.1. Multi-Tenant Architecture
+```python
+# future/multi_tenant_system.py
+class MultiTenantSmartShelfSystem:
+    """Multi-tenant architecture for enterprise deployment"""
+    
+    def __init__(self):
+        self.tenant_databases = {}
+        self.tenant_configurations = {}
+        self.shared_services = SharedServicesManager()
+        
+    async def provision_new_tenant(self, tenant_config: Dict) -> Dict:
+        """Provision new tenant with isolated resources"""
+        tenant_id = tenant_config["tenant_id"]
+        
+        # Create isolated database schema
+        await self.create_tenant_schema(tenant_id)
+        
+        # Setup tenant-specific configurations
+        self.tenant_configurations[tenant_id] = {
+            "shelf_layouts": tenant_config.get("shelf_layouts", {}),
+            "branding": tenant_config.get("branding", {}),
+            "integrations": tenant_config.get("integrations", {}),
+            "security_policies": tenant_config.get("security_policies", {})
+        }
+        
+        # Initialize tenant services
+        tenant_services = await self.initialize_tenant_services(tenant_id, tenant_config)
+        
+        return {
+            "tenant_id": tenant_id,
+            "provisioning_status": "completed",
+            "services_initialized": tenant_services,
+            "access_url": f"https://{tenant_id}.smartshelf.company.com",
+            "admin_credentials": self.generate_admin_credentials(tenant_id)
+        }
+```
           while True:
               tag_data = await self.rfid_reader.read()
               if tag_data:
